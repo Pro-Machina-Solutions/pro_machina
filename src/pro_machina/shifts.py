@@ -205,11 +205,13 @@ class ShiftBuilder:
         rolling_dt = self.ref_start_date
         shift_day = _ShiftDay()
 
+        is_first_shift = True
+
         for i in range(len(self._shift_periods) - 1):
             this = self._shift_periods[i]
             next = self._shift_periods[i + 1]
 
-            if this["start"].date() != rolling_dt.date():
+            if this["start"].date() != rolling_dt.date() and is_first_shift:
                 # We will not make an assumption on behalf of the user
                 raise ShiftError(
                     (
@@ -219,6 +221,14 @@ class ShiftBuilder:
                         " to fill in any gaps."
                     ).lstrip()
                 )
+            elif (
+                this["start"].date() != rolling_dt.date() and not is_first_shift
+            ):
+                raise ShiftError(
+                    "A day is missing/undefined within the shift pattern"
+                )
+            is_first_shift = False
+
             if this["is_down_day"]:
                 shift_day.add_period(
                     {
