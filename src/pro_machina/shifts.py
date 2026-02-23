@@ -10,6 +10,8 @@ from .util import DT, _parse_datetime, as_dt
 
 @dataclass
 class ShiftBreak:
+    """Define a period within a working shift where production is reduced"""
+
     start: DT
     end: DT
     productivity: int = 0
@@ -192,7 +194,7 @@ class ShiftBuilder:
         Parameters
         ----------
         date : str | dt.datetime
-            The date for which there is no
+            The date for which there is no productivity
         """
         date = _parse_datetime(date)
         self._shift_periods.append({"start": date, "is_down_day": True})
@@ -353,6 +355,8 @@ class ShiftBuilder:
                             }
                         )
                         rolling_dt = next["start"]
+        # TODO: Add the last period
+
         self._validate_pattern()
         self._is_built = True
 
