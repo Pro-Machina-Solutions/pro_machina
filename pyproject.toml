@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pro_machina"
+authors = [
+    { "name" = "Josh Pilkington", "email" = "josh.pilkington@pro-machina.co.uk" },
+]
+version = "0.0.1"
+description = "A production scheduling toolkit"
+dependencies = [
+    "setuptools>=68.2.2",
+    "pandas>=2.1.2",
+    "polars>=1.38.1",
+    "isoweek==1.3.3",
+    "networkx",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "ruff>=0.12.3",
+    "u>=1.1.0",
+    "PuLP>=3.3.0",
+    "pytest>=9.0.2",
+]
+readme = "README.md"
+requires-python = ">=3.13"
+
+[tool.ruff]
+src = ["src"]
+fix = true
+line-length = 80
+indent-width = 4
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "B",  # flake8-bugbear
+    "E",  # pycodestyle error
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+    "W",  # pycodestyle warning
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+order-by-type = true
