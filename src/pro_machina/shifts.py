@@ -166,8 +166,14 @@ class ShiftBuilder:
         ShiftError
             Any error in the definition of a shift period
         """
+        if self._is_built:
+            raise ValueError("Cannot add work periods to a finalised shift")
+
         if isinstance(breaks, ShiftBreak):
             breaks = [breaks]
+
+        if not all(isinstance(_break, ShiftBreak) for _break in breaks):
+            raise TypeError("Incorrect type supplied for a ShiftBreak")
 
         if not 0 <= productivity <= 100:
             raise ValueError("Productivity must be between 0-100%")
@@ -198,10 +204,16 @@ class ShiftBuilder:
         date : str | dt.datetime
             The date for which there is no productivity
         """
+        if self._is_built:
+            raise ValueError("Cannot add down days to a finalised shift")
+
         date = _parse_datetime(date)
         self._shift_periods.append({"start": date, "is_down_day": True})
 
     def build(self) -> None:
+        if self._is_built:
+            raise ValueError("The ShiftBuilder has already been finalised")
+
         self._shift_periods.sort(key=lambda x: x["start"])
 
         rolling_dt = self.ref_start_date
@@ -383,7 +395,7 @@ class ShiftBuilder:
                     )
                 curr_end = shift.periods[-1]["end"]
 
-    def save_pattern(self, filepath: str | os.PathLike):
+    def save_pattern(self, filepath: str | os.PathLike) -> None:
         """Save pattern for later use
 
         Parameters
@@ -397,7 +409,9 @@ class ShiftBuilder:
             Raised if the ShiftBuilder has not been finalised with `.build()`
         """
         if not self._is_built:
-            raise ValueError("Shift pattern has not been built")
+            raise ValueError(
+                "Shift pattern has not been finalised. Call .build()"
+            )
         self._validate_pattern()
         data = [day.for_json() for day in self._shift_days]
         out = {
@@ -422,16 +436,40 @@ class ShiftBuilder:
 
 
 class ShiftPattern:
-    def __init__(self, builder: ShiftBuilder):
+    def __init__(self, builder: ShiftBuilder) -> None:
+        """Instantiate a ShiftPattern directly from a finalised ShiftBuilder
+
+        Parameters
+        ----------
+        builder : ShiftBuilder
+            A finalised ShiftBuilder object that has been `.built()`
+
+        Raises
+        ------
+        ValueError
+            The ShiftBuilder has not been finalised
+        """
         if not builder._is_built:
             raise ValueError(
-                "The shift pattern has not been built. Call `.build()`"
+                "Shift pattern has not been finalised. Call .build()"
             )
         self._builder = builder
         self.name = self._builder.name
 
     @classmethod
     def load_from_file(cls, filepath: str | os.PathLike) -> Self:
+        """Load a shift pattern from a pre-existing file
+
+        Parameters
+        ----------
+        filepath : str | os.PathLike
+            The location of the JSON file storing the shift data
+
+        Returns
+        -------
+        Self
+            A complete and validated ShiftPattern
+        """
         builder = ShiftBuilder._load_pattern(filepath)
         return cls(builder=builder)
 
