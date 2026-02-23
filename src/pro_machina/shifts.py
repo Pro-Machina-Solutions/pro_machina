@@ -370,6 +370,18 @@ class ShiftBuilder:
                 curr_end = shift.periods[-1]["end"]
 
     def save_pattern(self, filepath: str | os.PathLike):
+        """Save pattern for later use
+
+        Parameters
+        ----------
+        filepath : str | os.PathLike
+            The location to save the pattern in JSON format
+
+        Raises
+        ------
+        ShiftError
+            Raised if the ShiftBuilder has not been finalised with `.build()`
+        """
         if not self._is_built:
             raise ShiftError("Shift pattern has not been built")
         self._validate_pattern()
