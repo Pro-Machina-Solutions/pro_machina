@@ -69,12 +69,12 @@ sb2.add_work_period(
 sb2.add_downday("2026-02-28")
 sb2.add_downday("2026-03-01")
 
-# sb2.build()
+sb2.build()
 ############################################
 
 # A continental shift pattern where the repeating unit is 8 days, not 7
 # Also multiple breaks
-# TODO untested
+# TODO BROKEN
 sb3 = ShiftBuilder("2026-02-23 00:00:00", name="Cont Rot 1")
 sb3.add_work_period(
     start_time="2026-02-23 06:00:00",
@@ -112,3 +112,5 @@ sb3.add_downday(date="2026-02-27")
 sb3.add_downday(date="2026-02-28")
 sb3.add_downday(date="2026-03-01")
 sb3.add_downday(date="2026-03-02")
+
+sb3.build()

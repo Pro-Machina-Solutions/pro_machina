@@ -163,8 +163,10 @@ class ShiftBuilder:
         ------
         ValueError
             Productivity percentges are not specified as being between 0 and 100
-        ShiftError
-            Any error in the definition of a shift period
+        ShiftDefinitionError
+            A user error has been made in the definition of the shift pattern
+        ShiftIntegrityError
+            An error occurred whilst trying to finalise the shift pattern build
         """
         if self._is_built:
             raise ValueError("Cannot add work periods to a finalised shift")
@@ -238,6 +240,7 @@ class ShiftBuilder:
             elif (
                 this["start"].date() != rolling_dt.date() and not is_first_shift
             ):
+                # Again, we will not presume to fill the missing day(s)
                 raise ShiftDefinitionError(
                     "A day is missing/undefined within the shift pattern"
                 )
