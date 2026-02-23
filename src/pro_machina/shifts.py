@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from typing import Self
 
-from .exceptions import ShiftError
+from .exceptions import ShiftDefinitionError, ShiftIntegrityError
 from .util import DT, _parse_datetime, as_dt
 
 
@@ -26,23 +26,25 @@ class _ShiftDay:
 
     def check_day_coverage(self):
         if not self.periods:
-            raise ShiftError("No hours are registered for this shift")
+            raise ShiftIntegrityError("No hours are registered for this shift")
 
         start_time: dt.datetime = self.periods[0]["start"]
 
         if start_time != as_dt(start_time.date()):
-            raise ShiftError("The shift day does not start at midnight")
+            raise ShiftIntegrityError(
+                "The shift day does not start at midnight"
+            )
 
         for i in range(len(self.periods) - 1):
             if self.periods[i]["end"] != self.periods[i + 1]["start"]:
-                raise ShiftError(
+                raise ShiftIntegrityError(
                     (
                         "Non-contiguous shift block encountered between: "
                         f"{self.periods[i]} and {self.periods[i + 1]}"
                     ).lstrip()
                 )
         if self.periods[-1]["end"] != as_dt(start_time + dt.timedelta(days=1)):
-            raise ShiftError(
+            raise ShiftIntegrityError(
                 (
                     "The following shift does not run until midnight: "
                     f"{self.periods[-1]['end']}"
@@ -213,7 +215,7 @@ class ShiftBuilder:
 
             if this["start"].date() != rolling_dt.date() and is_first_shift:
                 # We will not make an assumption on behalf of the user
-                raise ShiftError(
+                raise ShiftDefinitionError(
                     (
                         "The date of the first shift activity of this pattern "
                         "does not match the reference start date. If no shift "
@@ -224,7 +226,7 @@ class ShiftBuilder:
             elif (
                 this["start"].date() != rolling_dt.date() and not is_first_shift
             ):
-                raise ShiftError(
+                raise ShiftDefinitionError(
                     "A day is missing/undefined within the shift pattern"
                 )
             is_first_shift = False
@@ -376,7 +378,9 @@ class ShiftBuilder:
             shift.check_day_coverage()
             if i > 0:
                 if shift.periods[0]["start"] != curr_end:
-                    raise ShiftError("Shift pattern is not contiguous in days")
+                    raise ShiftIntegrityError(
+                        "Shift pattern is not contiguous in days: \n{shift}"
+                    )
                 curr_end = shift.periods[-1]["end"]
 
     def save_pattern(self, filepath: str | os.PathLike):
@@ -393,7 +397,7 @@ class ShiftBuilder:
             Raised if the ShiftBuilder has not been finalised with `.build()`
         """
         if not self._is_built:
-            raise ShiftError("Shift pattern has not been built")
+            raise ValueError("Shift pattern has not been built")
         self._validate_pattern()
         data = [day.for_json() for day in self._shift_days]
         out = {
