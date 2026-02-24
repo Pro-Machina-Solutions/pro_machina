@@ -24,9 +24,11 @@ class _ShiftDay:
     def add_period(self, period: dict) -> None:
         self.periods.append(period)
 
-    def check_day_coverage(self):
+    def validate(self):
         if not self.periods:
-            raise ShiftIntegrityError("No hours are registered for this shift")
+            raise ShiftDefinitionError(
+                "No hours are registered for this shift"
+            )
 
         start_time: dt.datetime = self.periods[0]["start"]
 
@@ -43,6 +45,16 @@ class _ShiftDay:
                         f"{self.periods[i]} and \n{self.periods[i + 1]}"
                     ).lstrip()
                 )
+            if self.periods[i]["end"] < self.periods[i]["start"]:
+                raise ShiftDefinitionError(
+                    f"Period ends before it starts:\n{self.periods[i]}"
+                )
+
+        if self.periods[-1]["end"] < self.periods[-1]["start"]:
+            raise ShiftDefinitionError(
+                f"Period ends before it starts:\n{self.periods[i]}"
+            )
+
         if self.periods[-1]["end"] != as_midnight(
             start_time + dt.timedelta(days=1)
         ):
@@ -334,7 +346,7 @@ class ShiftBuilder:
     def _close_work_period(
         self,
         this: dict,
-        next: dict,
+        next: dict | None,
         shift_day: _ShiftDay,
         rolling_dt: dt.datetime,
     ):
@@ -390,6 +402,43 @@ class ShiftBuilder:
 
         return shift_day, rolling_dt
 
+    def _validate_work_period(self, period: dict) -> None:
+
+        if period["is_down_day"]:
+            return
+
+        if period["end"] < period["start"]:
+            raise ShiftDefinitionError(
+                f"Work period cannot end before it starts:\n{period}"
+            )
+
+        if (period["end"] - period["start"]).days > 1:
+            raise ShiftDefinitionError(
+                f"Work period must be 24 hours long or less:\n{period}"
+            )
+
+        if period["breaks"]:
+            period["breaks"] = sorted(period["breaks"], key=lambda x: x.start)
+
+        for i, _break in enumerate(period["breaks"]):
+            if _break.start < period["start"] or _break.end > period["end"]:
+                raise ShiftDefinitionError(
+                    f"Break not contained within working hours:\n{_break}"
+                )
+            if _break.end < _break.start:
+                raise ShiftDefinitionError(
+                    f"Break cannot end before it starts:\n{_break}"
+                )
+            for j, other in enumerate(period["breaks"]):
+                if i == j:
+                    continue
+                if (other.start < _break.end and other.end > _break.end) or (
+                    _break.start < other.start and other.end < _break.end
+                ):
+                    raise ShiftDefinitionError(
+                        f"Break periods are overlapping:\n{_break}\n{other}"
+                    )
+
     def build(self) -> None:
         """Finalise the shift pattern to be used in the solver
 
@@ -421,6 +470,8 @@ class ShiftBuilder:
         first_shift: bool = True
 
         for i, this in enumerate(self._shift_periods):
+            self._validate_work_period(this)
+
             try:
                 next = self._shift_periods[i + 1]
             except IndexError:
@@ -529,7 +580,7 @@ class ShiftBuilder:
     def _validate_pattern(self) -> None:
         curr_end = self._shift_days[0].periods[-1]["end"]
         for i, shift in enumerate(self._shift_days):
-            shift.check_day_coverage()
+            shift.validate()
             if i > 0:
                 if shift.periods[0]["start"] != curr_end:
                     raise ShiftIntegrityError(
