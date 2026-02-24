@@ -5,15 +5,15 @@ from dataclasses import dataclass
 from typing import Self
 
 from .exceptions import ShiftDefinitionError, ShiftIntegrityError
-from .util import DT, _parse_datetime, as_midnight
+from .util import _parse_datetime, as_midnight
 
 
 @dataclass
 class ShiftBreak:
     """Define a period within a working shift where production is reduced"""
 
-    start: DT
-    end: DT
+    start: str | dt.datetime
+    end: str | dt.datetime
     productivity: int = 0
 
 
@@ -88,7 +88,7 @@ class _ShiftDay:
 
 
 class ShiftBuilder:
-    def __init__(self, ref_start_date: DT, name: str) -> None:
+    def __init__(self, ref_start_date: str | dt.datetime, name: str) -> None:
         """Class to build up work periods into a cohesive shift pattern
 
         In order to build a shift pattern, concrete dates are required which
@@ -141,8 +141,8 @@ class ShiftBuilder:
 
     def add_work_period(
         self,
-        start_time: DT,
-        end_time: DT,
+        start_time: str | dt.datetime,
+        end_time: str | dt.datetime,
         breaks: ShiftBreak | list[ShiftBreak] = None,
         productivity: int = 100,
     ) -> None:
@@ -204,7 +204,7 @@ class ShiftBuilder:
             }
         )
 
-    def add_downday(self, date: DT) -> None:
+    def add_downday(self, date: str | dt.datetime) -> None:
         """Stipulate a full day of zero productivity
 
         Parameters
@@ -217,8 +217,32 @@ class ShiftBuilder:
 
         date = _parse_datetime(date)
         self._shift_periods.append({"start": date, "is_down_day": True})
+    
+    def _check_work_period(self, period):
+        pass
 
     def build(self) -> None:
+        """Finalise the shift pattern to be used in the solver
+        
+        This function will attempt to take all periods of defined work
+        activity and form a completely contiguous description of machine
+        output from the satrt date through to the end date
+
+        Raises
+        ------
+        ValueError
+            Raised either when attempting to finalise a pattern more than once
+            or when defining productivity percentages outside of range
+        ShiftDefinitionError
+            The user has incorrectly defined some aspect of their shift
+            pattern
+        ShiftIntegrityError
+            It was not possible to create a coherent, cotiguous description of
+            shift activities for the period
+        """
+        # TODO attempt to sensibly break this up without destroying the 
+        # chronology of activities 
+        
         if self._is_built:
             raise ValueError("The ShiftBuilder has already been finalised")
 
