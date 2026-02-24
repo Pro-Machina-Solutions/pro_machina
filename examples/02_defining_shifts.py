@@ -192,3 +192,44 @@ print("4 ON, 4 OFF CONTINENTAL, 2 BREAKS")
 sb.build()
 for item in sb._shift_days:
     print(item)
+
+############################################
+
+# Shift goes beyond midnight, with a break spanning midnight
+sb = ShiftBuilder(ref_start_date="2026-02-22", name="10-6")
+sb.add_work_period(
+    start_time="2026-02-22 22:00:00",
+    breaks=ShiftBreak("2026-02-22 23:45:00", "2026-02-23 00:15:00", 50),
+    end_time="2026-02-23 06:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-23 22:00:00",
+    breaks=ShiftBreak("2026-02-23 23:45:00", "2026-02-24 00:15:00", 50),
+    end_time="2026-02-24 06:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-24 22:00:00",
+    breaks=ShiftBreak("2026-02-24 23:45:00", "2026-02-25 00:15:00", 50),
+    end_time="2026-02-25 06:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-25 22:00:00",
+    breaks=ShiftBreak("2026-02-25 23:45:00", "2026-02-26 00:15:00", 50),
+    end_time="2026-02-26 06:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-26 22:00:00",
+    breaks=ShiftBreak("2026-02-26 23:45:00", "2026-02-27 00:15:00", 50),
+    end_time="2026-02-27 06:00:00",
+)
+sb.add_downday("2026-02-28")
+sb.add_downday("2026-03-01")
+
+sb.build()
+print()
+print("###############")
+print("10-6 SHIFT WITH 1 BREAK SPANNING MIDNIGHT")
+for item in sb._shift_days:
+    print(item)
+
+############################################

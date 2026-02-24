@@ -24,7 +24,7 @@ class _ShiftDay:
     def add_period(self, period: dict) -> None:
         self.periods.append(period)
 
-    def validate(self):
+    def validate(self) -> None:
         if not self.periods:
             raise ShiftDefinitionError(
                 "No hours are registered for this shift"
@@ -60,8 +60,8 @@ class _ShiftDay:
         ):
             raise ShiftIntegrityError(
                 (
-                    "The following shift does not run until midnight: "
-                    f"{self.periods[-1]['end']}"
+                    "The following shift does not run until midnight:"
+                    f" {self.periods[-1]['end']}"
                 ).lstrip()
             )
 
@@ -91,8 +91,8 @@ class _ShiftDay:
         to_join = []
         for period in self.periods:
             to_join.append(
-                f"    [start: {period['start']}, end: {period['end']}, "
-                f"prod: {period['prod']}]"
+                f"    [start: {period['start']}, end: {period['end']},"
+                f" prod: {period['prod']}]"
             )
         to_join.append(">")
         rtn += "\n".join(to_join)
@@ -230,7 +230,9 @@ class ShiftBuilder:
         date = _parse_datetime(date)
         self._shift_periods.append({"start": date, "is_down_day": True})
 
-    def _process_down_day(self, shift_day: _ShiftDay, rolling_dt: dt.datetime):
+    def _process_down_day(
+        self, shift_day: _ShiftDay, rolling_dt: dt.datetime
+    ) -> tuple[_ShiftDay, dt.datetime]:
 
         day_end = as_midnight(rolling_dt + dt.timedelta(days=1))
 
@@ -249,7 +251,9 @@ class ShiftBuilder:
 
         return shift_day, rolling_dt
 
-    def _process_breaks(self, this, shift_day, rolling_dt):
+    def _process_breaks(
+        self, this: dict, shift_day: _ShiftDay, rolling_dt: dt.datetime
+    ) -> tuple[_ShiftDay, dt.datetime]:
 
         _break: ShiftBreak
         for b, _break in enumerate(this["breaks"]):
@@ -349,7 +353,7 @@ class ShiftBuilder:
         next: dict | None,
         shift_day: _ShiftDay,
         rolling_dt: dt.datetime,
-    ):
+    ) -> tuple[_ShiftDay, dt.datetime]:
         # Finish whatever period we might be in
         shift_day.add_period(
             {
@@ -414,7 +418,7 @@ class ShiftBuilder:
 
         if (period["end"] - period["start"]).days > 1:
             raise ShiftDefinitionError(
-                f"Work period must be 24 hours long or less:\n{period}"
+                f"Work period must span no more than 24 hours:\n{period}"
             )
 
         if period["breaks"]:
@@ -455,8 +459,8 @@ class ShiftBuilder:
             The user has incorrectly defined some aspect of their shift
             pattern
         ShiftIntegrityError
-            It was not possible to create a coherent, cotiguous description of
-            shift activities for the period
+            It was not possible to create a coherent, contiguous description
+            of shift activities for the period
         """
 
         if self._is_built:
@@ -515,6 +519,9 @@ class ShiftBuilder:
 
                 if not this["breaks"]:
                     if this["end"].date() == this["start"].date():
+                        end_day_end = as_midnight(
+                            this["end"] + dt.timedelta(days=1)
+                        )
                         shift_day.add_period(
                             {
                                 "start": this["start"],
@@ -522,25 +529,17 @@ class ShiftBuilder:
                                 "prod": this["prod"],
                             }
                         )
-                        if this["end"] < as_midnight(
-                            this["end"] + dt.timedelta(days=1)
-                        ):
+                        if this["end"] < end_day_end:
                             # Close off the day fully
                             shift_day.add_period(
                                 {
                                     "start": this["end"],
-                                    "end": (
-                                        as_midnight(
-                                            this["end"] + dt.timedelta(days=1)
-                                        )
-                                    ),
+                                    "end": end_day_end,
                                     "prod": 0,
                                 }
                             )
                             self._shift_days.append(shift_day)
-                            rolling_dt = as_midnight(
-                                this["end"] + dt.timedelta(days=1)
-                            )
+                            rolling_dt = end_day_end
                             shift_day = _ShiftDay()
                             continue
                     else:
