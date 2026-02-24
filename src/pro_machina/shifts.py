@@ -226,9 +226,11 @@ class ShiftBuilder:
 
         first_shift: bool = True
 
-        for i in range(len(self._shift_periods) - 1):
-            this = self._shift_periods[i]
-            next = self._shift_periods[i + 1]
+        for i, this in enumerate(self._shift_periods):
+            try:
+                next = self._shift_periods[i + 1]
+            except IndexError:
+                next = None
 
             if this["start"].date() != rolling_dt.date() and first_shift:
                 # We will not make an assumption on behalf of the user
@@ -372,7 +374,10 @@ class ShiftBuilder:
                                 )
                                 rolling_dt = _break.end
 
-                    if next["start"].date() != this["end"].date():
+                    if (
+                        next is not None
+                        and next["start"].date() != this["end"].date()
+                    ):
                         # Tie up the day
                         # First push production up to the end of the shift
                         shift_day.add_period(
@@ -411,16 +416,30 @@ class ShiftBuilder:
                             }
                         )
                         rolling_dt = this["end"]
-                        # Push up to the next shift start
-                        shift_day.add_period(
-                            {
-                                "start": rolling_dt,
-                                "end": next["start"],
-                                "prod": 0,
-                            }
-                        )
-                        rolling_dt = next["start"]
-        # TODO: Add the last period
+                        if next is not None:
+                            # Push up to the next shift start
+                            shift_day.add_period(
+                                {
+                                    "start": rolling_dt,
+                                    "end": next["start"],
+                                    "prod": 0,
+                                }
+                            )
+                            rolling_dt = next["start"]
+                        else:
+                            shift_day.add_period(
+                                {
+                                    "start": rolling_dt,
+                                    "end": (
+                                        as_midnight(
+                                            rolling_dt.date()
+                                            + dt.timedelta(days=1)
+                                        )
+                                    ),
+                                    "prod": 0,
+                                }
+                            )
+        # Now add the last period
 
         self._validate_pattern()
         self._is_built = True

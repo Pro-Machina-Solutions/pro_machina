@@ -32,6 +32,11 @@ sb1.add_work_period(
 )
 sb1.add_downday(date="2026-02-28")
 sb1.add_downday(date="2026-03-01 10:00:00")
+sb1.add_work_period(
+    start_time="2026-03-02 06:00:00",
+    breaks=ShiftBreak("2026-03-02 10:00:00", "2026-03-02 10:30:00", 50),
+    end_time="2026-03-02 13:30:00",
+)
 
 print()
 print("###############")
@@ -39,7 +44,7 @@ print("SHIFT 1")
 sb1.build()
 for item in sb1._shift_days:
     print(item)
-s = ShiftPattern(sb1)
+# s = ShiftPattern(sb1)
 # sb1._save_pattern("test_pattern.json")
 
 ############################################
@@ -61,11 +66,12 @@ sb2.add_work_period(
     breaks=ShiftBreak("2026-02-25 02:00:00", "2026-02-25 02:30:00", 50),
     end_time="2026-02-25 06:00:00",
 )
-sb2.add_work_period(
-    start_time="2026-02-25 22:00:00",
-    breaks=ShiftBreak("2026-02-26 02:00:00", "2026-02-26 02:30:00", 50),
-    end_time="2026-02-26 06:00:00",
-)
+# sb2.add_work_period(
+#     start_time="2026-02-25 22:00:00",
+#     breaks=ShiftBreak("2026-02-26 02:00:00", "2026-02-26 02:30:00", 50),
+#     end_time="2026-02-26 06:00:00",
+# )
+# sb2.add_downday("2026-02-25")
 sb2.add_work_period(
     start_time="2026-02-26 22:00:00",
     breaks=ShiftBreak("2026-02-27 02:00:00", "2026-02-27 02:30:00", 50),
@@ -73,13 +79,18 @@ sb2.add_work_period(
 )
 sb2.add_downday("2026-02-28")
 sb2.add_downday("2026-03-01")
+sb2.add_work_period(
+    start_time="2026-03-02 22:00:00",
+    breaks=ShiftBreak("2026-03-02 02:00:00", "2026-03-02 02:30:00", 50),
+    end_time="2026-03-02 06:00:00",
+)
 
-sb2.build()
-print()
-print("###############")
-print("SHIFT 2")
-for item in sb2._shift_days:
-    print(item)
+# sb2.build()
+# print()
+# print("###############")
+# print("SHIFT 2")
+# for item in sb2._shift_days:
+#     print(item)
 ############################################
 
 # A continental shift pattern where the repeating unit is 8 days, not 7
@@ -121,9 +132,9 @@ sb3.add_downday(date="2026-02-27")
 sb3.add_downday(date="2026-02-28")
 sb3.add_downday(date="2026-03-01")
 sb3.add_downday(date="2026-03-02")
-print()
-print("###############")
-print("SHIFT 3")
-sb3.build()
-for item in sb3._shift_days:
-    print(item)
+# print()
+# print("###############")
+# print("SHIFT 3")
+# sb3.build()
+# for item in sb3._shift_days:
+#     print(item)
