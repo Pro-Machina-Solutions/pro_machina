@@ -28,7 +28,7 @@ requires-python = ">=3.13"
 [tool.ruff]
 src = ["src"]
 fix = true
-line-length = 80
+line-length = 79
 indent-width = 4
 target-version = "py313"
 

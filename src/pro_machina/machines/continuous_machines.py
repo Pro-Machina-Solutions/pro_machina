@@ -13,7 +13,9 @@ class ContinuousMachine:
         self._products: list[ContinuousProduct] = []
         self._shifts = []
 
-    def add_product(self, product: ContinuousProduct | list[ContinuousProduct]):
+    def add_product(
+        self, product: ContinuousProduct | list[ContinuousProduct]
+    ):
         if isinstance(product, ContinuousProduct):
             product = [product]
 

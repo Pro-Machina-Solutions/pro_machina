@@ -102,11 +102,11 @@ class ShiftBuilder:
         to this date, and must form a contiguous block of days. So in our
         example of Monday-Friday working, one could pick 2026-02-02 as the
         reference date. All periods of activity must then be defined through
-        to Sunday 2026-02-08. It is important that both Saturday and Sunday are
-        defined using `.add_downday()` such that the pattern covers the entire
-        repeating period of the shift pattern. Additionally, if there are any
-        days in the middle of the period for which there is no activity, you
-        must also add these into the pattern.
+        to Sunday 2026-02-08. It is important that both Saturday and Sunday
+        are defined using `.add_downday()` such that the pattern covers the
+        entire repeating period of the shift pattern. Additionally, if there
+        are any days in the middle of the period for which there is no
+        activity, you must also add these into the pattern.
 
         NOTE: in the case of patterns that do not repeat on a 7 day cycle, for
         example with continental shifts where adjacent weeks will have
@@ -114,18 +114,18 @@ class ShiftBuilder:
         given is aligned correctly to the actual cycle to ensure that the
         pattern will align with the actual working calendar.
 
-        Once the pattern is established for one cycle, it can then be applied to
-        any period in the future; the representative dates will be abstracted
-        away from that point forwards in the pattern and will assume the actual
-        dates in your problem setup.
+        Once the pattern is established for one cycle, it can then be applied
+        to any period in the future; the representative dates will be
+        abstracted away from that point forwards in the pattern and will
+        assume the actual dates in your problem setup.
 
         Parameters
         ----------
         ref_start_date : str | dt.datetime
-            A date or datetime representing a start date for this pattern. This
-            does not have to be the same start date as the time period you are
-            going to solve for. Rather, it needs to be a representative date to
-            act as a datum for the pattern itself.
+            A date or datetime representing a start date for this pattern.
+            This does not have to be the same start date as the time period
+            you are going to solve for. Rather, it needs to be a
+            representative date to act as a datum for the pattern itself.
         name : str
             A descriptive name for the shift pattern
         """
@@ -142,8 +142,8 @@ class ShiftBuilder:
     def add_work_period(
         self,
         start_time: DT,
-        breaks: ShiftBreak | list[ShiftBreak],
         end_time: DT,
+        breaks: ShiftBreak | list[ShiftBreak] = None,
         productivity: int = 100,
     ) -> None:
         """Add a period of productivity to the shift pattern
@@ -164,16 +164,20 @@ class ShiftBuilder:
         Raises
         ------
         ValueError
-            Productivity percentges are not specified as being between 0 and 100
+            Productivity percentges are not specified as being between
+            0 and 100
         ShiftDefinitionError
             A user error has been made in the definition of the shift pattern
         ShiftIntegrityError
-            An error occurred whilst trying to finalise the shift pattern build
+            An error occurred whilst trying to finalise the shift pattern
+            build
         """
         if self._is_built:
             raise ValueError("Cannot add work periods to a finalised shift")
 
-        if isinstance(breaks, ShiftBreak):
+        if breaks is None:
+            breaks = []
+        elif isinstance(breaks, ShiftBreak):
             breaks = [breaks]
 
         if not all(isinstance(_break, ShiftBreak) for _break in breaks):
@@ -235,10 +239,10 @@ class ShiftBuilder:
                 # We will not make an assumption on behalf of the user
                 raise ShiftDefinitionError(
                     (
-                        "The date of the first shift activity of this pattern "
+                        "The date of the first shift activity of this pattern"
                         " does not match the reference start date. If no shift"
-                        " activity is planned for this day, use `add_downday()`"
-                        " to fill in any gaps."
+                        " activity is planned for this day, use"
+                        " `add_downday()` to fill in any gaps."
                     ).lstrip()
                 )
             elif this["start"].date() != rolling_dt.date() and not first_shift:
@@ -268,6 +272,7 @@ class ShiftBuilder:
 
             if this["start"] >= rolling_dt:
                 if this["start"] != rolling_dt:
+                    # Takes us from start of day until first activity
                     shift_day.add_period(
                         {
                             "start": rolling_dt,
@@ -275,6 +280,99 @@ class ShiftBuilder:
                             "prod": 0,
                         }
                     )
+
+                if not this["breaks"]:
+                    if this["end"].date() == this["start"].date():
+                        shift_day.add_period(
+                            {
+                                "start": this["start"],
+                                "end": this["end"],
+                                "prod": this["prod"],
+                            }
+                        )
+                        if this["end"] < as_midnight(
+                            this["end"] + dt.timedelta(days=1)
+                        ):
+                            # Close off the day fully
+                            shift_day.add_period(
+                                {
+                                    "start": this["end"],
+                                    "end": (
+                                        as_midnight(
+                                            this["end"] + dt.timedelta(days=1)
+                                        )
+                                    ),
+                                    "prod": 0,
+                                }
+                            )
+                            self._shift_days.append(shift_day)
+                            rolling_dt = as_midnight(
+                                this["end"] + dt.timedelta(days=1)
+                            )
+                            shift_day = _ShiftDay()
+                            continue
+                    else:
+                        # Roll over the day
+                        shift_day.add_period(
+                            {
+                                "start": this["start"],
+                                "end": (
+                                    as_midnight(
+                                        this["start"] + dt.timedelta(days=1)
+                                    )
+                                ),
+                                "prod": this["prod"],
+                            }
+                        )
+                        self._shift_days.append(shift_day)
+                        rolling_dt = as_midnight(
+                            this["start"] + dt.timedelta(days=1)
+                        )
+                        shift_day = _ShiftDay()
+
+                        # Start the next day in production
+                        shift_day.add_period(
+                            {
+                                "start": rolling_dt,
+                                "end": this["end"],
+                                "prod": this["prod"],
+                            }
+                        )
+
+                        if (
+                            next is not None
+                            and next["start"].date() == this["end"].date()
+                        ):
+                            # Push up to the next period
+                            shift_day.add_period(
+                                {
+                                    "start": this["end"],
+                                    "end": next["start"],
+                                    "prod": 0,
+                                }
+                            )
+                            rolling_dt = next["start"]
+                            continue
+
+                        elif next is not None:
+                            # Close off the current day
+                            shift_day.add_period(
+                                {
+                                    "start": this["end"],
+                                    "end": (
+                                        as_midnight(
+                                            this["end"] + dt.timedelta(days=1)
+                                        )
+                                    ),
+                                    "prod": 0,
+                                }
+                            )
+                            self._shift_days.append(shift_day)
+                            rolling_dt = as_midnight(
+                                this["end"] + dt.timedelta(days=1)
+                            )
+                            shift_day = _ShiftDay()
+                            continue
 
                 _break: ShiftBreak
                 for b, _break in enumerate(this["breaks"]):
@@ -343,7 +441,8 @@ class ShiftBuilder:
                                 {
                                     "start": _break.start,
                                     "end": as_midnight(
-                                        rolling_dt.date() + dt.timedelta(days=1)
+                                        rolling_dt.date()
+                                        + dt.timedelta(days=1)
                                     ),
                                     "prod": _break.productivity,
                                 }
@@ -427,12 +526,14 @@ class ShiftBuilder:
                         )
                         rolling_dt = next["start"]
                     else:
+                        # Last period of the entire pattern
                         shift_day.add_period(
                             {
                                 "start": rolling_dt,
                                 "end": (
                                     as_midnight(
-                                        rolling_dt.date() + dt.timedelta(days=1)
+                                        rolling_dt.date()
+                                        + dt.timedelta(days=1)
                                     )
                                 ),
                                 "prod": 0,
