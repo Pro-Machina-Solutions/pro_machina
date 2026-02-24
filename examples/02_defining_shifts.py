@@ -1,7 +1,4 @@
-from pro_machina import ShiftBreak, ShiftBuilder, ShiftPattern
-
-# sp = ShiftPattern.load_from_file("test_out.json")
-# print(sp._builder)
+from pro_machina import ShiftBreak, ShiftBuilder
 
 # Simplest shift
 sb1 = ShiftBuilder(ref_start_date="2026-02-23", name="6-2")
@@ -39,8 +36,6 @@ print("SHIFT 1")
 sb1.build()
 for item in sb1._shift_days:
     print(item)
-s = ShiftPattern(sb1)
-# sb1._save_pattern("test_pattern.json")
 
 ############################################
 
@@ -80,6 +75,7 @@ print("###############")
 print("SHIFT 2")
 for item in sb2._shift_days:
     print(item)
+
 ############################################
 
 # A continental shift pattern where the repeating unit is 8 days, not 7
@@ -121,6 +117,7 @@ sb3.add_downday(date="2026-02-27")
 sb3.add_downday(date="2026-02-28")
 sb3.add_downday(date="2026-03-01")
 sb3.add_downday(date="2026-03-02")
+
 print()
 print("###############")
 print("SHIFT 3")
