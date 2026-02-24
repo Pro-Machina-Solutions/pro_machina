@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Self
 
 from .exceptions import ShiftDefinitionError, ShiftIntegrityError
-from .util import DT, _parse_datetime, as_dt
+from .util import DT, _parse_datetime, as_midnight
 
 
 @dataclass
@@ -30,20 +30,23 @@ class _ShiftDay:
 
         start_time: dt.datetime = self.periods[0]["start"]
 
-        if start_time != as_dt(start_time.date()):
+        if start_time != as_midnight(start_time.date()):
             raise ShiftIntegrityError(
                 "The shift day does not start at midnight"
             )
 
         for i in range(len(self.periods) - 1):
             if self.periods[i]["end"] != self.periods[i + 1]["start"]:
+                print(self)
                 raise ShiftIntegrityError(
                     (
-                        "Non-contiguous shift block encountered between: "
-                        f"{self.periods[i]} and {self.periods[i + 1]}"
+                        "Non-contiguous shift block encountered between: \n"
+                        f"{self.periods[i]} and \n{self.periods[i + 1]}"
                     ).lstrip()
                 )
-        if self.periods[-1]["end"] != as_dt(start_time + dt.timedelta(days=1)):
+        if self.periods[-1]["end"] != as_midnight(
+            start_time + dt.timedelta(days=1)
+        ):
             raise ShiftIntegrityError(
                 (
                     "The following shift does not run until midnight: "
@@ -221,41 +224,44 @@ class ShiftBuilder:
         rolling_dt = self.ref_start_date
         shift_day = _ShiftDay()
 
-        is_first_shift = True
+        first_shift: bool = True
 
         for i in range(len(self._shift_periods) - 1):
             this = self._shift_periods[i]
             next = self._shift_periods[i + 1]
 
-            if this["start"].date() != rolling_dt.date() and is_first_shift:
+            if this["start"].date() != rolling_dt.date() and first_shift:
                 # We will not make an assumption on behalf of the user
                 raise ShiftDefinitionError(
                     (
                         "The date of the first shift activity of this pattern "
-                        "does not match the reference start date. If no shift "
-                        "activity is planned for this day, use `add_downday()`"
+                        " does not match the reference start date. If no shift"
+                        " activity is planned for this day, use `add_downday()`"
                         " to fill in any gaps."
                     ).lstrip()
                 )
-            elif (
-                this["start"].date() != rolling_dt.date() and not is_first_shift
-            ):
-                # Again, we will not presume to fill the missing day(s)
+            elif this["start"].date() != rolling_dt.date() and not first_shift:
+                # Again, we will not presume to fill the missing day(s) in the
+                # middle of the pattern
                 raise ShiftDefinitionError(
                     "A day is missing/undefined within the shift pattern"
                 )
-            is_first_shift = False
+
+            first_shift = False
 
             if this["is_down_day"]:
+                # Block out whole day
                 shift_day.add_period(
                     {
                         "start": rolling_dt,
-                        "end": as_dt(rolling_dt + dt.timedelta(days=1)),
+                        "end": as_midnight(rolling_dt + dt.timedelta(days=1)),
                         "prod": 0,
                     }
                 )
                 self._shift_days.append(shift_day)
-                rolling_dt = as_dt(rolling_dt + dt.timedelta(days=1))
+
+                # Automatically roll over to next day
+                rolling_dt = as_midnight(rolling_dt + dt.timedelta(days=1))
                 shift_day = _ShiftDay()
             else:
                 if this["start"] >= rolling_dt:
@@ -267,25 +273,26 @@ class ShiftBuilder:
                                 "prod": 0,
                             }
                         )
+
                     _break: ShiftBreak
-                    for _break in this["breaks"]:
+                    for b, _break in enumerate(this["breaks"]):
                         if _break.start.date() > rolling_dt.date():
-                            # Tie up the day
+                            # Break goes past midnight. Tie up the current day
                             shift_day.add_period(
                                 {
                                     "start": this["start"],
-                                    "end": as_dt(
+                                    "end": as_midnight(
                                         rolling_dt.date() + dt.timedelta(days=1)
                                     ),
                                     "prod": this["prod"],
                                 }
                             )
                             self._shift_days.append(shift_day)
-                            rolling_dt = as_dt(
+                            rolling_dt = as_midnight(
                                 rolling_dt.date() + dt.timedelta(days=1)
                             )
 
-                            # start the next day
+                            # Start the next day in production mode
                             shift_day = _ShiftDay()
                             shift_day.add_period(
                                 {
@@ -304,20 +311,36 @@ class ShiftBuilder:
                             rolling_dt = _break.end
 
                         else:
-                            shift_day.add_period(
-                                {
-                                    "start": this["start"],
-                                    "end": _break.start,
-                                    "prod": this["prod"],
-                                }
-                            )
+                            if b == 0:
+                                # First break of the day, contained within the
+                                # current day
+                                shift_day.add_period(
+                                    {
+                                        "start": this["start"],
+                                        "end": _break.start,
+                                        "prod": this["prod"],
+                                    }
+                                )
+                            else:
+                                # Second or more break of the day
+                                # Push at full productivity until the break
+                                # starts
+                                shift_day.add_period(
+                                    {
+                                        "start": rolling_dt,
+                                        "end": _break.start,
+                                        "prod": this["prod"],
+                                    }
+                                )
+                            rolling_dt = _break.start
+
                             if this["start"].date() != _break.end.date():
                                 # Break spans over the change in days. Tie up
                                 # the day and start next day within break
                                 shift_day.add_period(
                                     {
                                         "start": _break.start,
-                                        "end": as_dt(
+                                        "end": as_midnight(
                                             rolling_dt.date()
                                             + dt.timedelta(days=1)
                                         ),
@@ -325,7 +348,7 @@ class ShiftBuilder:
                                     }
                                 )
                                 self._shift_days.append(shift_day)
-                                rolling_dt = as_dt(
+                                rolling_dt = as_midnight(
                                     rolling_dt.date() + dt.timedelta(days=1)
                                 )
 
@@ -339,6 +362,7 @@ class ShiftBuilder:
                                     }
                                 )
                             else:
+                                # Break is fully contained in current day
                                 shift_day.add_period(
                                     {
                                         "start": _break.start,
@@ -347,19 +371,33 @@ class ShiftBuilder:
                                     }
                                 )
                                 rolling_dt = _break.end
+
                     if next["start"].date() != this["end"].date():
                         # Tie up the day
+                        # First push production up to the end of the shift
                         shift_day.add_period(
                             {
                                 "start": rolling_dt,
-                                "end": as_dt(
-                                    rolling_dt.date() + dt.timedelta(days=1)
-                                ),
-                                "prod": 0,
+                                "end": this["end"],
+                                "prod": this["prod"],
                             }
                         )
+                        if this["end"] < as_midnight(
+                            rolling_dt + dt.timedelta(days=1)
+                        ):
+                            # Then tie up the remainder of the day (if any)
+                            shift_day.add_period(
+                                {
+                                    "start": this["end"],
+                                    "end": as_midnight(
+                                        rolling_dt + dt.timedelta(days=1)
+                                    ),
+                                    "prod": 0,
+                                }
+                            )
+
                         self._shift_days.append(shift_day)
-                        rolling_dt = as_dt(
+                        rolling_dt = as_midnight(
                             rolling_dt.date() + dt.timedelta(days=1)
                         )
                         shift_day = _ShiftDay()

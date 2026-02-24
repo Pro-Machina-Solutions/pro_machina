@@ -33,7 +33,12 @@ sb1.add_work_period(
 sb1.add_downday(date="2026-02-28")
 sb1.add_downday(date="2026-03-01 10:00:00")
 
+print()
+print("###############")
+print("SHIFT 1")
 sb1.build()
+for item in sb1._shift_days:
+    print(item)
 s = ShiftPattern(sb1)
 # sb1._save_pattern("test_pattern.json")
 
@@ -70,12 +75,16 @@ sb2.add_downday("2026-02-28")
 sb2.add_downday("2026-03-01")
 
 sb2.build()
+print()
+print("###############")
+print("SHIFT 2")
+for item in sb2._shift_days:
+    print(item)
 ############################################
 
 # A continental shift pattern where the repeating unit is 8 days, not 7
 # Also multiple breaks
-# TODO BROKEN
-sb3 = ShiftBuilder("2026-02-23 00:00:00", name="Cont Rot 1")
+sb3 = ShiftBuilder("2026-02-23 00:00:00", name="Continental Rotation 1")
 sb3.add_work_period(
     start_time="2026-02-23 06:00:00",
     breaks=[
@@ -112,5 +121,9 @@ sb3.add_downday(date="2026-02-27")
 sb3.add_downday(date="2026-02-28")
 sb3.add_downday(date="2026-03-01")
 sb3.add_downday(date="2026-03-02")
-
+print()
+print("###############")
+print("SHIFT 3")
 sb3.build()
+for item in sb3._shift_days:
+    print(item)

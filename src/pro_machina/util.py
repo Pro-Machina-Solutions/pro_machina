@@ -13,7 +13,7 @@ def _parse_datetime(_dt: DT) -> dt.datetime:
     return _dt
 
 
-def as_dt(date: dt.date) -> dt.datetime:
+def as_midnight(date: dt.date) -> dt.datetime:
     """Convert a date object to a datetime object
 
     Parameters
