@@ -331,7 +331,6 @@ class ShiftBuilder:
         rolling_dt: dt.datetime,
     ) -> tuple[_ShiftDay, dt.datetime]:
 
-        _break: ShiftBreak
         for b, _break in enumerate(this["breaks"]):
             day_end = as_midnight(this["start"] + dt.timedelta(days=1))
 
@@ -421,8 +420,8 @@ class ShiftBuilder:
 
     def _close_work_period(
         self,
-        this: dict[str, dt.datetime | int],
-        next: dict[str, dt.datetime | int] | None,
+        this: _ShiftPeriod,
+        next: _ShiftPeriod | None,
         shift_day: _ShiftDay,
         rolling_dt: dt.datetime,
         skip_initial: bool = False,
@@ -687,6 +686,7 @@ class ShiftPattern:
             )
         self._builder = builder
         self.name = self._builder.name
+        self.base_date = as_midnight(self._builder.ref_start_date)
 
     @classmethod
     def load_from_file(cls, filepath: str | os.PathLike) -> Self:
