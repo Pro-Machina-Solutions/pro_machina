@@ -2,7 +2,7 @@ import datetime as dt
 import json
 import os
 from dataclasses import dataclass
-from typing import Self
+from typing import Required, Self, TypedDict
 
 from .exceptions import ShiftDefinitionError, ShiftIntegrityError
 from .util import _parse_datetime, as_midnight
@@ -10,18 +10,61 @@ from .util import _parse_datetime, as_midnight
 
 @dataclass
 class ShiftBreak:
-    """Define a period within a working shift where production is reduced"""
+    """Define a period within a working shift where production is reduced
+
+    Breaks do not necessarily mean that a machine has zero production capacity
+    during this period as they may be staggered to minimise complete
+    downtime, though it is possible to completely stop production.
+
+    Parameters
+        ----------
+        start : str | dt.datetime
+            The start datetime of the period
+        end : str | dt.datetime
+            The end datetime of the period
+        productivity : int
+            The percentage of regular machine capacity during this period,
+            between 0 and 100%
+    """
 
     start: str | dt.datetime
     end: str | dt.datetime
     productivity: int = 0
 
 
-class _ShiftDay:
-    def __init__(self) -> None:
-        self.periods = []
+class _Activity(TypedDict):
+    """Describes a distinct amount of productivity between two datetimes"""
 
-    def add_period(self, period: dict) -> None:
+    start: dt.datetime
+    end: dt.datetime
+    prod: int
+
+
+class _JSONActivity(TypedDict):
+    """Allows _Activity to be serialised to JSON for file storage"""
+
+    start: str
+    end: str
+    prod: int
+
+
+class _ShiftPeriod(TypedDict, total=False):
+    """Represents a collection of multiple activities within a shift"""
+
+    start: Required[dt.datetime]
+    is_down_day: Required[bool]
+    breaks: list[ShiftBreak]
+    end: dt.datetime
+    prod: int
+
+
+class _ShiftDay:
+    """A full 24 hour period of activities within the shift pattern"""
+
+    def __init__(self) -> None:
+        self.periods: list[_Activity] = []
+
+    def add_period(self, period: _Activity) -> None:
         self.periods.append(period)
 
     def validate(self) -> None:
@@ -30,7 +73,7 @@ class _ShiftDay:
                 "No hours are registered for this shift"
             )
 
-        start_time: dt.datetime = self.periods[0]["start"]
+        start_time = self.periods[0]["start"]
 
         if start_time != as_midnight(start_time.date()):
             raise ShiftIntegrityError(
@@ -65,24 +108,26 @@ class _ShiftDay:
                 ).lstrip()
             )
 
-    def for_json(self) -> list[dict]:
+    def for_json(self) -> list[_JSONActivity]:
         rtn = []
         for period in self.periods:
-            period["start"] = period["start"].strftime("%Y-%m-%d %H:%M:%S")
-            period["end"] = period["end"].strftime("%Y-%m-%d %H:%M:%S")
-            rtn.append(period)
+            start = period["start"].strftime("%Y-%m-%d %H:%M:%S")
+            end = period["end"].strftime("%Y-%m-%d %H:%M:%S")
+            rtn.append(
+                _JSONActivity(start=start, end=end, prod=period["prod"])
+            )
         return rtn
 
     @classmethod
-    def from_json(cls, data: list[dict]) -> Self:
+    def from_json(cls, data: list[_JSONActivity]) -> Self:
         rtn = cls()
         for row in data:
             rtn.add_period(
-                {
-                    "start": dt.datetime.fromisoformat(row["start"]),
-                    "end": dt.datetime.fromisoformat(row["end"]),
-                    "prod": row["prod"],
-                }
+                _Activity(
+                    start=dt.datetime.fromisoformat(row["start"]),
+                    end=dt.datetime.fromisoformat(row["end"]),
+                    prod=row["prod"],
+                )
             )
         return rtn
 
@@ -177,12 +222,10 @@ class ShiftBuilder:
         ------
         ValueError
             Productivity percentges are not specified as being between
-            0 and 100
-        ShiftDefinitionError
-            A user error has been made in the definition of the shift pattern
-        ShiftIntegrityError
-            An error occurred whilst trying to finalise the shift pattern
-            build
+            0 and 100, or the current ShiftBuilder has been finalised
+        TypeError
+            Raised if something other than a ShiftBreak is added to a working
+            period
         """
         if self._is_built:
             raise ValueError("Cannot add work periods to a finalised shift")
@@ -207,28 +250,39 @@ class ShiftBuilder:
         start_time = _parse_datetime(start_time)
         end_time = _parse_datetime(end_time)
         self._shift_periods.append(
-            {
-                "start": start_time,
-                "breaks": breaks,
-                "end": end_time,
-                "is_down_day": False,
-                "prod": productivity,
-            }
+            _ShiftPeriod(
+                start=start_time,
+                is_down_day=False,
+                breaks=breaks,
+                end=end_time,
+                prod=productivity,
+            )
         )
 
     def add_downday(self, date: str | dt.datetime) -> None:
         """Stipulate a full day of zero productivity
 
+        Note that this only needs to be specified when there is currently
+        zero activity specified for a particular day. If, for example, the
+        previous work period ends at 00:00:01 on a particular day, you should
+        not use `add_downday()` for the remainder of that day because there is
+        already some activity for that date.
+
         Parameters
         ----------
-        date : str | dt.datetime
+        date : str | dt.datetime | dt.date
             The date for which there is no productivity
+        Raises
+        ------
+        TypeError
+            Raised if the current ShiftBuilder has been finalised with
+            `.build()`
         """
         if self._is_built:
             raise ValueError("Cannot add down days to a finalised shift")
 
         date = _parse_datetime(date)
-        self._shift_periods.append({"start": date, "is_down_day": True})
+        self._shift_periods.append(_ShiftPeriod(start=date, is_down_day=True))
 
     def _process_down_day(
         self, shift_day: _ShiftDay, rolling_dt: dt.datetime
@@ -236,13 +290,7 @@ class ShiftBuilder:
 
         day_end = as_midnight(rolling_dt + dt.timedelta(days=1))
 
-        shift_day.add_period(
-            {
-                "start": rolling_dt,
-                "end": day_end,
-                "prod": 0,
-            }
-        )
+        shift_day.add_period(_Activity(start=rolling_dt, end=day_end, prod=0))
         self._shift_days.append(shift_day)
 
         # Automatically roll over to next day
@@ -252,7 +300,10 @@ class ShiftBuilder:
         return shift_day, rolling_dt
 
     def _process_breaks(
-        self, this: dict, shift_day: _ShiftDay, rolling_dt: dt.datetime
+        self,
+        this: _ShiftPeriod,
+        shift_day: _ShiftDay,
+        rolling_dt: dt.datetime,
     ) -> tuple[_ShiftDay, dt.datetime]:
 
         _break: ShiftBreak
@@ -262,11 +313,9 @@ class ShiftBuilder:
             if _break.start > day_end:
                 # Break starts past midnight. Tie up the current day
                 shift_day.add_period(
-                    {
-                        "start": this["start"],
-                        "end": day_end,
-                        "prod": this["prod"],
-                    }
+                    _Activity(
+                        start=this["start"], end=day_end, prod=this["prod"]
+                    )
                 )
                 self._shift_days.append(shift_day)
                 rolling_dt = day_end
@@ -274,18 +323,16 @@ class ShiftBuilder:
                 # Start the next day in production mode until break
                 shift_day = _ShiftDay()
                 shift_day.add_period(
-                    {
-                        "start": rolling_dt,
-                        "end": _break.start,
-                        "prod": this["prod"],
-                    }
+                    _Activity(
+                        start=rolling_dt, end=_break.start, prod=this["prod"]
+                    )
                 )
                 shift_day.add_period(
-                    {
-                        "start": _break.start,
-                        "end": _break.end,
-                        "prod": _break.productivity,
-                    }
+                    _Activity(
+                        start=_break.start,
+                        end=_break.end,
+                        prod=_break.productivity,
+                    )
                 )
                 rolling_dt = _break.end
 
@@ -293,21 +340,21 @@ class ShiftBuilder:
                 if b == 0:
                     # First break of the day, contained within the current day
                     shift_day.add_period(
-                        {
-                            "start": this["start"],
-                            "end": _break.start,
-                            "prod": this["prod"],
-                        }
+                        _Activity(
+                            start=this["start"],
+                            end=_break.start,
+                            prod=this["prod"],
+                        )
                     )
                 else:
                     # Second or more break of the day
                     # Push at full productivity until the break starts
                     shift_day.add_period(
-                        {
-                            "start": rolling_dt,
-                            "end": _break.start,
-                            "prod": this["prod"],
-                        }
+                        _Activity(
+                            start=rolling_dt,
+                            end=_break.start,
+                            prod=this["prod"],
+                        )
                     )
                 rolling_dt = _break.start
 
@@ -315,11 +362,11 @@ class ShiftBuilder:
                     # Break spans over the change in days. Tie up the day and
                     # start next day within break
                     shift_day.add_period(
-                        {
-                            "start": _break.start,
-                            "end": day_end,
-                            "prod": _break.productivity,
-                        }
+                        _Activity(
+                            start=_break.start,
+                            end=day_end,
+                            prod=_break.productivity,
+                        )
                     )
                     self._shift_days.append(shift_day)
                     rolling_dt = day_end
@@ -327,21 +374,21 @@ class ShiftBuilder:
                     # Start the next day in a break
                     shift_day = _ShiftDay()
                     shift_day.add_period(
-                        {
-                            "start": rolling_dt,
-                            "end": _break.end,
-                            "prod": _break.productivity,
-                        }
+                        _Activity(
+                            start=rolling_dt,
+                            end=_break.end,
+                            prod=_break.productivity,
+                        )
                     )
                     rolling_dt = _break.end
                 else:
                     # Break is fully contained in current day
                     shift_day.add_period(
-                        {
-                            "start": _break.start,
-                            "end": _break.end,
-                            "prod": _break.productivity,
-                        }
+                        _Activity(
+                            start=_break.start,
+                            end=_break.end,
+                            prod=_break.productivity,
+                        )
                     )
                     rolling_dt = _break.end
 
@@ -349,18 +396,14 @@ class ShiftBuilder:
 
     def _close_work_period(
         self,
-        this: dict,
-        next: dict | None,
+        this: dict[str, dt.datetime | int],
+        next: dict[str, dt.datetime | int] | None,
         shift_day: _ShiftDay,
         rolling_dt: dt.datetime,
     ) -> tuple[_ShiftDay, dt.datetime]:
         # Finish whatever period we might be in
         shift_day.add_period(
-            {
-                "start": rolling_dt,
-                "end": this["end"],
-                "prod": this["prod"],
-            }
+            _Activity(start=rolling_dt, end=this["end"], prod=this["prod"])
         )
         rolling_dt = this["end"]
 
@@ -370,11 +413,7 @@ class ShiftBuilder:
 
             if this["end"] < day_end:
                 shift_day.add_period(
-                    {
-                        "start": this["end"],
-                        "end": day_end,
-                        "prod": 0,
-                    }
+                    _Activity(start=this["end"], end=day_end, prod=0)
                 )
             self._shift_days.append(shift_day)
             rolling_dt = day_end
@@ -383,30 +422,19 @@ class ShiftBuilder:
         elif next is not None:
             # Push up to the next period
             shift_day.add_period(
-                {
-                    "start": this["end"],
-                    "end": next["start"],
-                    "prod": 0,
-                }
+                _Activity(start=this["end"], end=next["start"], prod=0)
             )
             rolling_dt = next["start"]
 
         else:
             # Last period of the entire pattern
-            shift_day.add_period(
-                {
-                    "start": rolling_dt,
-                    "end": (
-                        as_midnight(rolling_dt.date() + dt.timedelta(days=1))
-                    ),
-                    "prod": 0,
-                }
-            )
+            end = as_midnight(rolling_dt.date() + dt.timedelta(days=1))
+            shift_day.add_period(_Activity(start=rolling_dt, end=end, prod=0))
             self._shift_days.append(shift_day)
 
         return shift_day, rolling_dt
 
-    def _validate_work_period(self, period: dict) -> None:
+    def _validate_shift_period(self, period: _ShiftPeriod) -> None:
 
         if period["is_down_day"]:
             return
@@ -448,7 +476,7 @@ class ShiftBuilder:
 
         This function will attempt to take all periods of defined work
         activity and form a completely contiguous description of machine
-        output from the satrt date through to the end date
+        output from the start date through to the end date.
 
         Raises
         ------
@@ -474,7 +502,7 @@ class ShiftBuilder:
         first_shift: bool = True
 
         for i, this in enumerate(self._shift_periods):
-            self._validate_work_period(this)
+            self._validate_shift_period(this)
 
             try:
                 next = self._shift_periods[i + 1]
@@ -493,7 +521,7 @@ class ShiftBuilder:
                 )
             elif this["start"].date() != rolling_dt.date() and not first_shift:
                 # Again, we will not presume to fill the missing day(s) in the
-                # middle of the pattern
+                # middle of the pattern for the user
                 raise ShiftDefinitionError(
                     "A day is missing/undefined within the shift pattern"
                 )
@@ -510,11 +538,7 @@ class ShiftBuilder:
                 if this["start"] != rolling_dt:
                     # Takes us from start of day until first activity
                     shift_day.add_period(
-                        {
-                            "start": rolling_dt,
-                            "end": this["start"],
-                            "prod": 0,
-                        }
+                        _Activity(start=rolling_dt, end=this["start"], prod=0)
                     )
 
                 if not this["breaks"]:
@@ -523,20 +547,18 @@ class ShiftBuilder:
                             this["end"] + dt.timedelta(days=1)
                         )
                         shift_day.add_period(
-                            {
-                                "start": this["start"],
-                                "end": this["end"],
-                                "prod": this["prod"],
-                            }
+                            _Activity(
+                                start=this["start"],
+                                end=this["end"],
+                                prod=this["prod"],
+                            )
                         )
                         if this["end"] < end_day_end:
                             # Close off the day fully
                             shift_day.add_period(
-                                {
-                                    "start": this["end"],
-                                    "end": end_day_end,
-                                    "prod": 0,
-                                }
+                                _Activity(
+                                    start=this["end"], end=end_day_end, prod=0
+                                )
                             )
                             self._shift_days.append(shift_day)
                             rolling_dt = end_day_end
@@ -549,11 +571,11 @@ class ShiftBuilder:
                             this["start"] + dt.timedelta(days=1)
                         )
                         shift_day.add_period(
-                            {
-                                "start": this["start"],
-                                "end": day_end,
-                                "prod": this["prod"],
-                            }
+                            _Activity(
+                                start=this["start"],
+                                end=day_end,
+                                prod=this["prod"],
+                            )
                         )
 
                         self._shift_days.append(shift_day)
