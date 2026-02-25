@@ -282,11 +282,31 @@ class ShiftBuilder:
         TypeError
             Raised if the current ShiftBuilder has been finalised with
             `.build()`
+        ShiftDefinitionError
+            Raised if attempting to declare a down day for a day that already
+            has some activity
         """
         if self._is_built:
             raise ValueError("Cannot add down days to a finalised shift")
 
         date = _parse_datetime(date)
+        for period in self._shift_periods:
+            if period["is_down_day"]:
+                continue
+            if (
+                period["start"] > as_midnight(period["start"])
+                and period["start"].date() == date.date()
+            ) or (
+                period["end"] > as_midnight(period["end"])
+                and period["end"].date() == date.date()
+            ):
+                raise ShiftDefinitionError(
+                    (
+                        "Cannot add a down day for a date that already has"
+                        " some activity defined"
+                    ).lstrip()
+                )
+
         self._shift_periods.append(_ShiftPeriod(start=date, is_down_day=True))
 
     def _process_down_day(
@@ -687,3 +707,6 @@ class ShiftPattern:
 
     def _parse_to_secs(self):
         pass
+
+
+__all__ = [ShiftBreak, ShiftBuilder, ShiftPattern]

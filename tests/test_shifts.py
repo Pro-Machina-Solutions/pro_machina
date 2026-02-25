@@ -306,6 +306,12 @@ class TestAddDownday:
         b.add_downday(dt.datetime(2026, 2, 2))
         assert isinstance(b._shift_periods[0]["start"], dt.datetime)
 
+    def test_downday_collision_with_activity_earlier(self):
+        b = ShiftBuilder(REF_DATE, "X")
+        b.add_work_period("2026-02-02 22:00:00", "2026-02-03 00:00:01")
+        with pytest.raises(ShiftDefinitionError, match="activity defined"):
+            b.add_downday("2026-02-03")
+
     def test_cannot_add_downday_after_build(self):
         b = built_simple_builder()
         with pytest.raises(ValueError, match="finalised"):
@@ -705,7 +711,7 @@ class TestShiftPattern:
 
 class TestIntegration:
     def test_4_day_continental_pattern(self):
-        """4-on / 3-off continental-style schedule."""
+        """4-on / 4-off continental-style schedule."""
         b = ShiftBuilder(REF_DATE, "Continental")
         for i in range(4):
             d = REF_DT + dt.timedelta(days=i)
@@ -713,10 +719,10 @@ class TestIntegration:
                 start_time=d.replace(hour=6),
                 end_time=d.replace(hour=18),
             )
-        for i in range(4, 7):
+        for i in range(4, 8):
             b.add_downday(REF_DT + dt.timedelta(days=i))
         b.build()
-        assert len(b._shift_days) == 7
+        assert len(b._shift_days) == 8
 
     def test_night_shift_only_pattern(self):
         """22:00–06:00 overnight all week Mon–Fri."""
