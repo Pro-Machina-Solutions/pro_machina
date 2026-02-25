@@ -17,14 +17,14 @@ class ShiftBreak:
     downtime, though it is possible to completely stop production.
 
     Parameters
-        ----------
-        start : str | dt.datetime
-            The start datetime of the period
-        end : str | dt.datetime
-            The end datetime of the period
-        productivity : int
-            The percentage of regular machine capacity during this period,
-            between 0 and 100%
+    ----------
+    start : str | dt.datetime
+        The start datetime of the period
+    end : str | dt.datetime
+        The end datetime of the period
+    productivity : int
+        The percentage of regular machine capacity during this period,
+        between 0 and 100%
     """
 
     start: str | dt.datetime
@@ -65,6 +65,11 @@ class _ShiftDay:
         self.periods: list[_Activity] = []
 
     def add_period(self, period: _Activity) -> None:
+        # This takes a lot of special-casing to handle properly for things
+        # like ramping shifts up and down. It's more stable to just ignore
+        # them rather than code round this circumstance elsewhere
+        if period["start"] == period["end"]:
+            return
         self.periods.append(period)
 
     def validate(self) -> None:
@@ -400,11 +405,13 @@ class ShiftBuilder:
         next: dict[str, dt.datetime | int] | None,
         shift_day: _ShiftDay,
         rolling_dt: dt.datetime,
+        skip_initial: bool = False,
     ) -> tuple[_ShiftDay, dt.datetime]:
-        # Finish whatever period we might be in
-        shift_day.add_period(
-            _Activity(start=rolling_dt, end=this["end"], prod=this["prod"])
-        )
+        if not skip_initial:
+            # Finish whatever period we might be in
+            shift_day.add_period(
+                _Activity(start=rolling_dt, end=this["end"], prod=this["prod"])
+            )
         rolling_dt = this["end"]
 
         if next is not None and next["start"].date() != this["end"].date():
@@ -543,9 +550,6 @@ class ShiftBuilder:
 
                 if not this["breaks"]:
                     if this["end"].date() == this["start"].date():
-                        end_day_end = as_midnight(
-                            this["end"] + dt.timedelta(days=1)
-                        )
                         shift_day.add_period(
                             _Activity(
                                 start=this["start"],
@@ -553,17 +557,11 @@ class ShiftBuilder:
                                 prod=this["prod"],
                             )
                         )
-                        if this["end"] < end_day_end:
-                            # Close off the day fully
-                            shift_day.add_period(
-                                _Activity(
-                                    start=this["end"], end=end_day_end, prod=0
-                                )
-                            )
-                            self._shift_days.append(shift_day)
-                            rolling_dt = end_day_end
-                            shift_day = _ShiftDay()
-                            continue
+                        shift_day, rolling_dt = self._close_work_period(
+                            this, next, shift_day, rolling_dt, True
+                        )
+                        continue
+
                     else:
                         # Roll over to the next day
 

@@ -1,5 +1,52 @@
 from pro_machina import ShiftBreak, ShiftBuilder
 
+sb = ShiftBuilder(ref_start_date="2026-02-23", name="Single day")
+sb.add_work_period(
+    start_time="2026-02-23 06:00:00",
+    # breaks=ShiftBreak("2026-02-23 08:00:00", "2026-02-23 09:00:00"),
+    end_time="2026-02-23 14:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-23 15:00:00",
+    # breaks=ShiftBreak("2026-02-23 16:00:00", "2026-02-23 16:20:00"),
+    end_time="2026-02-23 19:00:00",
+)
+
+print()
+print("###############")
+print("SAME DAY PERIODS")
+sb.build()
+for item in sb._shift_days:
+    print(item)
+
+############################################
+
+sb = ShiftBuilder(ref_start_date="2026-02-23", name="Single day")
+sb.add_work_period(
+    start_time="2026-02-23 06:00:00",
+    end_time="2026-02-23 06:30:00",
+    productivity=25,
+)
+sb.add_work_period(
+    start_time="2026-02-23 06:30:00",
+    end_time="2026-02-23 13:30:00",
+    productivity=100,
+)
+sb.add_work_period(
+    start_time="2026-02-23 13:30:00",
+    end_time="2026-02-23 14:00:00",
+    productivity=60,
+)
+
+print()
+print("###############")
+print("SAME DAY RAMP UP AND DOWN")
+sb.build()
+for item in sb._shift_days:
+    print(item)
+
+############################################
+
 # Simplest shift with no breaks
 sb = ShiftBuilder(ref_start_date="2026-02-23", name="6-2")
 sb.add_work_period(
