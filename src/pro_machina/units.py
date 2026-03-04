@@ -22,6 +22,8 @@ print(u.h(3).to_number(u.m))  # Nonsense
 SECONDS = u.seconds(1)
 MINUTES = u.minutes(1)
 print((u.hour(5) + u.min(23)).to_number(u.sec))
+print((u.hours(24) / u.min(17)).to_number(u.sec))
+print((u.sec(4) - u.sec(1)).to_number(u.sec))
 
 # print(HOURS)
 

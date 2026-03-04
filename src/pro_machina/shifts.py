@@ -1,8 +1,13 @@
 import datetime as dt
 import json
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Required, Self, TypedDict
+
+import numpy as np
+import numpy.typing as npt
+import u
 
 from .exceptions import ShiftDefinitionError, ShiftIntegrityError
 from .util import _parse_datetime, as_midnight
@@ -55,6 +60,14 @@ class _ShiftPeriod(TypedDict, total=False):
     is_down_day: Required[bool]
     breaks: list[ShiftBreak]
     end: dt.datetime
+    prod: int
+
+
+class _TimeBlock(TypedDict):
+    """Time-unit aware block of production for a ShiftPattern"""
+
+    start: u.Duration
+    end: u.Duration
     prod: int
 
 
@@ -198,7 +211,6 @@ class ShiftBuilder:
 
         self._shift_periods: list[dict] = []
         self._shift_days: list[_ShiftDay] = []
-        self._day_span: int = 0
         self._is_built = False
 
     def add_work_period(
@@ -648,7 +660,7 @@ class ShiftBuilder:
         out = {
             "name": self.name,
             "ref_start_date": self.ref_start_date.strftime("%Y-%m-%d"),
-            "created": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "created": dt.datetime.now(dt.UTC).isoformat(),
             "data": data,
         }
         with open(filepath, "w") as outfile:
@@ -673,7 +685,7 @@ class ShiftPattern:
         Parameters
         ----------
         builder : ShiftBuilder
-            A finalised ShiftBuilder object that has been `.built()`
+            A finalised ShiftBuilder object
 
         Raises
         ------
@@ -687,6 +699,11 @@ class ShiftPattern:
         self._builder = builder
         self.name = self._builder.name
         self.base_date = as_midnight(self._builder.ref_start_date)
+
+        self._day_span = len(self._builder._shift_days)
+        self._day_secs: dict[int, list[_TimeBlock]] = defaultdict(list)
+
+        self._parse_to_secs()
 
     @classmethod
     def load_from_file(cls, filepath: str | os.PathLike) -> Self:
@@ -706,7 +723,115 @@ class ShiftPattern:
         return cls(builder=builder)
 
     def _parse_to_secs(self):
-        pass
+        for i, day in enumerate(self._builder._shift_days):
+            period: _Activity
+            for period in day.periods:
+                start = (period["start"] - self.base_date).total_seconds()
+                end = (period["end"] - self.base_date).total_seconds()
+                prod = period["prod"]
+                self._day_secs[i].append(
+                    _TimeBlock(
+                        start=u.seconds(start), end=u.seconds(end), prod=prod
+                    )
+                )
+
+    def _get_block_boundaries(
+        self,
+        start: u.Duration,
+        end: u.Duration,
+        prod: int,
+        timestep: u.Duration,
+    ) -> tuple[int, int, int | float, int | float]:
+        start = start.to_number(u.sec)
+        end = end.to_number(u.sec)
+        timestep = timestep.to_number(u.sec)
+
+        start_block = int(start // timestep)
+        num_blocks = 0
+        while start + timestep <= end:
+            num_blocks += 1
+            start += timestep
+
+        if (end % timestep) != 0:
+            bleed_over_secs = end - (start + (num_blocks * timestep))
+            bleed_over_pct = prod
+        else:
+            bleed_over_secs = 0
+            bleed_over_pct = 0
+
+        return start_block, num_blocks, bleed_over_secs, bleed_over_pct
+
+    def _yield_day(
+        self, date: str | dt.date, timestep: u.Duration
+    ) -> npt.NDArray[np.float64]:
+        date = as_midnight(_parse_datetime(date))
+        day_key = (date - self.base_date).days % self._day_span
+        num_blocks = int((u.hours(24) / timestep).to_number(u.sec))
+
+        if num_blocks * timestep.to_number(u.sec) != 86400:
+            raise ValueError(
+                f"24 hours is not cleanly divisible by timestep: {timestep}"
+            )
+
+        activities = self._day_secs[day_key]
+        all_blocks = np.zeros(num_blocks, dtype=np.float64)
+        # At midnight of every day, we are guaranteed to be starting a new
+        # block. However, as the day progresses, some activities and the switch
+        # between them may overlap block boundaries and we need to account for
+        # this.
+        bleed_over_pct = 0
+        bleed_over_secs = 0
+        for act in activities:
+            act_secs = (act["end"] - act["start"]).to_number(u.sec)
+            if bleed_over_secs != 0:
+                _timestep = timestep.to_number(u.sec)
+                if bleed_over_secs + act_secs > _timestep:
+                    # Close off the bleedover by averaging the productivity
+                    first = (bleed_over_secs / _timestep) * bleed_over_pct
+
+                    # noqa
+                    second = ((_timestep - bleed_over_secs) / _timestep) * act[
+                        "prod"
+                    ]
+
+                    ave_prod = first + second
+                    block_index = int(
+                        act["start"].to_number(u.sec) // _timestep
+                    )
+                    all_blocks[block_index : block_index + 1] = ave_prod
+
+                    # Bump up the act start to the start of the next timestep
+                    new_start = (block_index + 1) * _timestep
+                    (
+                        start_block,
+                        num_blocks,
+                        bleed_over_secs,
+                        bleed_over_pct,
+                    ) = self._get_block_boundaries(
+                        u.sec(new_start), act["end"], act["prod"], timestep
+                    )
+
+                    all_blocks[start_block : start_block + num_blocks] = act[
+                        "prod"
+                    ]
+                else:
+                    bleed_over_pct = (
+                        bleed_over_secs / timestep
+                    ) * bleed_over_pct
+                    +(((act_secs) / timestep) * act["prod"])
+                    bleed_over_secs += act_secs
+            else:
+                start_block, num_blocks, bleed_over_secs, bleed_over_pct = (
+                    self._get_block_boundaries(
+                        act["start"], act["end"], act["prod"], timestep
+                    )
+                )
+
+                all_blocks[start_block : start_block + num_blocks] = act[
+                    "prod"
+                ]
+
+        return all_blocks
 
 
 __all__ = [ShiftBreak, ShiftBuilder, ShiftPattern]

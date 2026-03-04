@@ -1,14 +1,14 @@
-from pro_machina import ShiftBreak, ShiftBuilder
+from pro_machina import ShiftBreak, ShiftBuilder, ShiftPattern
 
 sb = ShiftBuilder(ref_start_date="2026-02-23", name="Single day")
 sb.add_work_period(
     start_time="2026-02-23 06:00:00",
-    # breaks=ShiftBreak("2026-02-23 08:00:00", "2026-02-23 09:00:00"),
+    breaks=ShiftBreak("2026-02-23 08:00:00", "2026-02-23 09:00:00"),
     end_time="2026-02-23 14:00:00",
 )
 sb.add_work_period(
     start_time="2026-02-23 15:00:00",
-    # breaks=ShiftBreak("2026-02-23 16:00:00", "2026-02-23 16:20:00"),
+    breaks=ShiftBreak("2026-02-23 16:00:00", "2026-02-23 16:20:00"),
     end_time="2026-02-23 19:00:00",
 )
 
@@ -18,6 +18,8 @@ print("SAME DAY PERIODS")
 sb.build()
 for item in sb._shift_days:
     print(item)
+
+sp = ShiftPattern(sb)
 
 ############################################
 

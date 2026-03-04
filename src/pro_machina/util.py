@@ -1,9 +1,7 @@
 import datetime as dt
 
-DT = str | dt.datetime
 
-
-def _parse_datetime(_dt: DT) -> dt.datetime:
+def _parse_datetime(_dt: str | dt.datetime) -> dt.datetime:
     if isinstance(_dt, str):
         _dt = dt.datetime.fromisoformat(_dt)
 

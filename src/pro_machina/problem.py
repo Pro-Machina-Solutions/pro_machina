@@ -1,9 +1,13 @@
+import datetime as dt
+
 from .config import Config
-from .util import DT, _parse_datetime
+from .util import _parse_datetime
 
 
 class Problem:
-    def __init__(self, start_time: DT, config: Config | None = None):
+    def __init__(
+        self, start_time: str | dt.datetime, config: Config | None = None
+    ):
         if config is None:
             self.config = Config()
         else:
