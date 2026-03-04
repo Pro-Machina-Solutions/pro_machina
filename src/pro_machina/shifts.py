@@ -723,6 +723,7 @@ class ShiftPattern:
         return cls(builder=builder)
 
     def _parse_to_secs(self):
+        """Creates a shift pattern of all activities for each day in seconds"""
         for i, day in enumerate(self._builder._shift_days):
             period: _Activity
             for period in day.periods:
@@ -741,7 +742,30 @@ class ShiftPattern:
         end: u.Duration,
         prod: int,
         timestep: u.Duration,
-    ) -> tuple[int, int, int | float, int | float]:
+    ) -> tuple[int, int, float, float]:
+        """Calculates the total timestep buckets that an activity spans
+
+        This will also calculate any residual time period that overflows into
+        the next bucket as overflow
+
+        Parameters
+        ----------
+        start : u.Duration
+            Number of seconds since midnight that this activity starts
+        end : u.Duration
+            Number of seconds since midnight that this activity ends
+        prod : int
+            The productivity percentage of this activity
+        timestep : u.Duration
+            The duration of the timestep
+
+        Returns
+        -------
+        tuple[int, int, float, float]
+            Returns the index of the starting bucket, the total number of
+            buckets, any overflow seconds into the next bucket and the
+            associated overflow productivity percentage
+        """
         start = start.to_number(u.sec)
         end = end.to_number(u.sec)
         timestep = timestep.to_number(u.sec)
@@ -753,20 +777,46 @@ class ShiftPattern:
             start += timestep
 
         if (end % timestep) != 0:
-            bleed_over_secs = end - (start + (num_blocks * timestep))
-            bleed_over_pct = prod
+            overflow_secs = end - (start + (num_blocks * timestep))
+            overflow_pct = prod
         else:
-            bleed_over_secs = 0
-            bleed_over_pct = 0
+            overflow_secs = 0
+            overflow_pct = 0
 
-        return start_block, num_blocks, bleed_over_secs, bleed_over_pct
+        return start_block, num_blocks, overflow_secs, overflow_pct
 
     def _yield_day(
         self, date: str | dt.date, timestep: u.Duration
     ) -> npt.NDArray[np.float64]:
+        """Returns a numpy array of productivity buckets for a complete day
+
+        Each day is processed as a series of buckets of `timestep` duration.
+        This method will take a particular date, convert it to a day in the
+        repeating shift rotation and generate the relevant productivity. If
+        the shift activities do not cover a complete timestep then the mean
+        value of productivity is calculated for that bucket.
+
+        Parameters
+        ----------
+        date : str | dt.date
+            The date of the actual shift (not necessarily the reference date)
+        timestep : u.Duration
+            The duration of each time bucket to divide the 24hr day into
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            An array of productivity percentages covering the full day
+        """
         date = as_midnight(_parse_datetime(date))
         day_key = (date - self.base_date).days % self._day_span
         num_blocks = int((u.hours(24) / timestep).to_number(u.sec))
+
+        if date < self.base_date:
+            raise ValueError(
+                f"Date: {date} is before the reference date of this pattern: "
+                f" {self.base_date}"
+            )
 
         if num_blocks * timestep.to_number(u.sec) != 86400:
             raise ValueError(
@@ -775,22 +825,21 @@ class ShiftPattern:
 
         activities = self._day_secs[day_key]
         all_blocks = np.zeros(num_blocks, dtype=np.float64)
-        # At midnight of every day, we are guaranteed to be starting a new
-        # block. However, as the day progresses, some activities and the switch
-        # between them may overlap block boundaries and we need to account for
-        # this.
-        bleed_over_pct = 0
-        bleed_over_secs = 0
+
+        # Store any values that spill into the next bucket
+        overflow_pct = 0
+        overflow_secs = 0
         for act in activities:
             act_secs = (act["end"] - act["start"]).to_number(u.sec)
-            if bleed_over_secs != 0:
+            if overflow_secs != 0:
+                # Account for any partial period coming into this bucket
                 _timestep = timestep.to_number(u.sec)
-                if bleed_over_secs + act_secs > _timestep:
-                    # Close off the bleedover by averaging the productivity
-                    first = (bleed_over_secs / _timestep) * bleed_over_pct
+                if overflow_secs + act_secs > _timestep:
+                    # Close off the overflow by averaging the productivity
+                    first = (overflow_secs / _timestep) * overflow_pct
 
                     # noqa
-                    second = ((_timestep - bleed_over_secs) / _timestep) * act[
+                    second = ((_timestep - overflow_secs) / _timestep) * act[
                         "prod"
                     ]
 
@@ -800,13 +849,13 @@ class ShiftPattern:
                     )
                     all_blocks[block_index : block_index + 1] = ave_prod
 
-                    # Bump up the act start to the start of the next timestep
+                    # Bump up the act start to the start of the next bucket
                     new_start = (block_index + 1) * _timestep
                     (
                         start_block,
                         num_blocks,
-                        bleed_over_secs,
-                        bleed_over_pct,
+                        overflow_secs,
+                        overflow_pct,
                     ) = self._get_block_boundaries(
                         u.sec(new_start), act["end"], act["prod"], timestep
                     )
@@ -815,13 +864,13 @@ class ShiftPattern:
                         "prod"
                     ]
                 else:
-                    bleed_over_pct = (
-                        bleed_over_secs / timestep
-                    ) * bleed_over_pct
+                    # This could happen if there are multiple activities that
+                    # occur within a single bucket
+                    overflow_pct = (overflow_secs / timestep) * overflow_pct
                     +(((act_secs) / timestep) * act["prod"])
-                    bleed_over_secs += act_secs
+                    overflow_secs += act_secs
             else:
-                start_block, num_blocks, bleed_over_secs, bleed_over_pct = (
+                start_block, num_blocks, overflow_secs, overflow_pct = (
                     self._get_block_boundaries(
                         act["start"], act["end"], act["prod"], timestep
                     )
