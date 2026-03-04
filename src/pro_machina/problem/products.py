@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from itertools import count
 
-from u import DURATION, MASS
+import u
 
 from .constraints import HardConstraint, SoftConstraint
 
@@ -45,8 +45,8 @@ class ContinuousProduct:
 @dataclass
 class ProductBatch:
     name: str
-    size: MASS
-    time: DURATION
+    size: u.Mass
+    time: u.Duration
 
 
 class BatchProduct:

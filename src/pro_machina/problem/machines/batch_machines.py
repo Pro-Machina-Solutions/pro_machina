@@ -1,6 +1,6 @@
 from itertools import count
 
-from pro_machina.products import BatchProduct
+from ..products import BatchProduct
 
 
 class BatchMachine:

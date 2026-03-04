@@ -1,18 +1,13 @@
 import datetime as dt
 import json
-from math import isclose
 
 import numpy as np
 import pytest
 import u
 
+from pro_machina import ShiftBreak, ShiftBuilder, ShiftPattern
 from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
-from pro_machina.shifts import (
-    ShiftBreak,
-    ShiftBuilder,
-    ShiftPattern,
-    _ShiftDay,
-)
+from pro_machina.problem.shifts import _ShiftDay
 
 # ===========================================================================
 # Helpers / shared fixtures
@@ -796,7 +791,7 @@ class TestShiftPatternYieldDay:
         b.build()
         sp = ShiftPattern(b)
         result = sp._yield_day("2026-02-02", u.min(30))
-        assert isclose(result[16], 39.166666666)
+        assert np.isclose(result[16], 39.166666666)
 
     def test_break_act_not_spanning_full_bucket(self):
         sb = ShiftBuilder(REF_DATE, name="Break within bucket")
@@ -814,7 +809,7 @@ class TestShiftPatternYieldDay:
         sp = ShiftPattern(sb)
         result = sp._yield_day("2026-02-23", u.min(30))
         assert result[31] == 100  # Make sure shift runs up to break
-        assert isclose(result[32], 33.333333333)
+        assert np.isclose(result[32], 33.333333333)
         assert result[33] == 100  # Make sure next shift is not lost
         assert np.isclose(result.sum(), 2133.333333333333)  # Whole day adds up
 

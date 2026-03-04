@@ -1,4 +1,3 @@
-
 from pro_machina import ShiftBreak, ShiftBuilder
 
 sb = ShiftBuilder(ref_start_date="2026-02-23", name="Single day")

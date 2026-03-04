@@ -1,7 +1,7 @@
 import datetime as dt
 
-from .config import Config
-from .util import _parse_datetime
+from pro_machina.config import Config
+from pro_machina.util import parse_datetime
 
 
 class Problem:
@@ -13,4 +13,4 @@ class Problem:
         else:
             self.config = config
 
-        self.start_time = _parse_datetime(start_time)
+        self.start_time = parse_datetime(start_time)

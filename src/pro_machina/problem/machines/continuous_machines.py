@@ -1,6 +1,6 @@
 from itertools import count
 
-from pro_machina.products import ContinuousProduct
+from ..products import ContinuousProduct
 
 
 class ContinuousMachine:

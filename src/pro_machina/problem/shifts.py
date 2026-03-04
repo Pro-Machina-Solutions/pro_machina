@@ -9,17 +9,18 @@ import numpy as np
 import numpy.typing as npt
 import u
 
-from .exceptions import ShiftDefinitionError, ShiftIntegrityError
-from .util import _parse_datetime, as_midnight
+from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
+from pro_machina.util import as_midnight, parse_datetime
 
 
 @dataclass
 class ShiftBreak:
-    """Define a period within a working shift where production is reduced
+    """
+    Define a period within a working shift where production is reduced/stopped
 
     Breaks do not necessarily mean that a machine has zero production capacity
-    during this period as they may be staggered to minimise complete
-    downtime, though it is possible to completely stop production.
+    during this period as they may be staggered to minimise complete downtime,
+    but the default is to completely stop production for this period.
 
     Parameters
     ----------
@@ -28,8 +29,8 @@ class ShiftBreak:
     end : str | dt.datetime
         The end datetime of the period
     productivity : int
-        The percentage of regular machine capacity during this period,
-        between 0 and 100%
+        The percentage of regular machine capacity during this period, between
+        0 and 100%
     """
 
     start: str | dt.datetime
@@ -163,49 +164,50 @@ class _ShiftDay:
 
 
 class ShiftBuilder:
+    """Class to build up work periods into a cohesive shift pattern
+
+    In order to build a shift pattern, concrete dates are required which
+    represent an example repeating cycle at some point in the past.
+
+    For example, if your facility typically runs from Monday to Sunday, with
+    shifts on Monday through Friday, with weekends off, you could set this date
+    as any Monday in the calendar that is in the past.
+
+    All subsequent periods of activity must then be defined in reference to
+    this date, and must form a contiguous block of days. So in our example of
+    Monday-Friday working, one could pick 2026-02-02 as the reference date. All
+    periods of activity must then be defined through to Sunday 2026-02-08. It
+    is important that both Saturday and Sunday are defined using
+    `.add_downday()` such that the pattern covers the entire repeating period
+    of the shift pattern. Additionally, if there are any days in the middle of
+    the period for which there is no activity, you must also add these into the
+    pattern.
+
+    NOTE: in the case of patterns that do not repeat on a 7 day cycle, for
+    example with continental shifts where adjacent weeks will have different
+    days of activity, it is important that the reference date given is aligned
+    correctly to the actual cycle to ensure that the pattern will align with
+    the actual working calendar.
+
+    Once the pattern is established for one cycle, it can then be applied to
+    any period in the future; the representative dates will be abstracted away
+    from that point forwards in the pattern and will assume the actual dates in
+    your problem setup.
+
+    Parameters
+    ----------
+    ref_start_date : str | dt.datetime
+        A date or datetime representing a start date for this pattern. This
+        does not have to be the same start date as the time period you are
+        going to solve for. Rather, it needs to be a representative date to act
+        as a datum for the pattern itself.
+    name : str
+        A descriptive name for the shift pattern
+    """
+
     def __init__(self, ref_start_date: str | dt.datetime, name: str) -> None:
-        """Class to build up work periods into a cohesive shift pattern
-
-        In order to build a shift pattern, concrete dates are required which
-        represent an example repeating cycle at some point in the past.
-
-        For example, if your facility typically runs from Monday to Sunday,
-        with shifts on Monday through Friday, with weekends off, you could
-        set this date as any Monday in the calendar that is in the past.
-
-        All subsequent periods of activity must then be defined in reference
-        to this date, and must form a contiguous block of days. So in our
-        example of Monday-Friday working, one could pick 2026-02-02 as the
-        reference date. All periods of activity must then be defined through
-        to Sunday 2026-02-08. It is important that both Saturday and Sunday
-        are defined using `.add_downday()` such that the pattern covers the
-        entire repeating period of the shift pattern. Additionally, if there
-        are any days in the middle of the period for which there is no
-        activity, you must also add these into the pattern.
-
-        NOTE: in the case of patterns that do not repeat on a 7 day cycle, for
-        example with continental shifts where adjacent weeks will have
-        different days of activity, it is important that the reference date
-        given is aligned correctly to the actual cycle to ensure that the
-        pattern will align with the actual working calendar.
-
-        Once the pattern is established for one cycle, it can then be applied
-        to any period in the future; the representative dates will be
-        abstracted away from that point forwards in the pattern and will
-        assume the actual dates in your problem setup.
-
-        Parameters
-        ----------
-        ref_start_date : str | dt.datetime
-            A date or datetime representing a start date for this pattern.
-            This does not have to be the same start date as the time period
-            you are going to solve for. Rather, it needs to be a
-            representative date to act as a datum for the pattern itself.
-        name : str
-            A descriptive name for the shift pattern
-        """
         self.name = name
-        self.ref_start_date = _parse_datetime(ref_start_date).replace(
+        self.ref_start_date = parse_datetime(ref_start_date).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
 
@@ -259,13 +261,13 @@ class ShiftBuilder:
             raise ValueError("Productivity must be between 0-100%")
 
         for _break in breaks:
-            _break.start = _parse_datetime(_break.start)
-            _break.end = _parse_datetime(_break.end)
+            _break.start = parse_datetime(_break.start)
+            _break.end = parse_datetime(_break.end)
             if not 0 <= _break.productivity <= 100:
                 raise ValueError("Break productivity must be between 0-100%")
 
-        start_time = _parse_datetime(start_time)
-        end_time = _parse_datetime(end_time)
+        start_time = parse_datetime(start_time)
+        end_time = parse_datetime(end_time)
         self._shift_periods.append(
             _ShiftPeriod(
                 start=start_time,
@@ -301,7 +303,7 @@ class ShiftBuilder:
         if self._is_built:
             raise ValueError("Cannot add down days to a finalised shift")
 
-        date = _parse_datetime(date)
+        date = parse_datetime(date)
         for period in self._shift_periods:
             if period["is_down_day"]:
                 continue
@@ -679,19 +681,20 @@ class ShiftBuilder:
 
 
 class ShiftPattern:
+    """Instantiate a ShiftPattern directly from a finalised ShiftBuilder
+
+    Parameters
+    ----------
+    builder : ShiftBuilder
+        A finalised ShiftBuilder object
+
+    Raises
+    ------
+    ValueError
+        The ShiftBuilder has not been finalised
+    """
+
     def __init__(self, builder: ShiftBuilder) -> None:
-        """Instantiate a ShiftPattern directly from a finalised ShiftBuilder
-
-        Parameters
-        ----------
-        builder : ShiftBuilder
-            A finalised ShiftBuilder object
-
-        Raises
-        ------
-        ValueError
-            The ShiftBuilder has not been finalised
-        """
         if not builder._is_built:
             raise ValueError(
                 "Shift pattern has not been finalised. Call .build()"
@@ -811,7 +814,7 @@ class ShiftPattern:
         npt.NDArray[np.float64]
             An array of productivity percentages covering the full day
         """
-        date = as_midnight(_parse_datetime(date))
+        date = as_midnight(parse_datetime(date))
         day_key = (date - self.base_date).days % self._day_span
         num_buckets = int((u.hours(24) / timestep).to_number(u.sec))
         _timestep = timestep.to_number(u.sec)

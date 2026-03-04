@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from pro_machina.constraints import HardConstraint
+from ..constraints import HardConstraint
 
 
 @dataclass
