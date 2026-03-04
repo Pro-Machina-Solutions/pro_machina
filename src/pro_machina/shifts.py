@@ -292,7 +292,7 @@ class ShiftBuilder:
         Raises
         ------
         TypeError
-            Raised if the current ShiftBuilder has been finalised with
+            Raised if the current ShiftBuilder has not been finalised with
             `.build()`
         ShiftDefinitionError
             Raised if attempting to declare a down day for a day that already
@@ -736,7 +736,7 @@ class ShiftPattern:
                     )
                 )
 
-    def _get_block_boundaries(
+    def _get_bucket_boundaries(
         self,
         start: u.Duration,
         end: u.Duration,
@@ -770,20 +770,23 @@ class ShiftPattern:
         end = end.to_number(u.sec)
         timestep = timestep.to_number(u.sec)
 
-        start_block = int(start // timestep)
-        num_blocks = 0
+        start_bucket = int(start // timestep)
+        num_buckets = 0
         while start + timestep <= end:
-            num_blocks += 1
+            num_buckets += 1
             start += timestep
 
         if (end % timestep) != 0:
-            overflow_secs = end - (start + (num_blocks * timestep))
+            overflow_secs = end - (start + (num_buckets * timestep))
+            if overflow_secs < 0:
+                num_buckets += 1
+                overflow_secs = 0
             overflow_pct = prod
         else:
             overflow_secs = 0
             overflow_pct = 0
 
-        return start_block, num_blocks, overflow_secs, overflow_pct
+        return start_bucket, num_buckets, overflow_secs, overflow_pct
 
     def _yield_day(
         self, date: str | dt.date, timestep: u.Duration
@@ -810,7 +813,8 @@ class ShiftPattern:
         """
         date = as_midnight(_parse_datetime(date))
         day_key = (date - self.base_date).days % self._day_span
-        num_blocks = int((u.hours(24) / timestep).to_number(u.sec))
+        num_buckets = int((u.hours(24) / timestep).to_number(u.sec))
+        _timestep = timestep.to_number(u.sec)
 
         if date < self.base_date:
             raise ValueError(
@@ -818,69 +822,65 @@ class ShiftPattern:
                 f" {self.base_date}"
             )
 
-        if num_blocks * timestep.to_number(u.sec) != 86400:
+        if num_buckets * timestep.to_number(u.sec) != 86400:
             raise ValueError(
                 f"24 hours is not cleanly divisible by timestep: {timestep}"
             )
 
         activities = self._day_secs[day_key]
-        all_blocks = np.zeros(num_blocks, dtype=np.float64)
+        all_buckets = np.zeros(num_buckets, dtype=np.float64)
 
         # Store any values that spill into the next bucket
-        overflow_pct = 0
-        overflow_secs = 0
+        overflow_prod = 0
+        bucket_secs = 0
         for act in activities:
             act_secs = (act["end"] - act["start"]).to_number(u.sec)
-            if overflow_secs != 0:
-                # Account for any partial period coming into this bucket
-                _timestep = timestep.to_number(u.sec)
-                if overflow_secs + act_secs > _timestep:
-                    # Close off the overflow by averaging the productivity
-                    first = (overflow_secs / _timestep) * overflow_pct
 
-                    # noqa
-                    second = ((_timestep - overflow_secs) / _timestep) * act[
-                        "prod"
-                    ]
-
-                    ave_prod = first + second
-                    block_index = int(
+            if bucket_secs or act_secs < _timestep:
+                if bucket_secs + act_secs < _timestep:
+                    overflow_prod += (act_secs * act["prod"]) / _timestep
+                    bucket_secs += act_secs
+                else:
+                    overflow_prod += (
+                        (_timestep - bucket_secs) / _timestep
+                    ) * act["prod"]
+                    bucket_key = int(
                         act["start"].to_number(u.sec) // _timestep
                     )
-                    all_blocks[block_index : block_index + 1] = ave_prod
+                    all_buckets[bucket_key] = overflow_prod
 
-                    # Bump up the act start to the start of the next bucket
-                    new_start = (block_index + 1) * _timestep
+                    new_start = timestep * (bucket_key + 1)
                     (
-                        start_block,
-                        num_blocks,
-                        overflow_secs,
-                        overflow_pct,
-                    ) = self._get_block_boundaries(
-                        u.sec(new_start), act["end"], act["prod"], timestep
+                        start_bucket,
+                        tot_buckets,
+                        bucket_secs,
+                        overflow_prod,
+                    ) = self._get_bucket_boundaries(
+                        new_start,
+                        act["end"],
+                        act["prod"],
+                        timestep,
                     )
-
-                    all_blocks[start_block : start_block + num_blocks] = act[
-                        "prod"
-                    ]
-                else:
-                    # This could happen if there are multiple activities that
-                    # occur within a single bucket
-                    overflow_pct = (overflow_secs / timestep) * overflow_pct
-                    +(((act_secs) / timestep) * act["prod"])
-                    overflow_secs += act_secs
+                    all_buckets[start_bucket : start_bucket + tot_buckets] = (
+                        act["prod"]
+                    )
             else:
-                start_block, num_blocks, overflow_secs, overflow_pct = (
-                    self._get_block_boundaries(
-                        act["start"], act["end"], act["prod"], timestep
-                    )
+                (
+                    start_bucket,
+                    tot_buckets,
+                    bucket_secs,
+                    overflow_prod,
+                ) = self._get_bucket_boundaries(
+                    act["start"],
+                    act["end"],
+                    act["prod"],
+                    timestep,
                 )
-
-                all_blocks[start_block : start_block + num_blocks] = act[
+                all_buckets[start_bucket : start_bucket + tot_buckets] = act[
                     "prod"
                 ]
 
-        return all_blocks
+        return all_buckets
 
 
 __all__ = [ShiftBreak, ShiftBuilder, ShiftPattern]

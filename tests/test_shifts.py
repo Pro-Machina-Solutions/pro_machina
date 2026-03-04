@@ -1,7 +1,10 @@
 import datetime as dt
 import json
+from math import isclose
 
+import numpy as np
 import pytest
+import u
 
 from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
 from pro_machina.shifts import (
@@ -702,6 +705,118 @@ class TestShiftPattern:
         b.save_pattern(fp)
         sp = ShiftPattern.load_from_file(fp)
         assert sp._builder._is_built
+
+
+class TestShiftPatternYieldDay:
+    @pytest.fixture
+    def pattern(self):
+        return ShiftPattern(built_simple_builder())
+
+    def test_returns_ndarray(self, pattern):
+        result = pattern._yield_day("2026-02-02", u.hours(1))
+        assert isinstance(result, np.ndarray)
+
+    def test_array_length_matches_timestep_hourly(self, pattern):
+        result = pattern._yield_day("2026-02-02", u.hours(1))
+        assert len(result) == 24
+
+    def test_array_length_matches_timestep_30min(self, pattern):
+        result = pattern._yield_day("2026-02-02", u.minutes(30))
+        assert len(result) == 48
+
+    def test_working_day_has_nonzero_productivity(self, pattern):
+        result = pattern._yield_day("2026-02-02", u.hours(1))
+        assert result.sum() > 0
+
+    def test_down_day_all_zeros(self, pattern):
+        result = pattern._yield_day("2026-02-07", u.hours(1))
+        assert np.all(result == 0)
+
+    def test_production_hours_correct(self, pattern):
+        """06:00–18:00 = 12 hours at 100%, rest zero"""
+        result = pattern._yield_day("2026-02-02", u.hours(1))
+        assert result[8:18].sum() == 1000.0  # 8 * 100
+        assert result[:6].sum() == 0
+        assert result[18:].sum() == 0
+
+    def test_cyclical_pattern_repeats(self, pattern):
+        """Day 8 (next Monday) should be identical to day 1"""
+        week1 = pattern._yield_day("2026-02-02", u.hours(1))
+        week2 = pattern._yield_day("2026-02-09", u.hours(1))
+        np.testing.assert_array_equal(week1, week2)
+
+    def test_date_before_base_raises(self, pattern):
+        with pytest.raises(ValueError, match="before the reference date"):
+            pattern._yield_day("2025-01-01", u.hours(1))
+
+    def test_non_divisible_timestep_raises(self, pattern):
+        with pytest.raises(ValueError, match="not cleanly divisible"):
+            pattern._yield_day("2026-02-02", u.minutes(7))
+
+    def test_yield_day_with_break(self):
+        b = ShiftBuilder(REF_DATE, "break_test")
+        lunch = ShiftBreak("2026-02-02 12:00:00", "2026-02-02 13:00:00")
+        b.add_work_period(
+            "2026-02-02 08:00:00",
+            "2026-02-02 16:00:00",
+            breaks=lunch,
+        )
+        b.build()
+        p = ShiftPattern(b)
+        result = p._yield_day("2026-02-02", u.hours(1))
+        # Lunch hour should be 0
+        assert result[12] == 0
+        # Normal working hours should be 100
+        assert result[8] == 100
+        assert result[15] == 100
+
+    def test_reduced_productivity_break_reflected(self):
+        b = ShiftBuilder(REF_DATE, "half_break")
+        half = ShiftBreak(
+            "2026-02-02 12:00:00", "2026-02-02 13:00:00", productivity=50
+        )
+        b.add_work_period(
+            "2026-02-02 08:00:00",
+            "2026-02-02 16:00:00",
+            breaks=half,
+        )
+        b.build()
+        p = ShiftPattern(b)
+        result = p._yield_day("2026-02-02", u.hours(1))
+        assert result[12] == 50
+
+    def test_multiple_activities_in_bucket(self):
+        b = ShiftBuilder(REF_DATE, "split_bucket_acts")
+        b.add_work_period(
+            "2026-02-02 08:00:00", "2026-02-02 08:10:00", productivity=75
+        )
+        b.add_work_period(
+            "2026-02-02 08:15:00", "2026-02-02 08:20:00", productivity=85
+        )
+        b.build()
+        sp = ShiftPattern(b)
+        result = sp._yield_day("2026-02-02", u.min(30))
+        assert isclose(result[16], 39.166666666)
+
+    def test_break_act_not_spanning_full_bucket(self):
+        sb = ShiftBuilder(REF_DATE, name="Break within bucket")
+        sb.add_work_period(
+            start_time="2026-02-02 06:00:00",
+            breaks=ShiftBreak("2026-02-02 08:00:00", "2026-02-02 09:00:00"),
+            end_time="2026-02-02 14:00:00",
+        )
+        sb.add_work_period(
+            start_time="2026-02-02 15:00:00",
+            breaks=ShiftBreak("2026-02-02 16:00:00", "2026-02-02 16:20:00"),
+            end_time="2026-02-02 19:00:00",
+        )
+        sb.build()
+        sp = ShiftPattern(sb)
+        result = sp._yield_day("2026-02-23", u.min(30))
+        assert result[31] == 100  # Make sure shift runs up to break
+        assert isclose(result[32], 33.333333333)
+        assert result[33] == 100  # Make sure next shift is not lost
+        assert np.isclose(result.sum(), 2133.333333333333)  # Whole day adds up
 
 
 # ===========================================================================
