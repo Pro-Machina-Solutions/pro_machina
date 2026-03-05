@@ -26,15 +26,6 @@ _ml = u.Unit(Volume, symbol="ml", multiplier=1)
 _l = u.Unit(Volume, symbol="litres", multiplier=1_000)
 
 
-class _Singleton(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
 @dataclass
 class UNIT:
     """Individual unit"""
@@ -383,6 +374,15 @@ class BBL(u.Quantity):
         return f"{self.qty} bbl."
 
 
+class _Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
 class CustomUnit:
     def __init__(self, name: str, unit: type[u.Quantity]):
         self.name = name
@@ -418,7 +418,9 @@ class UnitRegister(metaclass=_Singleton):
         elif nones == 1:
             raise UnitError("Cannot mix UNIT type with another quantity")
         elif not unit._unit.is_compatible_with(qty._unit):
-            raise UnitError(f"Custom unit: {unit.name} incompatible")
+            raise UnitError(
+                f"Custom unit: {unit.name} incompatible with {qty}"
+            )
 
 
 __all__ = [
