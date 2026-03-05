@@ -8,3 +8,7 @@ class ShiftIntegrityError(ProblemError):
 
 class ShiftDefinitionError(ProblemError):
     """The user has specified the shift parameters incorrectly"""
+
+
+class UnitError(ProblemError):
+    """Inconsistency in unit measure types"""

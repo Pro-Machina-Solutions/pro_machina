@@ -1,18 +1,18 @@
-from pro_machina import BatchProduct, ContinuousProduct
-from pro_machina.measures import UNIT, M, UnitRegister
+from pro_machina import ContinuousProduct
+from pro_machina.measures import CM, UNIT, CustomUnit, M
 
-prod_a = ContinuousProduct("Something")
-prod_b = ContinuousProduct("Else")
-prod_c = BatchProduct("Test")
+roll = CustomUnit("Roll", M)
+box = CustomUnit("Box", UNIT)
 
-print(prod_a._id)
-print(prod_b._id)
-print(prod_c._id)
-
-reg = UnitRegister()
-reg.add("roll", prod_a, M(10))
-reg.add("roll", prod_b, M(20))
-reg.add("box", prod_c, UNIT(50))
-
-reg2 = UnitRegister()
-print(reg2.prod_units)
+prod_a = ContinuousProduct("Something", unit_measures=[roll, M])
+prod_b = ContinuousProduct("Else", unit_measures=UNIT)
+roll.size_for(item=prod_a, unit=CM(20))
+box.size_for(prod_b, UNIT(12))
+# a = UNIT
+# print(a._unit)
+# b = a(12)
+# print(b._unit)
+# a = UNIT(1)
+# print(box._unit)
+# print(a._unit)
+# print(box._unit)
