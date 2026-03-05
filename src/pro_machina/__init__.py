@@ -4,6 +4,7 @@ from .config import Config
 from .problem import (
     BatchMachine,
     BatchProduct,
+    Consumable,
     ContinuousMachine,
     ContinuousProduct,
     Problem,

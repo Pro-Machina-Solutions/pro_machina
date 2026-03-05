@@ -6,15 +6,20 @@ import u
 from .constraints import HardConstraint, SoftConstraint
 
 
-class ContinuousProduct:
+class Product:
     _ids = count(0)
 
+    def __init__(self, name: str):
+        self._id: int = next(self._ids)
+        self.name: str = name
+
+
+class ContinuousProduct(Product):
     def __init__(
         self,
         name: str,
     ) -> None:
-        self._id: int = next(self._ids)
-        self.name: str = name
+        super().__init__(name)
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
@@ -49,15 +54,12 @@ class ProductBatch:
     time: u.Duration
 
 
-class BatchProduct:
-    _ids = count(0)
-
+class BatchProduct(Product):
     def __init__(
         self,
         name: str,
     ) -> None:
-        self._id: int = next(self._ids)
-        self.name: str = name
+        super().__init__(name)
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []

@@ -1,3 +1,4 @@
+from .consumables import Consumable
 from .machines.batch_machines import BatchMachine
 from .machines.continuous_machines import ContinuousMachine
 from .problem import Problem
