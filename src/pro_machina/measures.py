@@ -75,7 +75,7 @@ class Gram(Weight, SizedDimension):
         self.symbol = "g"
 
 
-class Kilo(Weight):
+class Kilo(Weight, SizedDimension):
     """Metric kilograms"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -86,7 +86,7 @@ class Kilo(Weight):
         self.symbol = "kg"
 
 
-class Tonne(Weight):
+class Tonne(Weight, SizedDimension):
     """Metric tonnes"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -97,7 +97,7 @@ class Tonne(Weight):
         self.symbol = "tonne"
 
 
-class Ounce(Weight):
+class Ounce(Weight, SizedDimension):
     """imperial ounces"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -108,7 +108,7 @@ class Ounce(Weight):
         self.symbol = "oz"
 
 
-class Pound(Weight):
+class Pound(Weight, SizedDimension):
     """Imperial pounds"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -119,7 +119,7 @@ class Pound(Weight):
         self.symbol = "lb"
 
 
-class Ton(Weight):
+class Ton(Weight, SizedDimension):
     """US (short) tons"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -141,7 +141,7 @@ class Length(Dimension):
         return f"{self.qty} {self.symbol}"
 
 
-class Centimetre(Length):
+class Centimetre(Length, SizedDimension):
     """Metric centimetres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -152,7 +152,7 @@ class Centimetre(Length):
         self.symbol = "cm"
 
 
-class Metre(Length):
+class Metre(Length, SizedDimension):
     """Metric metres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -163,7 +163,7 @@ class Metre(Length):
         self.symbol = "m"
 
 
-class Inch(Length):
+class Inch(Length, SizedDimension):
     """Imperial inches"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -174,7 +174,7 @@ class Inch(Length):
         self.symbol = "in"
 
 
-class Foot(Length):
+class Foot(Length, SizedDimension):
     """Imperial feet"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -185,7 +185,7 @@ class Foot(Length):
         self.symbol = "ft"
 
 
-class Yards(Length):
+class Yards(Length, SizedDimension):
     """Imperial yards"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -207,7 +207,7 @@ class Area(Dimension):
         return f"{self.qty} {self.symbol}"
 
 
-class Sq_Centimetre(Area):
+class Sq_Centimetre(Area, SizedDimension):
     """Metric square centimetres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -218,7 +218,7 @@ class Sq_Centimetre(Area):
         self.symbol = "cm\u00b2"
 
 
-class Sq_Metre(Area):
+class Sq_Metre(Area, SizedDimension):
     """Metric square metres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -229,7 +229,7 @@ class Sq_Metre(Area):
         self.symbol = "m\u00b2"
 
 
-class Sq_Inch(Area):
+class Sq_Inch(Area, SizedDimension):
     """Imperial square inches"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -240,7 +240,7 @@ class Sq_Inch(Area):
         self.symbol = "in\u00b2"
 
 
-class Sq_Foot(Area):
+class Sq_Foot(Area, SizedDimension):
     """Imperial square feet"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -251,7 +251,7 @@ class Sq_Foot(Area):
         self.symbol = "ft\u00b2"
 
 
-class Sq_Yard(Area):
+class Sq_Yard(Area, SizedDimension):
     """Imperial square yards"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -273,7 +273,7 @@ class Volume(Dimension):
         return f"{self.qty} {self.symbol}"
 
 
-class Cu_Centimetre(Area):
+class Cu_Centimetre(Area, SizedDimension):
     """Metric cubic centimetres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -284,7 +284,7 @@ class Cu_Centimetre(Area):
         self.symbol = "cm\u00b3"
 
 
-class Cu_Metre(Area):
+class Cu_Metre(Area, SizedDimension):
     """Metric cubic metres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -295,7 +295,7 @@ class Cu_Metre(Area):
         self.symbol = "m\u00b3"
 
 
-class Millilitre(Volume):
+class Millilitre(Volume, SizedDimension):
     """Metric millilitres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -306,7 +306,7 @@ class Millilitre(Volume):
         self.symbol = "ml"
 
 
-class Litre(Volume):
+class Litre(Volume, SizedDimension):
     """Metric litre"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -317,7 +317,7 @@ class Litre(Volume):
         self.symbol = "ltr"
 
 
-class FL_Ounce(Area):
+class FL_Ounce(Area, SizedDimension):
     """Imperial fluid ounces"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -328,7 +328,7 @@ class FL_Ounce(Area):
         self.symbol = "fl oz"
 
 
-class Gallon(Area):
+class Gallon(Area, SizedDimension):
     """Imperial gallons"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -339,7 +339,7 @@ class Gallon(Area):
         self.symbol = "fl oz"
 
 
-class Barrel(Area):
+class Barrel(Area, SizedDimension):
     """US barrels"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -350,7 +350,7 @@ class Barrel(Area):
         self.symbol = "bbl"
 
 
-class Cu_Inch(Area):
+class Cu_Inch(Area, SizedDimension):
     """Imperial cubic inches"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -361,7 +361,7 @@ class Cu_Inch(Area):
         self.symbol = "in\u00b3"
 
 
-class Cu_Foot(Area):
+class Cu_Foot(Area, SizedDimension):
     """Imperial cubic feet"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -372,7 +372,7 @@ class Cu_Foot(Area):
         self.symbol = "ft\u00b3"
 
 
-class Cu_Yard(Area):
+class Cu_Yard(Area, SizedDimension):
     """Imperial cubic yards"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -381,6 +381,9 @@ class Cu_Yard(Area):
         self.qty = Decimal(qty)
         self._base_qty = Decimal("764_554.857984") * Decimal(qty)
         self.symbol = "yd\u00b3"
+
+
+UnsizedDimension = Area | BaseUnit | Length | Volume | Weight
 
 
 class CustomUnit:
@@ -409,9 +412,6 @@ class CustomUnit:
 
     def __repr__(self):
         return f"<CustomUnit: {self.name}>"
-
-
-UnsizedDimension = Area | BaseUnit | Length | Volume | Weight
 
 
 class _Singleton(type):
