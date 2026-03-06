@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from itertools import count
 from typing import TypedDict
 
@@ -16,7 +17,7 @@ from .consumables import Consumable
 
 class ConsumableQty(TypedDict):
     item: Consumable
-    qty: SizedDimension
+    qty: Decimal
 
 
 class Product:
@@ -52,7 +53,7 @@ class Product:
             # How many of the CustomUnits are we specifying? e.g. 2 Bags
             custom_qty = qty._tmp_qty
 
-            if not self.base_dimension.is_compatible(custom_unit):
+            if not self.base_dimension.is_compatible(other=custom_unit):
                 raise UnitError(
                     (
                         f"{custom_unit.name()} is an invalid measure for"
@@ -67,14 +68,14 @@ class Product:
                 raise UnitError(
                     f"{qty.name()} is an invalid measure for {consumable.name}"
                 )
-            amt = qty
+            amt = qty._base_qty
 
         if per is not None:
             if not self.base_dimension.is_compatible(per):
                 raise UnitError(
                     f"{per.name()} is an invalid measure for {self.name}"
                 )
-            amt = amt / per._base_qty
+            amt /= per._base_qty
 
         self.consumables.append(ConsumableQty(item=consumable, qty=amt))
         self._seen_consumables.add(consumable.name)
@@ -148,4 +149,4 @@ class BatchProduct(Product):
         self._soft_constraints.extend(constraint)
 
 
-__all__ = [BatchProduct, ContinuousProduct, ProductBatch]
+__all__ = ["BatchProduct", "ContinuousProduct", "ProductBatch"]

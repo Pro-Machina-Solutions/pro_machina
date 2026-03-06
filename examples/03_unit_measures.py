@@ -22,5 +22,5 @@ Bag.size_for(starch, Kilo(1.2))
 # Our product
 prod_a = ContinuousProduct("Sweet", Weight)
 prod_a.add_consumable(sugar, Bag("2"), Kilo(80))
-prod_a.add_consumable(starch, Bag("0.1"), Gram(110))
+prod_a.add_consumable(starch, Gram(110), Kilo(2))
 print(prod_a.consumables)

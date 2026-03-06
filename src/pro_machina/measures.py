@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -12,12 +13,16 @@ if TYPE_CHECKING:
 
 
 class Dimension:
+    qty: Decimal
+    symbol: str
+
     def name(self):
         return self.__class__.__name__
 
 
 class SizedDimension:
-    pass
+    name: Callable
+    _base_qty: Decimal
 
 
 ############# UNIT #############
@@ -25,7 +30,7 @@ class SizedDimension:
 
 class BaseUnit(Dimension):
     @staticmethod
-    def is_compatible(other) -> bool:
+    def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, BaseUnit)
 
     def __str__(self) -> str:
@@ -51,11 +56,8 @@ class Unit(BaseUnit):
 
 class Weight(Dimension):
     @staticmethod
-    def is_compatible(other):
+    def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Weight)
-
-    def as_sized(self, qty):
-        return
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -92,7 +94,7 @@ class Tonne(Weight, SizedDimension):
     def __init__(self, qty: float | Decimal | str) -> None:
         super().__init__()
 
-        self.qty = qty
+        self.qty = Decimal(qty)
         self._base_qty = 1_000_000 * Decimal(qty)
         self.symbol = "tonne"
 
@@ -134,10 +136,14 @@ class Ton(Weight, SizedDimension):
 
 
 class Length(Dimension):
-    def is_compatible(self, other) -> bool:
-        return isinstance(other, type(self))
+    @staticmethod
+    def is_compatible(other: SizedDimension) -> bool:
+        return isinstance(other, Length)
 
     def __str__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
+    def __repr__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
 
@@ -200,10 +206,14 @@ class Yard(Length, SizedDimension):
 
 
 class Area(Dimension):
-    def is_compatible(self, other) -> bool:
-        return isinstance(other, type(self))
+    @staticmethod
+    def is_compatible(other: SizedDimension) -> bool:
+        return isinstance(other, Area)
 
     def __str__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
+    def __repr__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
 
@@ -266,10 +276,14 @@ class Sq_Yard(Area, SizedDimension):
 
 
 class Volume(Dimension):
-    def is_compatible(self, other) -> bool:
-        return isinstance(other, type(self))
+    @staticmethod
+    def is_compatible(other: SizedDimension) -> bool:
+        return isinstance(other, Volume)
 
     def __str__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
+    def __repr__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
 
@@ -392,7 +406,7 @@ class CustomUnit:
     def __init__(self, name: str, dimension: UnsizedDimension):
         self.name = name
         self.dimension = dimension
-        self._tmp_qty = None
+        self._tmp_qty: Decimal = Decimal(0)
 
     def size_for(self, item: Product | Consumable, unit: SizedDimension):
         reg = UnitRegistry()
@@ -420,7 +434,7 @@ class CustomUnit:
 
 
 class _Singleton(type):
-    _instances = {}
+    _instances: dict[type, UnitRegistry] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
