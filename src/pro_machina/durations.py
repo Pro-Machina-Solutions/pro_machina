@@ -77,7 +77,7 @@ class Hours(Duration):
         return self.duration * 3600
 
     def from_seconds(self, val: float) -> Hours:
-        return Hours(val / 36000)
+        return Hours(val / 3600)
 
     def __add__(self, other: Duration) -> Hours:
         return self.from_seconds(self.to_seconds() + other.to_seconds())
