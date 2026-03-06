@@ -18,9 +18,9 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "requests>=2.31.0",
     "ruff>=0.12.3",
-    "u>=1.1.0",
     "PuLP>=3.3.0",
     "pytest>=9.0.2",
+    "mypy>=1.19.1",
 ]
 readme = "README.md"
 requires-python = ">=3.13"

@@ -185,7 +185,7 @@ class Foot(Length, SizedDimension):
         self.symbol = "ft"
 
 
-class Yards(Length, SizedDimension):
+class Yard(Length, SizedDimension):
     """Imperial yards"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -383,7 +383,9 @@ class Cu_Yard(Area, SizedDimension):
         self.symbol = "yd\u00b3"
 
 
-UnsizedDimension = Area | BaseUnit | Length | Volume | Weight
+UnsizedDimension = (
+    type[Area] | type[BaseUnit] | type[Length] | type[Volume] | type[Weight]
+)
 
 
 class CustomUnit:
@@ -404,7 +406,10 @@ class CustomUnit:
     def __hash__(self):
         return hash(type(self).__name__)
 
-    def __eq__(self, other: CustomUnit):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CustomUnit):
+            return NotImplemented
+
         return hash(type(self).__name__) == hash(type(other).__name__)
 
     def __str__(self):
@@ -448,37 +453,37 @@ class UnitRegistry(metaclass=_Singleton):
 
 
 __all__ = [
-    Area,
-    Barrel,
-    BaseUnit,
-    Centimetre,
-    Cu_Centimetre,
-    Cu_Foot,
-    Cu_Inch,
-    Cu_Metre,
-    Cu_Yard,
-    CustomUnit,
-    FL_Ounce,
-    Foot,
-    Gallon,
-    Gram,
-    Inch,
-    Kilo,
-    Length,
-    Litre,
-    Metre,
-    Millilitre,
-    Ounce,
-    Pound,
-    Sq_Centimetre,
-    Sq_Foot,
-    Sq_Inch,
-    Sq_Metre,
-    Sq_Yard,
-    Ton,
-    Tonne,
-    Unit,
-    Volume,
-    Weight,
-    Yards,
+    "Area",
+    "Barrel",
+    "BaseUnit",
+    "Centimetre",
+    "Cu_Centimetre",
+    "Cu_Foot",
+    "Cu_Inch",
+    "Cu_Metre",
+    "Cu_Yard",
+    "CustomUnit",
+    "FL_Ounce",
+    "Foot",
+    "Gallon",
+    "Gram",
+    "Inch",
+    "Kilo",
+    "Length",
+    "Litre",
+    "Metre",
+    "Millilitre",
+    "Ounce",
+    "Pound",
+    "Sq_Centimetre",
+    "Sq_Foot",
+    "Sq_Inch",
+    "Sq_Metre",
+    "Sq_Yard",
+    "Ton",
+    "Tonne",
+    "Unit",
+    "Volume",
+    "Weight",
+    "Yard",
 ]

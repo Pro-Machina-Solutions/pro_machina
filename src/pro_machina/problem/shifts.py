@@ -2,18 +2,16 @@ import datetime as dt
 import json
 import os
 from collections import defaultdict
-from dataclasses import dataclass
 from typing import Required, Self, TypedDict
 
 import numpy as np
 import numpy.typing as npt
-import u
 
+from pro_machina.durations import Duration, Hours, Secs
 from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
 from pro_machina.util import as_midnight, parse_datetime
 
 
-@dataclass
 class ShiftBreak:
     """
     Define a period within a working shift where production is reduced/stopped
@@ -33,9 +31,21 @@ class ShiftBreak:
         0 and 100%
     """
 
-    start: str | dt.datetime
-    end: str | dt.datetime
-    productivity: int = 0
+    def __init__(
+        self,
+        start: str | dt.datetime,
+        end: str | dt.datetime,
+        productivity: int = 0,
+    ) -> None:
+        self.start = (
+            dt.datetime.fromisoformat(start)
+            if isinstance(start, str)
+            else start
+        )
+        self.end = (
+            dt.datetime.fromisoformat(end) if isinstance(end, str) else end
+        )
+        self.productivity = productivity
 
 
 class _Activity(TypedDict):
@@ -67,8 +77,8 @@ class _ShiftPeriod(TypedDict, total=False):
 class _TimeBlock(TypedDict):
     """Time-unit aware block of production for a ShiftPattern"""
 
-    start: u.Duration
-    end: u.Duration
+    start: Duration
+    end: Duration
     prod: int
 
 
@@ -211,7 +221,7 @@ class ShiftBuilder:
             hour=0, minute=0, second=0, microsecond=0
         )
 
-        self._shift_periods: list[dict] = []
+        self._shift_periods: list[_ShiftPeriod] = []
         self._shift_days: list[_ShiftDay] = []
         self._is_built = False
 
@@ -219,7 +229,7 @@ class ShiftBuilder:
         self,
         start_time: str | dt.datetime,
         end_time: str | dt.datetime,
-        breaks: ShiftBreak | list[ShiftBreak] = None,
+        breaks: ShiftBreak | list[ShiftBreak] | None = None,
         productivity: int = 100,
     ) -> None:
         """Add a period of productivity to the shift pattern
@@ -734,17 +744,15 @@ class ShiftPattern:
                 end = (period["end"] - self.base_date).total_seconds()
                 prod = period["prod"]
                 self._day_secs[i].append(
-                    _TimeBlock(
-                        start=u.seconds(start), end=u.seconds(end), prod=prod
-                    )
+                    _TimeBlock(start=Secs(start), end=Secs(end), prod=prod)
                 )
 
     def _get_bucket_boundaries(
         self,
-        start: u.Duration,
-        end: u.Duration,
+        start: Duration,
+        end: Duration,
         prod: int,
-        timestep: u.Duration,
+        timestep: Duration,
     ) -> tuple[int, int, float, float]:
         """Calculates the total timestep buckets that an activity spans
 
@@ -753,13 +761,13 @@ class ShiftPattern:
 
         Parameters
         ----------
-        start : u.Duration
+        start : Duration
             Number of seconds since midnight that this activity starts
-        end : u.Duration
+        end : Duration
             Number of seconds since midnight that this activity ends
         prod : int
             The productivity percentage of this activity
-        timestep : u.Duration
+        timestep : Duration
             The duration of the timestep
 
         Returns
@@ -769,18 +777,19 @@ class ShiftPattern:
             buckets, any overflow seconds into the next bucket and the
             associated overflow productivity percentage
         """
-        start = start.to_number(u.sec)
-        end = end.to_number(u.sec)
-        timestep = timestep.to_number(u.sec)
+        # Don't rebind to avoid stupid mypy issues throughout function
+        _start = start.to_seconds()
+        _end = end.to_seconds()
+        _timestep = timestep.to_seconds()
 
-        start_bucket = int(start // timestep)
+        start_bucket = int(_start // _timestep)
         num_buckets = 0
-        while start + timestep <= end:
+        while _start + _timestep <= _end:
             num_buckets += 1
-            start += timestep
+            _start += _timestep
 
-        if (end % timestep) != 0:
-            overflow_secs = end - (start + (num_buckets * timestep))
+        if (_end % _timestep) != 0:
+            overflow_secs = _end - (_start + (num_buckets * _timestep))
             if overflow_secs < 0:
                 num_buckets += 1
                 overflow_secs = 0
@@ -792,7 +801,7 @@ class ShiftPattern:
         return start_bucket, num_buckets, overflow_secs, overflow_pct
 
     def _yield_day(
-        self, date: str | dt.date, timestep: u.Duration
+        self, date: str | dt.date, timestep: Duration
     ) -> npt.NDArray[np.float64]:
         """Returns a numpy array of productivity buckets for a complete day
 
@@ -806,7 +815,7 @@ class ShiftPattern:
         ----------
         date : str | dt.date
             The date of the actual shift (not necessarily the reference date)
-        timestep : u.Duration
+        timestep : Duration
             The duration of each time bucket to divide the 24hr day into
 
         Returns
@@ -816,8 +825,9 @@ class ShiftPattern:
         """
         date = as_midnight(parse_datetime(date))
         day_key = (date - self.base_date).days % self._day_span
-        num_buckets = int((u.hours(24) / timestep).to_number(u.sec))
-        _timestep = timestep.to_number(u.sec)
+
+        num_buckets = int(Hours(24).to_seconds() / timestep.to_seconds())
+        _timestep = timestep.to_seconds()
 
         if date < self.base_date:
             raise ValueError(
@@ -825,7 +835,7 @@ class ShiftPattern:
                 f" {self.base_date}"
             )
 
-        if num_buckets * timestep.to_number(u.sec) != 86400:
+        if num_buckets * timestep.to_seconds() != 86400:
             raise ValueError(
                 f"24 hours is not cleanly divisible by timestep: {timestep}"
             )
@@ -834,10 +844,10 @@ class ShiftPattern:
         all_buckets = np.zeros(num_buckets, dtype=np.float64)
 
         # Store any values that spill into the next bucket
-        overflow_prod = 0
-        bucket_secs = 0
+        overflow_prod = 0.0
+        bucket_secs = 0.0
         for act in activities:
-            act_secs = (act["end"] - act["start"]).to_number(u.sec)
+            act_secs = (act["end"] - act["start"]).to_seconds()
 
             if bucket_secs or act_secs < _timestep:
                 if bucket_secs + act_secs < _timestep:
@@ -847,9 +857,7 @@ class ShiftPattern:
                     overflow_prod += (
                         (_timestep - bucket_secs) / _timestep
                     ) * act["prod"]
-                    bucket_key = int(
-                        act["start"].to_number(u.sec) // _timestep
-                    )
+                    bucket_key = int(act["start"].to_seconds() // _timestep)
                     all_buckets[bucket_key] = overflow_prod
 
                     new_start = timestep * (bucket_key + 1)
@@ -886,4 +894,4 @@ class ShiftPattern:
         return all_buckets
 
 
-__all__ = [ShiftBreak, ShiftBuilder, ShiftPattern]
+__all__ = ["ShiftBreak", "ShiftBuilder", "ShiftPattern"]

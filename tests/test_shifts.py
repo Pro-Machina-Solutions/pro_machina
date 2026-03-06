@@ -3,9 +3,9 @@ import json
 
 import numpy as np
 import pytest
-import u
 
 from pro_machina import ShiftBreak, ShiftBuilder, ShiftPattern
+from pro_machina.durations import Hours, Mins
 from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
 from pro_machina.problem.shifts import _ShiftDay
 
@@ -708,45 +708,45 @@ class TestShiftPatternYieldDay:
         return ShiftPattern(built_simple_builder())
 
     def test_returns_ndarray(self, pattern):
-        result = pattern._yield_day("2026-02-02", u.hours(1))
+        result = pattern._yield_day("2026-02-02", Hours(1))
         assert isinstance(result, np.ndarray)
 
     def test_array_length_matches_timestep_hourly(self, pattern):
-        result = pattern._yield_day("2026-02-02", u.hours(1))
+        result = pattern._yield_day("2026-02-02", Hours(1))
         assert len(result) == 24
 
     def test_array_length_matches_timestep_30min(self, pattern):
-        result = pattern._yield_day("2026-02-02", u.minutes(30))
+        result = pattern._yield_day("2026-02-02", Mins(30))
         assert len(result) == 48
 
     def test_working_day_has_nonzero_productivity(self, pattern):
-        result = pattern._yield_day("2026-02-02", u.hours(1))
+        result = pattern._yield_day("2026-02-02", Hours(1))
         assert result.sum() > 0
 
     def test_down_day_all_zeros(self, pattern):
-        result = pattern._yield_day("2026-02-07", u.hours(1))
+        result = pattern._yield_day("2026-02-07", Hours(1))
         assert np.all(result == 0)
 
     def test_production_hours_correct(self, pattern):
         """06:00–18:00 = 12 hours at 100%, rest zero"""
-        result = pattern._yield_day("2026-02-02", u.hours(1))
+        result = pattern._yield_day("2026-02-02", Hours(1))
         assert result[8:18].sum() == 1000.0  # 8 * 100
         assert result[:6].sum() == 0
         assert result[18:].sum() == 0
 
     def test_cyclical_pattern_repeats(self, pattern):
         """Day 8 (next Monday) should be identical to day 1"""
-        week1 = pattern._yield_day("2026-02-02", u.hours(1))
-        week2 = pattern._yield_day("2026-02-09", u.hours(1))
+        week1 = pattern._yield_day("2026-02-02", Hours(1))
+        week2 = pattern._yield_day("2026-02-09", Hours(1))
         np.testing.assert_array_equal(week1, week2)
 
     def test_date_before_base_raises(self, pattern):
         with pytest.raises(ValueError, match="before the reference date"):
-            pattern._yield_day("2025-01-01", u.hours(1))
+            pattern._yield_day("2025-01-01", Hours(1))
 
     def test_non_divisible_timestep_raises(self, pattern):
         with pytest.raises(ValueError, match="not cleanly divisible"):
-            pattern._yield_day("2026-02-02", u.minutes(7))
+            pattern._yield_day("2026-02-02", Mins(7))
 
     def test_yield_day_with_break(self):
         b = ShiftBuilder(REF_DATE, "break_test")
@@ -758,7 +758,7 @@ class TestShiftPatternYieldDay:
         )
         b.build()
         p = ShiftPattern(b)
-        result = p._yield_day("2026-02-02", u.hours(1))
+        result = p._yield_day("2026-02-02", Hours(1))
         # Lunch hour should be 0
         assert result[12] == 0
         # Normal working hours should be 100
@@ -777,7 +777,7 @@ class TestShiftPatternYieldDay:
         )
         b.build()
         p = ShiftPattern(b)
-        result = p._yield_day("2026-02-02", u.hours(1))
+        result = p._yield_day("2026-02-02", Hours(1))
         assert result[12] == 50
 
     def test_multiple_activities_in_bucket(self):
@@ -790,7 +790,7 @@ class TestShiftPatternYieldDay:
         )
         b.build()
         sp = ShiftPattern(b)
-        result = sp._yield_day("2026-02-02", u.min(30))
+        result = sp._yield_day("2026-02-02", Mins(30))
         assert np.isclose(result[16], 39.166666666)
 
     def test_break_act_not_spanning_full_bucket(self):
@@ -807,7 +807,7 @@ class TestShiftPatternYieldDay:
         )
         sb.build()
         sp = ShiftPattern(sb)
-        result = sp._yield_day("2026-02-23", u.min(30))
+        result = sp._yield_day("2026-02-23", Mins(30))
         assert result[31] == 100  # Make sure shift runs up to break
         assert np.isclose(result[32], 33.333333333)
         assert result[33] == 100  # Make sure next shift is not lost
