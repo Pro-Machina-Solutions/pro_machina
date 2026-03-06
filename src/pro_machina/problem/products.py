@@ -1,57 +1,47 @@
 from dataclasses import dataclass
 from itertools import count
-
-import u
-
-from pro_machina.measures import CustomUnit
+from typing import TypedDict
 
 from ..exceptions import UnitError
+from ..measures import Dimension, SizedDimension, UnsizedDimension
 from .constraints import HardConstraint, SoftConstraint
+from .consumables import Consumable
+
+
+class ConsumableQty(TypedDict):
+    cons: Consumable
+    qty: SizedDimension
 
 
 class Product:
     _ids = count(0)
 
-    def __init__(
-        self, name: str, unit_measures: u.Quantity | list[u.Quantity]
-    ):
+    def __init__(self, name: str, base_measure: UnsizedDimension):
         self._id: int = next(self._ids)
         self.name: str = name
-        if not isinstance(unit_measures, list):
-            self.unit_measures = [unit_measures]
+        self.base_measure = base_measure
+
+        self.consumables = [ConsumableQty]
+        self._seen_consumables: set[str] = set()
+
+    def add_consumable(self, consumable: Consumable, qty: SizedDimension):
+        if consumable.name in self._seen_consumables:
+            raise UnitError(
+                f"{consumable.name} cannot be added twice to {self.name}"
+            )
+
+        if consumable.base_dimension.is_compatible(qty):
+            self.consumables.append(ConsumableQty(cons=consumable, qty=qty))
+            self._seen_consumables.add(consumable.name)
         else:
-            self.unit_measures = unit_measures
-
-        first_measure = self.unit_measures[0]
-        for measure in self.unit_measures:
-            if isinstance(measure, CustomUnit):
-                continue
-
-            nones = sum([measure._unit is None, first_measure._unit is None])
-            if nones == 1:
-                raise UnitError(
-                    (
-                        f"Product: {self.name} cannot be defined as both UNIT"
-                        " and some other quantity that is not a CustomUnit."
-                    ).lstrip()
-                )
-            elif nones == 2:
-                continue
-
-            elif not first_measure._unit.is_compatible_with(measure._unit):
-                raise UnitError(
-                    (
-                        f"Product measures: {first_measure} and {measure} are"
-                        f" incompatible for {self.name}"
-                    ).lstrip()
-                )
+            raise UnitError(
+                f"{qty.name()} is an invalid measure for {consumable.name}"
+            )
 
 
 class ContinuousProduct(Product):
-    def __init__(
-        self, name: str, unit_measures: u.Quantity | list[u.Quantity]
-    ) -> None:
-        super().__init__(name, unit_measures)
+    def __init__(self, name: str, base_measure: UnsizedDimension) -> None:
+        super().__init__(name, base_measure)
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
@@ -82,14 +72,12 @@ class ContinuousProduct(Product):
 @dataclass
 class ProductBatch:
     name: str
-    size: u.Mass
-    time: u.Duration
+    size: Dimension
+    time: Dimension
 
 
 class BatchProduct(Product):
-    def __init__(
-        self, name: str, unit_measures: u.Quantity | list[u.Quantity]
-    ) -> None:
+    def __init__(self, name: str, unit_measures) -> None:
         super().__init__(name, unit_measures)
 
         self._hard_constraints: list[HardConstraint] = []
