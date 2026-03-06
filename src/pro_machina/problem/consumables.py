@@ -10,3 +10,6 @@ class Consumable:
         self._id: int = next(self._ids)
         self.name: str = name
         self.base_dimension = base_dimension
+
+    def __repr__(self) -> str:
+        return f"<Consumable: {self.name}>"

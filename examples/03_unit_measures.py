@@ -1,11 +1,25 @@
-from pro_machina import ContinuousProduct
-from pro_machina.measures import KG, UNIT, CustomUnit, M
+from pro_machina import Consumable, ContinuousProduct
+from pro_machina.measures import (
+    Area,
+    BaseUnit,
+    CustomUnit,
+    Gram,
+    Kilo,
+    Volume,
+    Weight,
+)
 
-roll = CustomUnit("Roll", M)
-box = CustomUnit("Box", UNIT)
+# Define some consumables
+sugar = Consumable("sugar", Weight)
+starch = Consumable("starch", Weight)
+rasp_flav = Consumable("raspberry flavour", Volume)
+wrapper = Consumable("red wrapper", Area)
 
-prod_a = ContinuousProduct("Something", unit_measures=[roll, M])
-prod_b = ContinuousProduct("Else", unit_measures=UNIT)
+Bag = CustomUnit("bag of sugar", BaseUnit)
+Bag.size_for(sugar, Kilo(0.250))
 
-roll.size_for(prod_a, KG(20))
-box.size_for(prod_b, UNIT(12))
+# Our product
+prod_a = ContinuousProduct("Sweet", Weight)
+prod_a.add_consumable(sugar, Bag(2.5), Kilo(80))
+prod_a.add_consumable(starch, Gram(7.2))
+print(prod_a.consumables)
