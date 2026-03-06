@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
@@ -79,6 +81,14 @@ class Product:
 
         self.consumables.append(ConsumableQty(item=consumable, qty=amt))
         self._seen_consumables.add(consumable.name)
+
+    def add_subproduct(
+        self,
+        product: Product,
+        qty: SizedDimension | CustomUnit,
+        per: SizedDimension | None = None,
+    ):
+        pass
 
 
 class ContinuousProduct(Product):
