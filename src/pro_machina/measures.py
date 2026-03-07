@@ -33,6 +33,9 @@ class BaseUnit(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, BaseUnit)
 
+    def get_base(self) -> Unit:
+        return Unit(self._base_qty)
+
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
@@ -58,6 +61,9 @@ class Weight(Dimension):
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Weight)
+
+    def get_base(self) -> Gram:
+        return Gram(self._base_qty)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -140,6 +146,9 @@ class Length(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Length)
 
+    def get_base(self) -> Centimetre:
+        return Centimetre(self._base_qty)
+
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
@@ -210,6 +219,9 @@ class Area(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Area)
 
+    def get_base(self) -> Callable:
+        return Sq_Centimetre(self._base_qty)
+
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
@@ -279,6 +291,12 @@ class Volume(Dimension):
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Volume)
+
+    def get_base(self) -> Cu_Centimetre | Millilitre:
+        if isinstance(self, Millilitre | Litre | Fl_Ounce | Gallon | Barrel):
+            return Millilitre(self._base_qty)
+        else:
+            return Cu_Centimetre(self._base_qty)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"

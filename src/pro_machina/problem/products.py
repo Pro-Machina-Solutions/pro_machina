@@ -20,12 +20,13 @@ from .consumables import Consumable
 class ConsumableQty(TypedDict):
     item: Consumable
     qty: Decimal
+    unit: str
 
 
 class Product:
     _ids = count(0)
 
-    def __init__(self, name: str, base_dimension: UnsizedDimension):
+    def __init__(self, name: str, base_dimension: SizedDimension):
 
         self._id: int = next(self._ids)
         self.name: str = name
@@ -54,8 +55,8 @@ class Product:
 
             # How many of the CustomUnits are we specifying? e.g. 2 Bags
             custom_qty = qty._tmp_qty
-
             amt = custom_unit._base_qty * custom_qty
+            unit = custom_unit.get_base().symbol
 
         else:
             if not consumable.base_dimension.is_compatible(qty):
@@ -63,6 +64,7 @@ class Product:
                     f"{qty.name()} is an invalid measure for {consumable.name}"
                 )
             amt = qty._base_qty
+            unit = qty.get_base().symbol
 
         if per is not None:
             if not self.base_dimension.is_compatible(per):
@@ -71,7 +73,9 @@ class Product:
                 )
             amt /= per._base_qty
 
-        self.consumables.append(ConsumableQty(item=consumable, qty=amt))
+        self.consumables.append(
+            ConsumableQty(item=consumable, qty=amt, unit=unit)
+        )
         self._seen_consumables.add(consumable.name)
 
     def add_subproduct(
