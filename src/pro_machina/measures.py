@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 class Dimension:
     qty: Decimal
     symbol: str
+    _base_qty: Decimal
 
     def name(self):
         return self.__class__.__name__
@@ -22,7 +23,10 @@ class Dimension:
 
 class SizedDimension:
     name: Callable
+    is_compatible: Callable
+    qty: Decimal
     _base_qty: Decimal
+    get_base: Callable
 
 
 ############# UNIT #############
@@ -219,7 +223,7 @@ class Area(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Area)
 
-    def get_base(self) -> Callable:
+    def get_base(self) -> Sq_Centimetre:
         return Sq_Centimetre(self._base_qty)
 
     def __str__(self) -> str:

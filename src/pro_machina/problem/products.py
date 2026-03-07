@@ -11,7 +11,6 @@ from ..measures import (
     Dimension,
     SizedDimension,
     UnitRegistry,
-    UnsizedDimension,
 )
 from .constraints import HardConstraint, SoftConstraint
 from .consumables import Consumable
@@ -55,7 +54,9 @@ class Product:
 
             # How many of the CustomUnits are we specifying? e.g. 2 Bags
             custom_qty = qty._tmp_qty
-            amt = custom_unit._base_qty * custom_qty
+            amt = (
+                custom_unit._base_qty * custom_qty
+            ) / self.base_dimension.qty
             unit = custom_unit.get_base().symbol
 
         else:
@@ -63,7 +64,7 @@ class Product:
                 raise UnitError(
                     f"{qty.name()} is an invalid measure for {consumable.name}"
                 )
-            amt = qty._base_qty
+            amt = qty._base_qty / self.base_dimension.qty
             unit = qty.get_base().symbol
 
         if per is not None:
@@ -88,7 +89,7 @@ class Product:
 
 
 class ContinuousProduct(Product):
-    def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
+    def __init__(self, name: str, base_dimension: SizedDimension) -> None:
         super().__init__(name, base_dimension)
 
         self._hard_constraints: list[HardConstraint] = []

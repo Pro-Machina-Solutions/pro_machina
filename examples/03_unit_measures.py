@@ -30,12 +30,13 @@ Roll = CustomUnit("Roll", Unit)
 Roll.size_for(wrapper, Sq_Metre(10))
 
 # Our product
-prod_1 = ContinuousProduct("Sweet", Unit(1))
+prod_1 = ContinuousProduct("Sweet", Unit(10))
 
 prod_1.add_consumable(consumable=sugar, qty=Kilo("7.2"), per=Unit(1000))
 prod_1.add_consumable(consumable=starch, qty=Gram(2))
 prod_1.add_consumable(consumable=rasp_flav, qty=Bottle(1), per=Unit(20000))
 prod_1.add_consumable(consumable=wrapper, qty=Sq_Centimetre(9))
-print(prod_1.consumables)
+for row in prod_1.consumables:
+    print(row)
 
 # Try something that isn't made in Unit quantities
