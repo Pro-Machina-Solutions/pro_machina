@@ -50,18 +50,10 @@ class Product:
 
             # Specifies the SizedDimension of the CustomUnit for this
             # Consumable. e.g. "Bag of Sugar" -> "0.25kg"
-            custom_unit = reg.get_measure(qty, self)
+            custom_unit = reg.get_measure(qty, consumable)
 
             # How many of the CustomUnits are we specifying? e.g. 2 Bags
             custom_qty = qty._tmp_qty
-
-            if not self.base_dimension.is_compatible(other=custom_unit):
-                raise UnitError(
-                    (
-                        f"{custom_unit.name()} is an invalid measure for"
-                        f" {self.name}"
-                    ).lstrip()
-                )
 
             amt = custom_unit._base_qty * custom_qty
 

@@ -4,7 +4,7 @@ from ..measures import UnsizedDimension
 
 
 class Consumable:
-    _ids = count(0)
+    _ids = count(1_000_000)
 
     def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
         self._id: int = next(self._ids)

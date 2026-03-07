@@ -1,20 +1,20 @@
 from secrets import randbelow
 
-import u
+from .durations import Duration, Mins, Secs
 
 
 class Config:
     def __init__(
         self,
         silence_warnings: bool = False,
-        base_time_unit: u.Duration = u.minute,
+        base_time_unit: Duration = Secs,
     ) -> None:
         self.silence_warnings: bool = silence_warnings
         self.base_time_unit = base_time_unit
 
         self._max_iterations: int | None = None
-        self._max_runtime: u.Duration | None = None
-        self._timebucket_mins: u.Duration | None = 15
+        self._max_runtime: Duration | None = None
+        self._timebucket_mins: Duration | None = Mins(15)
         self._random_seed = randbelow(4294967296)
 
     @property
@@ -28,21 +28,21 @@ class Config:
         self._max_iterations = iterations
 
     @property
-    def max_runtime(self) -> u.Duration | None:
+    def max_runtime(self) -> Duration | None:
         return self._max_iterations
 
     @max_runtime.setter
-    def max_runtime(self, runtime: u.Duration) -> None:
+    def max_runtime(self, runtime: Duration) -> None:
         if runtime is not None and runtime <= 0:
             raise ValueError("Max runtime seconds must be positive")
         self._max_runtime = runtime
 
     @property
-    def timebucket_mins(self) -> u.Duration | None:
+    def timebucket_mins(self) -> Duration | None:
         return self._max_iterations
 
     @timebucket_mins.setter
-    def timebucket_mins(self, timebucket_mins: u.Duration) -> None:
+    def timebucket_mins(self, timebucket_mins: Duration) -> None:
         if timebucket_mins <= 0:
             raise ValueError("Timebucket mins must be positive")
         self._timebucket_mins = timebucket_mins
@@ -55,8 +55,8 @@ class Config:
     def random_seed(self, seed: int) -> None:
         if not 0 <= seed <= 4294967295:
             raise ValueError(
-                "The random seed must be between 0 and 4294967295 "
-                "(the maximum unsigned 32-Bit integer, due to numpy overflow)"
+                "The random seed must be between 0 and 4294967295"
+                " (the maximum unsigned 32-Bit integer, due to numpy overflow)"
             )
         self._random_seed = seed
 

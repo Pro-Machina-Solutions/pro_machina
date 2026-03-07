@@ -331,7 +331,7 @@ class Litre(Volume, SizedDimension):
         self.symbol = "ltr"
 
 
-class FL_Ounce(Area, SizedDimension):
+class Fl_Ounce(Area, SizedDimension):
     """Imperial fluid ounces"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -409,6 +409,10 @@ class CustomUnit:
         self._tmp_qty: Decimal = Decimal(0)
 
     def size_for(self, item: Product | Consumable, unit: SizedDimension):
+        if not item.base_dimension.is_compatible(unit):
+            raise UnitError(
+                f"{unit.name()} is an invalid unit measure for {item.name}"
+            )
         reg = UnitRegistry()
         reg.add(self, item, unit)
 
@@ -477,7 +481,7 @@ __all__ = [
     "Cu_Metre",
     "Cu_Yard",
     "CustomUnit",
-    "FL_Ounce",
+    "Fl_Ounce",
     "Foot",
     "Gallon",
     "Gram",
