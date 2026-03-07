@@ -37,8 +37,9 @@ class BaseUnit(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, BaseUnit)
 
-    def get_base(self) -> Unit:
-        return Unit(self._base_qty)
+    @staticmethod
+    def get_base() -> Unit:
+        return Unit(1)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -46,8 +47,11 @@ class BaseUnit(Dimension):
     def __repr__(self) -> str:
         return f"{self.qty} {self.symbol}"
 
+    def __call__(self, qty) -> Unit:
+        return Unit(1)
 
-class Unit(BaseUnit):
+
+class Unit(BaseUnit, SizedDimension):
     """Individual items"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -66,8 +70,9 @@ class Weight(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Weight)
 
-    def get_base(self) -> Gram:
-        return Gram(self._base_qty)
+    @staticmethod
+    def get_base() -> Gram:
+        return Gram(1)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -150,8 +155,9 @@ class Length(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Length)
 
-    def get_base(self) -> Centimetre:
-        return Centimetre(self._base_qty)
+    @staticmethod
+    def get_base() -> Centimetre:
+        return Centimetre(1)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -223,8 +229,9 @@ class Area(Dimension):
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Area)
 
-    def get_base(self) -> Sq_Centimetre:
-        return Sq_Centimetre(self._base_qty)
+    @staticmethod
+    def get_base() -> Sq_Centimetre:
+        return Sq_Centimetre(1)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -294,13 +301,11 @@ class Sq_Yard(Area, SizedDimension):
 class Volume(Dimension):
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
-        return isinstance(other, Volume)
+        return isinstance(other, Volume | FluidVolume)
 
-    def get_base(self) -> Cu_Centimetre | Millilitre:
-        if isinstance(self, Millilitre | Litre | Fl_Ounce | Gallon | Barrel):
-            return Millilitre(self._base_qty)
-        else:
-            return Cu_Centimetre(self._base_qty)
+    @staticmethod
+    def get_base() -> Cu_Centimetre:
+        return Cu_Centimetre(1)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -309,7 +314,23 @@ class Volume(Dimension):
         return f"{self.qty} {self.symbol}"
 
 
-class Cu_Centimetre(Area, SizedDimension):
+class FluidVolume(Dimension):
+    @staticmethod
+    def is_compatible(other: SizedDimension) -> bool:
+        return isinstance(other, Volume | FluidVolume)
+
+    @staticmethod
+    def get_base() -> Millilitre:
+        return Millilitre(1)
+
+    def __str__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
+    def __repr__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
+
+class Cu_Centimetre(Volume, SizedDimension):
     """Metric cubic centimetres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -320,7 +341,7 @@ class Cu_Centimetre(Area, SizedDimension):
         self.symbol = "cm\u00b3"
 
 
-class Cu_Metre(Area, SizedDimension):
+class Cu_Metre(Volume, SizedDimension):
     """Metric cubic metres"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -331,62 +352,7 @@ class Cu_Metre(Area, SizedDimension):
         self.symbol = "m\u00b3"
 
 
-class Millilitre(Volume, SizedDimension):
-    """Metric millilitres"""
-
-    def __init__(self, qty: float | Decimal | str) -> None:
-        super().__init__()
-
-        self.qty = Decimal(qty)
-        self._base_qty = Decimal(qty)
-        self.symbol = "ml"
-
-
-class Litre(Volume, SizedDimension):
-    """Metric litre"""
-
-    def __init__(self, qty: float | Decimal | str) -> None:
-        super().__init__()
-
-        self.qty = Decimal(qty)
-        self._base_qty = 1_000 * Decimal(qty)
-        self.symbol = "ltr"
-
-
-class Fl_Ounce(Area, SizedDimension):
-    """Imperial fluid ounces"""
-
-    def __init__(self, qty: float | Decimal | str) -> None:
-        super().__init__()
-
-        self.qty = Decimal(qty)
-        self._base_qty = Decimal("29.57353") * Decimal(qty)
-        self.symbol = "fl oz"
-
-
-class Gallon(Area, SizedDimension):
-    """Imperial gallons"""
-
-    def __init__(self, qty: float | Decimal | str) -> None:
-        super().__init__()
-
-        self.qty = Decimal(qty)
-        self._base_qty = Decimal("3_785.412") * Decimal(qty)
-        self.symbol = "fl oz"
-
-
-class Barrel(Area, SizedDimension):
-    """US barrels"""
-
-    def __init__(self, qty: float | Decimal | str) -> None:
-        super().__init__()
-
-        self.qty = Decimal(qty)
-        self._base_qty = Decimal("158_987.3") * Decimal(qty)
-        self.symbol = "bbl"
-
-
-class Cu_Inch(Area, SizedDimension):
+class Cu_Inch(Volume, SizedDimension):
     """Imperial cubic inches"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -397,7 +363,7 @@ class Cu_Inch(Area, SizedDimension):
         self.symbol = "in\u00b3"
 
 
-class Cu_Foot(Area, SizedDimension):
+class Cu_Foot(Volume, SizedDimension):
     """Imperial cubic feet"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -408,7 +374,7 @@ class Cu_Foot(Area, SizedDimension):
         self.symbol = "ft\u00b3"
 
 
-class Cu_Yard(Area, SizedDimension):
+class Cu_Yard(Volume, SizedDimension):
     """Imperial cubic yards"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
@@ -419,8 +385,68 @@ class Cu_Yard(Area, SizedDimension):
         self.symbol = "yd\u00b3"
 
 
+class Millilitre(FluidVolume, SizedDimension):
+    """Metric millilitres"""
+
+    def __init__(self, qty: float | Decimal | str) -> None:
+        super().__init__()
+
+        self.qty = Decimal(qty)
+        self._base_qty = Decimal(qty)
+        self.symbol = "ml"
+
+
+class Litre(FluidVolume, SizedDimension):
+    """Metric litre"""
+
+    def __init__(self, qty: float | Decimal | str) -> None:
+        super().__init__()
+
+        self.qty = Decimal(qty)
+        self._base_qty = 1_000 * Decimal(qty)
+        self.symbol = "ltr"
+
+
+class Fl_Ounce(FluidVolume, SizedDimension):
+    """Imperial fluid ounces"""
+
+    def __init__(self, qty: float | Decimal | str) -> None:
+        super().__init__()
+
+        self.qty = Decimal(qty)
+        self._base_qty = Decimal("29.57353") * Decimal(qty)
+        self.symbol = "fl oz"
+
+
+class Gallon(FluidVolume, SizedDimension):
+    """Imperial gallons"""
+
+    def __init__(self, qty: float | Decimal | str) -> None:
+        super().__init__()
+
+        self.qty = Decimal(qty)
+        self._base_qty = Decimal("3_785.412") * Decimal(qty)
+        self.symbol = "fl oz"
+
+
+class Barrel(FluidVolume, SizedDimension):
+    """US barrels"""
+
+    def __init__(self, qty: float | Decimal | str) -> None:
+        super().__init__()
+
+        self.qty = Decimal(qty)
+        self._base_qty = Decimal("158_987.3") * Decimal(qty)
+        self.symbol = "bbl"
+
+
 UnsizedDimension = (
-    type[Area] | type[BaseUnit] | type[Length] | type[Volume] | type[Weight]
+    type[Area]
+    | type[BaseUnit]
+    | type[FluidVolume]
+    | type[Length]
+    | type[Volume]
+    | type[Weight]
 )
 
 
@@ -503,6 +529,7 @@ __all__ = [
     "Cu_Metre",
     "Cu_Yard",
     "CustomUnit",
+    "FluidVolume",
     "Fl_Ounce",
     "Foot",
     "Gallon",

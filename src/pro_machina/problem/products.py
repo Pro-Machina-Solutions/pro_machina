@@ -11,6 +11,7 @@ from ..measures import (
     Dimension,
     SizedDimension,
     UnitRegistry,
+    UnsizedDimension,
 )
 from .constraints import HardConstraint, SoftConstraint
 from .consumables import Consumable
@@ -25,7 +26,7 @@ class ConsumableQty(TypedDict):
 class Product:
     _ids = count(0)
 
-    def __init__(self, name: str, base_dimension: SizedDimension):
+    def __init__(self, name: str, base_dimension: UnsizedDimension):
 
         self._id: int = next(self._ids)
         self.name: str = name
@@ -38,11 +39,16 @@ class Product:
         self,
         consumable: Consumable,
         qty: SizedDimension | CustomUnit,
-        per: SizedDimension | None = None,
+        per: SizedDimension,
     ):
         if consumable.name in self._seen_consumables:
             raise UnitError(
                 f"{consumable.name} cannot be added twice to {self.name}"
+            )
+
+        if not self.base_dimension.is_compatible(per):
+            raise UnitError(
+                f"{per.name()} is an invalid measure for {self.name}"
             )
 
         if isinstance(qty, CustomUnit):
@@ -54,9 +60,10 @@ class Product:
 
             # How many of the CustomUnits are we specifying? e.g. 2 Bags
             custom_qty = qty._tmp_qty
-            amt = (
-                custom_unit._base_qty * custom_qty
-            ) / self.base_dimension.qty
+
+            base_dimension = self.base_dimension.get_base()
+            amt = (custom_unit._base_qty * custom_qty) / base_dimension.qty
+
             unit = custom_unit.get_base().symbol
 
         else:
@@ -64,15 +71,10 @@ class Product:
                 raise UnitError(
                     f"{qty.name()} is an invalid measure for {consumable.name}"
                 )
-            amt = qty._base_qty / self.base_dimension.qty
+            amt = qty._base_qty
             unit = qty.get_base().symbol
 
-        if per is not None:
-            if not self.base_dimension.is_compatible(per):
-                raise UnitError(
-                    f"{per.name()} is an invalid measure for {self.name}"
-                )
-            amt /= per._base_qty
+        amt /= per._base_qty
 
         self.consumables.append(
             ConsumableQty(item=consumable, qty=amt, unit=unit)
@@ -89,7 +91,7 @@ class Product:
 
 
 class ContinuousProduct(Product):
-    def __init__(self, name: str, base_dimension: SizedDimension) -> None:
+    def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
         super().__init__(name, base_dimension)
 
         self._hard_constraints: list[HardConstraint] = []
