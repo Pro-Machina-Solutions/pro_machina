@@ -17,8 +17,8 @@ from .constraints import HardConstraint, SoftConstraint
 from .consumables import Consumable
 
 
-class ConsumableQty(TypedDict):
-    item: Consumable
+class ComponentQty(TypedDict):
+    item: Product | Consumable
     qty: Decimal
     unit: str
 
@@ -29,21 +29,26 @@ class Product:
     def __init__(self, name: str, base_dimension: UnsizedDimension):
 
         self._id: int = next(self._ids)
-        self.name: str = name
+        self.name = name
         self.base_dimension = base_dimension
 
-        self.consumables: list[ConsumableQty] = []
-        self._seen_consumables: set[str] = set()
+        self._consumables: list[ComponentQty] = []
+        self._products: list[ComponentQty] = []
+        self._seen_consumables: set[int] = set()
+        self._seen_products: set[int] = set()
 
-    def add_consumable(
+    def add_component(
         self,
-        consumable: Consumable,
+        component: Product | Consumable,
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
     ):
-        if consumable.name in self._seen_consumables:
+        if (
+            component._id in self._seen_consumables
+            or component._id in self._seen_products
+        ):
             raise UnitError(
-                f"{consumable.name} cannot be added twice to {self.name}"
+                f"{component.name} cannot be added twice to {self.name}"
             )
 
         if not self.base_dimension.is_compatible(per):
@@ -56,7 +61,7 @@ class Product:
 
             # Specifies the SizedDimension of the CustomUnit for this
             # Consumable. e.g. "Bag of Sugar" -> "0.25kg"
-            custom_unit = reg.get_measure(qty, consumable)
+            custom_unit = reg.get_measure(qty, component)
 
             # How many of the CustomUnits are we specifying? e.g. 2 Bags
             custom_qty = qty._tmp_qty
@@ -67,27 +72,28 @@ class Product:
             unit = custom_unit.get_base().symbol
 
         else:
-            if not consumable.base_dimension.is_compatible(qty):
+            if not component.base_dimension.is_compatible(qty):
                 raise UnitError(
-                    f"{qty.name()} is an invalid measure for {consumable.name}"
+                    f"{qty.name()} is an invalid measure for {component.name}"
                 )
             amt = qty._base_qty
             unit = qty.get_base().symbol
 
         amt /= per._base_qty
 
-        self.consumables.append(
-            ConsumableQty(item=consumable, qty=amt, unit=unit)
-        )
-        self._seen_consumables.add(consumable.name)
+        if isinstance(component, Consumable):
+            self._consumables.append(
+                ComponentQty(item=component, qty=amt, unit=unit)
+            )
+            self._seen_consumables.add(component._id)
+        else:
+            self._products.append(
+                ComponentQty(item=component, qty=amt, unit=unit)
+            )
+            self._seen_products.add(component._id)
 
-    def add_subproduct(
-        self,
-        product: Product,
-        qty: SizedDimension | CustomUnit,
-        per: SizedDimension | None = None,
-    ):
-        pass
+    def __repr__(self):
+        return f"<Product: {self.name}>"
 
 
 class ContinuousProduct(Product):

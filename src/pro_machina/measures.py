@@ -22,11 +22,11 @@ class Dimension:
 
 
 class SizedDimension:
-    name: Callable
-    is_compatible: Callable
+    name: Callable[[], str]
+    is_compatible: Callable[[SizedDimension], bool]
     qty: Decimal
     _base_qty: Decimal
-    get_base: Callable
+    get_base: Callable[[], Dimension]
 
 
 ############# UNIT #############
@@ -46,9 +46,6 @@ class BaseUnit(Dimension):
 
     def __repr__(self) -> str:
         return f"{self.qty} {self.symbol}"
-
-    def __call__(self, qty) -> Unit:
-        return Unit(1)
 
 
 class Unit(BaseUnit, SizedDimension):
