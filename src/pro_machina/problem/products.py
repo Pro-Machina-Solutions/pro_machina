@@ -18,12 +18,12 @@ from .consumables import Consumable
 
 
 class ComponentQty(TypedDict):
-    item: Product | Consumable
+    item: _Product | Consumable
     qty: Decimal
     unit: str
 
 
-class Product:
+class _Product:
     _ids = count(0)
 
     def __init__(self, name: str, base_dimension: UnsizedDimension):
@@ -39,10 +39,43 @@ class Product:
 
     def add_component(
         self,
-        component: Product | Consumable,
+        component: BatchProduct | ContinuousProduct | Consumable,
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
     ):
+        """Add either a consumable or a subproduct to the Bill of Materials.
+
+        In each case, the quantity of product must be specified for each
+        component being added. So, in the below example, we know that the
+        product will be created in FluidVolume measures. However, when adding
+        components, we can state their quantity in relation to a variable
+        amount to the product being made.
+
+        This is for convenience as not all consumables will be known on a
+        per-unit-measure basis but rather on some aggregate basis.
+
+        A simple example of usage:
+        goop = ContinuousProduct("Goop (TM)", FluidVolume)
+        goop.add_component(sugar, qty=Kilo("0.5"), per=Litre(1))
+        goop.add_component(starch, qty=Kilo(20), per=Litre(250))
+        goop.add_component(rasp_flav, qty=Millilitre(19), per=Litre(2))
+
+        Parameters
+        ----------
+        component : BatchProduct | ContinuousProduct | Consumable
+            An instance of a pre-defined product or consumable.
+        qty : SizedDimension | CustomUnit
+            The quantity and dimension of component.
+        per : SizedDimension
+            The units specified for this product.
+
+        Raises
+        ------
+        UnitError
+            Raised when either trying to add a component more than once or when
+            specifying components in units that are not compatible with either
+            this product or their own measurement unit.
+        """
         if (
             component._id in self._seen_consumables
             or component._id in self._seen_products
@@ -96,7 +129,22 @@ class Product:
         return f"<Product: {self.name}>"
 
 
-class ContinuousProduct(Product):
+class ContinuousProduct(_Product):
+    """Defines a product that can be manufactured for variable periods of time
+
+    Unlike a batch product, these products are produced in a continuous manner
+    such that the quantity made is dependent on how long the model chooses to
+    run the machine for, rather than a fixed duration and batch quantity.
+
+    Parameters
+    ----------
+    name : str
+        A string identifier for this product
+    base_dimension : UnsizedDimension
+        The dimension in which this product is sized e.g. FluidVolume or Weight
+        etc.
+    """
+
     def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
         super().__init__(name, base_dimension)
 
@@ -133,7 +181,7 @@ class ProductBatch:
     time: Dimension
 
 
-class BatchProduct(Product):
+class BatchProduct(_Product):
     def __init__(self, name: str, unit_measures) -> None:
         super().__init__(name, unit_measures)
 

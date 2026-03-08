@@ -11,7 +11,6 @@ from pro_machina.measures import (
     Sq_Centimetre,
     Sq_Metre,
     Unit,
-    Volume,
     Weight,
 )
 
@@ -56,7 +55,6 @@ prod_2.add_component(wrapper, qty=Sq_Centimetre(9), per=Unit(1))
 party_mix = ContinuousProduct("Party Mix", BaseUnit)
 party_mix.add_component(prod_1, qty=Unit(5), per=Unit(1))
 party_mix.add_component(prod_2, qty=Unit(5), per=Unit(1))
-
 for row in party_mix._products:
     print(row)
 print("###########")
