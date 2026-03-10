@@ -69,20 +69,20 @@ class ContinuousMachine(_Machine):
         product: ContinuousProduct,
         run_rate: SizedDimension,
         per: Duration,
-    ):
+    ) -> None:
         """Define a ContinuousProduct and its associated run rate.
 
         An example may be to say that the machine can make 80 units/min:
-            ```
-            machine = ContinuousMachine(name="Machine A")
-            machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-            ```
+        ```
+        machine = ContinuousMachine(name="Machine A")
+        machine.add_product(product, run_rate=Unit(80), per=Mins(1))
+        ```
 
         Or alternatively, 5 litres (averaged) in every 15 minute period:
-            ```
-            machine = ContinuousMachine(name="Machine A")
-            machine.add_product(product, run_rate=Litre(5), per=Mins(15))
-            ```
+        ```
+        machine = ContinuousMachine(name="Machine A")
+        machine.add_product(product, run_rate=Litre(5), per=Mins(15))
+        ```
 
         Parameters
         ----------
@@ -173,8 +173,8 @@ class ContinuousMachine(_Machine):
         ```
 
         The code will issue a warning for every constraint overwritten in this
-        way. To stop these warnings, you can set
-        `config.silence_warnings = True`
+        way. To stop these warnings, you can set `config.silence_warnings =
+        True`
 
         Parameters
         ----------

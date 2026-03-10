@@ -61,10 +61,15 @@ class _Product:
         per-unit-measure basis but rather on some aggregate basis.
 
         A simple example of usage:
+        ```
+        from pro_machina import ContinuousProduct
+        from pro_machina.measures import(FluidVolume, Kilo, Litre, Millilitre)
+
         goop = ContinuousProduct("Goop (TM)", FluidVolume)
         goop.add_component(sugar, qty=Kilo("0.5"), per=Litre(1))
         goop.add_component(starch, qty=Kilo(20), per=Litre(250))
         goop.add_component(rasp_flav, qty=Millilitre(19), per=Litre(2))
+        ```
 
         Parameters
         ----------
