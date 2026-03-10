@@ -7,9 +7,9 @@ from ..products import ContinuousProduct
 
 class MinProductionTime(HardConstraint):
     def __init__(
-        self, min_time: Duration, product: ContinuousProduct | None
+        self, min_time: Duration, product: ContinuousProduct | None = None
     ) -> None:
-        if not isinstance(product, ContinuousProduct):
+        if product is not None and not isinstance(product, ContinuousProduct):
             raise ConstraintError(
                 (
                     f"{self.__class__.__name__} cannot be added to"
@@ -32,9 +32,9 @@ class MinProductionTime(HardConstraint):
 
 class MaxProductionTime(HardConstraint):
     def __init__(
-        self, max_time: Duration, product: ContinuousProduct | None
+        self, max_time: Duration, product: ContinuousProduct | None = None
     ) -> None:
-        if not isinstance(product, ContinuousProduct):
+        if product is not None and not isinstance(product, ContinuousProduct):
             raise ConstraintError(
                 (
                     f"{self.__class__.__name__} cannot be added to"
