@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
 from typing import TypedDict
+from warnings import warn
 
+from pro_machina.config import Config
+
+from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import (
     CustomUnit,
@@ -17,7 +21,7 @@ from .constraints import HardConstraint, SoftConstraint
 from .consumables import Consumable
 
 
-class ComponentQty(TypedDict):
+class _ComponentQty(TypedDict):
     item: _Product | Consumable
     qty: Decimal
     unit: str
@@ -32,10 +36,13 @@ class _Product:
         self.name = name
         self.base_dimension = base_dimension
 
-        self._consumables: list[ComponentQty] = []
-        self._products: list[ComponentQty] = []
+        self._consumables: list[_ComponentQty] = []
+        self._products: list[_ComponentQty] = []
         self._seen_consumables: set[int] = set()
         self._seen_products: set[int] = set()
+
+        self._hard_constraints: list[HardConstraint] = []
+        self._soft_constraints: list[SoftConstraint] = []
 
     def add_component(
         self,
@@ -116,14 +123,76 @@ class _Product:
 
         if isinstance(component, Consumable):
             self._consumables.append(
-                ComponentQty(item=component, qty=amt, unit=unit)
+                _ComponentQty(item=component, qty=amt, unit=unit)
             )
             self._seen_consumables.add(component._id)
         else:
             self._products.append(
-                ComponentQty(item=component, qty=amt, unit=unit)
+                _ComponentQty(item=component, qty=amt, unit=unit)
             )
             self._seen_products.add(component._id)
+
+    def add_hard_constraint(
+        self, constraints: HardConstraint | list[HardConstraint]
+    ) -> None:
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
+
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
+
+        conf = Config()
+        to_remove = set()
+        for cons in constraints:
+            if cons in self._hard_constraints:
+                if not conf.silence_warnings:
+                    warn(
+                        (
+                            f"{constraints.__class__.__name__} has already"
+                            f" been defined for {self.name} and is being"
+                            f" overwritten by {constraints}"
+                        ).lstrip(),
+                        stacklevel=2,
+                    )
+                to_remove.add(cons)
+            cons.set_product(self)
+
+        new_cons = [
+            item for item in self._hard_constraints if item not in to_remove
+        ]
+        new_cons.extend(constraints)
+        self._hard_constraints = new_cons
+
+    def add_soft_constraint(
+        self, constraints: SoftConstraint | list[SoftConstraint]
+    ) -> None:
+        if isinstance(constraints, SoftConstraint):
+            constraints = [constraints]
+
+        if not all(isinstance(item, SoftConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type SoftConstraint")
+
+        conf = Config()
+        to_remove = set()
+        for cons in constraints:
+            if cons in self._soft_constraints:
+                if not conf.silence_warnings:
+                    warn(
+                        (
+                            f"{constraints.__class__.__name__} has already"
+                            f" been defined for {self.name} and is being"
+                            f" overwritten by {constraints}"
+                        ).lstrip(),
+                        stacklevel=2,
+                    )
+                to_remove.add(cons)
+            cons.set_product(self)
+
+        new_cons = [
+            item for item in self._soft_constraints if item not in to_remove
+        ]
+        new_cons.extend(constraints)
+        self._soft_constraints = new_cons
 
     def __repr__(self):
         return f"<Product: {self.name}>"
@@ -148,68 +217,19 @@ class ContinuousProduct(_Product):
     def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
         super().__init__(name, base_dimension)
 
-        self._hard_constraints: list[HardConstraint] = []
-        self._soft_constraints: list[SoftConstraint] = []
-
-    def add_hard_constraint(
-        self, constraint: HardConstraint | list[HardConstraint]
-    ) -> None:
-        if isinstance(constraint, HardConstraint):
-            constraint = [constraint]
-
-        if not all(isinstance(item, HardConstraint) for item in constraint):
-            raise TypeError("Constraints must all be of type HardConstraint")
-
-        self._hard_constraints.extend(constraint)
-
-    def add_soft_constraint(
-        self, constraint: SoftConstraint | list[SoftConstraint]
-    ) -> None:
-        if isinstance(constraint, SoftConstraint):
-            constraint = [constraint]
-
-        if not all(isinstance(item, SoftConstraint) for item in constraint):
-            raise TypeError("Constraints must all be of type SoftConstraint")
-
-        self._soft_constraints.extend(constraint)
-
 
 @dataclass
 class ProductBatch:
     name: str
     size: Dimension
-    time: Dimension
+    time: Duration
 
 
 class BatchProduct(_Product):
     def __init__(self, name: str, unit_measures) -> None:
         super().__init__(name, unit_measures)
 
-        self._hard_constraints: list[HardConstraint] = []
-        self._soft_constraints: list[SoftConstraint] = []
         self._batches = list[ProductBatch]
-
-    def add_hard_constraint(
-        self, constraint: HardConstraint | list[HardConstraint]
-    ) -> None:
-        if isinstance(constraint, HardConstraint):
-            constraint = [constraint]
-
-        if not all(isinstance(item, HardConstraint) for item in constraint):
-            raise TypeError("Constraints must all be of type HardConstraint")
-
-        self._hard_constraints.extend(constraint)
-
-    def add_soft_constraint(
-        self, constraint: SoftConstraint | list[SoftConstraint]
-    ) -> None:
-        if isinstance(constraint, SoftConstraint):
-            constraint = [constraint]
-
-        if not all(isinstance(item, SoftConstraint) for item in constraint):
-            raise TypeError("Constraints must all be of type SoftConstraint")
-
-        self._soft_constraints.extend(constraint)
 
 
 __all__ = ["BatchProduct", "ContinuousProduct", "ProductBatch"]

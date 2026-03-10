@@ -141,7 +141,7 @@ class TestShiftDay:
                 "prod": 100,
             }
         ]
-        d = _ShiftDay.from_json(raw)
+        d = _ShiftDay.from_json(raw)  # type: ignore
         assert isinstance(d.periods[0]["start"], dt.datetime)
         assert isinstance(d.periods[0]["end"], dt.datetime)
 
@@ -253,7 +253,7 @@ class TestAddWorkPeriod:
             b.add_work_period(
                 "2026-02-02 06:00:00",
                 "2026-02-02 18:00:00",
-                breaks=["not a ShiftBreak"],
+                breaks=["not a ShiftBreak"],  # type: ignore
             )
 
     def test_break_productivity_below_zero_raises(self):

@@ -12,3 +12,11 @@ class ShiftDefinitionError(ProblemError):
 
 class UnitError(ProblemError):
     """Inconsistency in unit measure types"""
+
+
+class MachineError(ProblemError):
+    """Incorrectly specified parameter for a machine"""
+
+
+class ConstraintError(ProblemError):
+    """Incorrect specification of a constraint"""

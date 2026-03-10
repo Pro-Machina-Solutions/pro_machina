@@ -1,4 +1,4 @@
-from pro_machina import Consumable, ContinuousProduct
+from pro_machina import Config, Consumable, ContinuousProduct
 from pro_machina.measures import (
     Area,
     BaseUnit,
@@ -13,6 +13,10 @@ from pro_machina.measures import (
     Unit,
     Weight,
 )
+
+config = Config()
+config.random_seed = 42
+# config.silence_warnings = True
 
 # Define some consumables
 sugar = Consumable("sugar", Weight)

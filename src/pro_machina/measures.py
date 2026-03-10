@@ -6,10 +6,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from .exceptions import UnitError
+from .util import Singleton
 
 if TYPE_CHECKING:
     from .problem.consumables import Consumable
-    from .problem.products import Product
+    from .problem.products import _Product
 
 
 class Dimension:
@@ -453,7 +454,7 @@ class CustomUnit:
         self.dimension = dimension
         self._tmp_qty: Decimal = Decimal(0)
 
-    def size_for(self, item: Product | Consumable, unit: SizedDimension):
+    def size_for(self, item: _Product | Consumable, unit: SizedDimension):
         if not item.base_dimension.is_compatible(unit):
             raise UnitError(
                 f"{unit.name()} is an invalid unit measure for {item.name}"
@@ -482,28 +483,22 @@ class CustomUnit:
         return f"<CustomUnit: {self.name}>"
 
 
-class _Singleton(type):
-    _instances: dict[type, UnitRegistry] = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class UnitRegistry(metaclass=_Singleton):
+class UnitRegistry(metaclass=Singleton):
     def __init__(self) -> None:
         self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
             dict
         )
 
     def add(
-        self, unit: CustomUnit, item: Product | Consumable, qty: SizedDimension
+        self,
+        unit: CustomUnit,
+        item: _Product | Consumable,
+        qty: SizedDimension,
     ) -> None:
         self.units[unit][item._id] = qty
 
     def get_measure(
-        self, unit: CustomUnit, item: Product | Consumable
+        self, unit: CustomUnit, item: _Product | Consumable
     ) -> SizedDimension:
         if self.units.get(unit) is None:
             raise UnitError(f"Unit: {unit.name} has not been registered")

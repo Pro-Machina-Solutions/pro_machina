@@ -10,4 +10,4 @@ class OverstockingPenalty(SoftConstraint):
     min_time: int
 
 
-__all__ = [SoftConstraint, OverstockingPenalty]
+__all__ = ["SoftConstraint", "OverstockingPenalty"]

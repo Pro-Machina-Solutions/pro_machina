@@ -1,15 +1,16 @@
 from secrets import randbelow
 
 from .durations import Duration, Mins, Secs
+from .util import Singleton
 
 
-class Config:
+class Config(metaclass=Singleton):
     def __init__(
         self,
         silence_warnings: bool = False,
-        base_time_unit: Duration = Secs,
+        base_time_unit: type[Duration] = Secs,
     ) -> None:
-        self.silence_warnings: bool = silence_warnings
+        self.silence_warnings = silence_warnings
         self.base_time_unit = base_time_unit
 
         self._max_iterations: int | None = None
@@ -29,21 +30,21 @@ class Config:
 
     @property
     def max_runtime(self) -> Duration | None:
-        return self._max_iterations
+        return self._max_runtime
 
     @max_runtime.setter
     def max_runtime(self, runtime: Duration) -> None:
-        if runtime is not None and runtime <= 0:
+        if runtime is not None and runtime.to_seconds() <= 0:
             raise ValueError("Max runtime seconds must be positive")
         self._max_runtime = runtime
 
     @property
     def timebucket_mins(self) -> Duration | None:
-        return self._max_iterations
+        return self._timebucket_mins
 
     @timebucket_mins.setter
     def timebucket_mins(self, timebucket_mins: Duration) -> None:
-        if timebucket_mins <= 0:
+        if timebucket_mins.to_seconds() <= 0:
             raise ValueError("Timebucket mins must be positive")
         self._timebucket_mins = timebucket_mins
 
