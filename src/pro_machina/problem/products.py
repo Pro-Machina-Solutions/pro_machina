@@ -6,8 +6,7 @@ from itertools import count
 from typing import TypedDict
 from warnings import warn
 
-from pro_machina.config import Config
-
+from ..config import Config
 from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import (

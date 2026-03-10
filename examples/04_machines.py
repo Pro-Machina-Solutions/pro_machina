@@ -3,8 +3,9 @@ from pro_machina import (
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
+    Problem,
 )
-from pro_machina.durations import Hours
+from pro_machina.durations import Hours, Mins
 from pro_machina.measures import (
     Area,
     BaseUnit,
@@ -18,14 +19,13 @@ from pro_machina.measures import (
     Unit,
     Weight,
 )
-from pro_machina.problem.constraints.hard_constraints import (
+from pro_machina.problem.constraints import (
     MaxProductionTime,
     MinProductionTime,
 )
 
 config = Config()
-# config.silence_warnings = True
-# config.silence_warnings = True
+problem = Problem(start_time="2026-03-09 00:00:00", config=config)
 
 # Define some consumables
 sugar = Consumable("sugar", Weight)
@@ -57,6 +57,6 @@ prod_1.add_hard_constraint(MinProductionTime(Hours(2)))
 prod_1.add_hard_constraint(MaxProductionTime(Hours(6)))
 
 mach = ContinuousMachine("test machine")
-mach.add_product(prod_1, 50)
+mach.add_product(prod_1, Unit(50), per=Mins(1))
 mach.add_product_constraint(prod_1, MinProductionTime(Hours(3)))
 print(mach._products)

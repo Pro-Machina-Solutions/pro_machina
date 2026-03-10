@@ -1,4 +1,7 @@
-from pro_machina import ShiftBreak, ShiftBuilder
+from pro_machina import ShiftBreak, ShiftBuilder, ShiftPattern
+
+sp = ShiftPattern.load_example_pattern("six_two_example")
+
 
 sb = ShiftBuilder(ref_start_date="2026-02-23", name="Single day")
 sb.add_work_period(
@@ -58,7 +61,42 @@ sb.build()
 for item in sb._shift_days:
     print(item)
 
+pattern = ShiftPattern(sb)
+# sb.save_pattern("six_two_example.json")
+
 ############################################
+
+# Simplest shift with no breaks
+sb = ShiftBuilder(ref_start_date="2026-02-23", name="two_ten")
+sb.add_work_period(
+    start_time="2026-02-23 14:00:00",
+    # breaks=ShiftBreak("2026-02-23 18:00:00", "2026-02-23 18:30:00", 50),
+    end_time="2026-02-23 22:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-24 14:00:00",
+    # breaks=ShiftBreak("2026-02-24 18:00:00", "2026-02-24 18:30:00", 50),
+    end_time="2026-02-24 22:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-25 14:00:00",
+    # breaks=ShiftBreak("2026-02-25 18:00:00", "2026-02-25 18:30:00", 50),
+    end_time="2026-02-25 22:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-26 14:00:00",
+    # breaks=ShiftBreak("2026-02-26 18:00:00", "2026-02-26 18:30:00", 50),
+    end_time="2026-02-26 22:00:00",
+)
+sb.add_work_period(
+    start_time="2026-02-27 14:00:00",
+    # breaks=ShiftBreak("2026-02-27 18:00:00", "2026-02-27 18:30:00", 50),
+    end_time="2026-02-27 21:30:00",
+)
+sb.add_downday(date="2026-02-28")
+sb.add_downday(date="2026-03-01 10:00:00")
+sb.build()
+# sb.save_pattern("two_ten_example.json")
 
 # Shift goes beyond midnight, with no breaks
 sb = ShiftBuilder(ref_start_date="2026-02-22", name="10-6")
@@ -95,7 +133,9 @@ for item in sb._shift_days:
 #########################
 
 # Simplest shift with breaks
-sb = ShiftBuilder(ref_start_date="2026-02-23", name="6-2")
+sb = ShiftBuilder(
+    ref_start_date="2026-02-23", name="6am-2pm break 10am-10:30am"
+)
 sb.add_work_period(
     start_time="2026-02-23 06:00:00",
     breaks=ShiftBreak("2026-02-23 10:00:00", "2026-02-23 10:30:00", 50),
@@ -126,10 +166,12 @@ sb.add_downday(date="2026-03-01 10:00:00")
 
 print()
 print("###############")
-print("6-2 SHIFT WITH 1 BREAK")
+print("6am-2 SHIFT WITH 1 BREAK")
 sb.build()
 for item in sb._shift_days:
     print(item)
+
+# sb.save_pattern("six_two_break_example.json")
 
 ############################################
 
@@ -218,6 +260,8 @@ print("4 ON, 4 OFF CONTINENTAL, 2 BREAKS")
 sb.build()
 for item in sb._shift_days:
     print(item)
+
+# sb.save_pattern("continental_example.json")
 
 ############################################
 

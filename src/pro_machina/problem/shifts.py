@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import os
+import pathlib
 from collections import defaultdict
 from typing import Required, Self, TypedDict
 
@@ -733,6 +734,29 @@ class ShiftPattern:
             A complete and validated ShiftPattern
         """
         builder = ShiftBuilder._load_pattern(filepath)
+        return cls(builder=builder)
+
+    @classmethod
+    def load_example_pattern(cls, shift_name: str) -> Self:
+        """Load a shift pattern from a limited set of pre-made examples
+
+        Parameters
+        ----------
+        shift_name : str
+            The name of the example shift. Valid names are: 'six_two_example',
+            'six_two_break_example', 'two_ten_example',
+            'two_ten_break_example' and 'continental_example'
+
+        Returns
+        -------
+        Self
+            A complete and validated ShiftPattern
+        """
+        path = (
+            pathlib.Path(__file__).resolve().parent
+            / f"resources/{shift_name}.json"
+        )
+        builder = ShiftBuilder._load_pattern(path)
         return cls(builder=builder)
 
     def _parse_to_secs(self):

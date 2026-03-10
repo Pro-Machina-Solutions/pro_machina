@@ -33,3 +33,6 @@ class SoftConstraint(Constraint):
 
 class AdvancedConstraint:
     pass
+
+
+from .hard_constraints import MaxProductionTime, MinProductionTime

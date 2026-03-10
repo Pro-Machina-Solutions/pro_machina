@@ -1,3 +1,4 @@
+from .constraints import MaxProductionTime, MinProductionTime
 from .consumables import Consumable
 from .machines import BatchMachine, ContinuousMachine
 from .problem import Problem
