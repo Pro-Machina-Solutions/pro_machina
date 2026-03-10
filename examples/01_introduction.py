@@ -5,7 +5,7 @@ and in subsequent examples we will continue to build on these foundations by
 adding more features and defining more complexity.
 
 Each example will assume knowledge from previous examples and only explain any
-new features ebing introduced.
+new features being introduced.
 """
 
 from pro_machina import (
@@ -37,7 +37,9 @@ problem = Problem(start_time="2026-02-23 00:00:00", config=config)
 # to solve for producing ContinuousProducts here, which represent products
 # that are manufactured in variable-length production runs at a fixed rate.
 # Here we are going to product sweets and we'll case them in terms of
-# individual units (the generic type for this is BaseUnit)
+# individual units (the generic type for this is BaseUnit).
+
+# Only one product can be produced by this machine at any one time.
 product_1 = ContinuousProduct(name="Raspberry Sweet", base_dimension=BaseUnit)
 product_2 = ContinuousProduct(name="Apple Sweet", base_dimension=BaseUnit)
 product_3 = ContinuousProduct(name="Strawberry Sweet", base_dimension=BaseUnit)
@@ -45,7 +47,7 @@ product_3 = ContinuousProduct(name="Strawberry Sweet", base_dimension=BaseUnit)
 # Next we can define a machine. Like products, these are also split into two
 # categories: BatchMachine and ContinuousMachine. We will need a
 # ContinuousMachine to make our products and when we add them to the machine,
-# we will define the production rate of each product
+# we will define the production rate of each.
 machine = ContinuousMachine(name="Machine A")
 
 # The machine can make 80 Raspberry Sweets per minute, etc.
