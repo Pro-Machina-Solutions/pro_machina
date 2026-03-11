@@ -7,6 +7,8 @@ from .problem import (
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
+    DemandForecast,
+    Order,
     Problem,
     ProductBatch,
     ShiftBreak,

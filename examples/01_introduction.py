@@ -12,6 +12,8 @@ from pro_machina import (
     Config,
     ContinuousMachine,
     ContinuousProduct,
+    DemandForecast,
+    Order,
     Problem,
     ShiftPattern,
 )
@@ -29,7 +31,7 @@ from pro_machina.measures import BaseUnit, Unit
 # warnings for specific modules. We'll just initialise it with the defaults for
 # now.
 config = Config()
-problem = Problem(start_time="2026-02-23 00:00:00", config=config)
+problem = Problem(start_time="2026-03-02 00:00:00", config=config)
 
 # The next thing to do is to define some products that we want to make.
 # Products are split into two categories: ContinuousProducts and BatchProducts.
@@ -66,7 +68,17 @@ machine.add_shift(shift)
 # Now our machine is fully specified, so we can add it to the Problem.
 problem.add_machine(machine)
 
-# TODO need to add a forecast
+# Now we need to create a demand forecast for each of our products. In this
+# case we'll make everything to order with some set dates. We could have
+# multiple orders for each product but we're only solving for one week here
+forecast = DemandForecast()
+forecast.add_order(Order(product_1, date="2026-03-06", qty=Unit(1000)))
+forecast.add_order(Order(product_2, date="2026-03-06", qty=Unit(1000)))
+forecast.add_order(Order(product_3, date="2026-03-06", qty=Unit(1000)))
+
+# Specify the demand forecast for the problem. There can only be one aggregated
+# forecast for the whole problem.
+problem.set_forecast(forecast)
 
 # Since we have nothing more to define, we can finalise the problem, ready to
 # solve. A Problem can only be built once, but it must be built before it can

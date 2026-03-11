@@ -2,6 +2,7 @@ import datetime as dt
 
 from ..config import Config
 from ..util import parse_datetime
+from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
 
 
@@ -21,6 +22,7 @@ class Problem:
 
         # Containers
         self._machines: dict[int, _Machine] = {}
+        self._forecast: DemandForecast | None = None
 
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
         if not isinstance(machine, _Machine):
@@ -28,6 +30,9 @@ class Problem:
                 "Can only add types: ContinuousMachine and BatchMachine"
             )
         self._machines[machine._id] = machine
+
+    def set_forecast(self, forecast: DemandForecast):
+        self._forecast = forecast
 
     def build(self) -> None:
         self._is_built = True
