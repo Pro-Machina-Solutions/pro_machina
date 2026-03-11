@@ -43,6 +43,13 @@ class _Product:
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
 
+        # To avoid recursion, we should just inherit the full product and
+        # consumable BOM of anything we add. This should just keep expanding
+        # as you go up the chain of parents and we don't necessarily care about
+        # separating out and apportioning to child items
+        self._bom_products: dict[int, Decimal] = {}
+        self._bom_consumables: dict[int, Decimal] = {}
+
     def add_component(
         self,
         component: BatchProduct | ContinuousProduct | Consumable,
@@ -130,11 +137,27 @@ class _Product:
                 _ComponentQty(item=component, qty=amt, unit=unit)
             )
             self._seen_consumables.add(component._id)
+            self._bom_consumables[component._id] = (
+                self._bom_consumables.get(component._id, 0) + amt
+            )
         else:
             self._products.append(
                 _ComponentQty(item=component, qty=amt, unit=unit)
             )
             self._seen_products.add(component._id)
+
+            # Hoist up any suproduct BOM data
+            self._bom_products[component._id] = amt
+
+            for subprod_id, subprod_qty in component._bom_products.items():
+                self._bom_products[subprod_id] = self._bom_products.get(
+                    subprod_id, 0
+                ) + (amt * subprod_qty)
+
+            for cons_id, cons_qty in component._bom_consumables.items():
+                self._bom_consumables[cons_id] = self._bom_consumables.get(
+                    cons_id, 0
+                ) + (amt * cons_qty)
 
     def add_hard_constraint(
         self, constraints: HardConstraint | list[HardConstraint]

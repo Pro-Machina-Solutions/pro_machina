@@ -132,7 +132,6 @@ forecast = DemandForecast()
 forecast.add_order(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
 problem.set_forecast(forecast)
 
-
 problem.build()
 
 problem.solve()
