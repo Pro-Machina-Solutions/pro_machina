@@ -4,7 +4,7 @@ pro_machina library. In this example, we will be defining a very simple problem
 and in subsequent examples we will continue to build on these foundations by
 adding more features and defining more complexity.
 
-Each example will assume knowledge from previous examples and only explain any
+Each example will assume knowledge from previous examples, and only explain any
 new features being introduced.
 """
 
@@ -19,14 +19,15 @@ from pro_machina.durations import Mins
 from pro_machina.measures import BaseUnit, Unit
 
 # The main object in the pro_machina library is the Problem. This serves as a
-# container to define all of the characteristics of what you want to solve for.
-# In complex setups, it's likely that a single instance will be passed around
-# multiple modules as you build up the component parts.
+# container to define all of the characteristics of what we want to solve for.
+# In complex setups, it's likely that a single Problem instance will be passed
+# around multiple modules as we build up the component parts.
 
 # All problems require a reference start date, and take an optional Config
 # instance. It is also possible that this config object will be passed around
-# with the Problem in cases where you wish to change things like hiding
-# warnings for specific modules. We'll just pass the defaults for now.
+# with the Problem in cases where we wish to change things like hiding
+# warnings for specific modules. We'll just initialise it with the defaults for
+# now.
 config = Config()
 problem = Problem(start_time="2026-02-23 00:00:00", config=config)
 
@@ -36,10 +37,10 @@ problem = Problem(start_time="2026-02-23 00:00:00", config=config)
 # where a fixed quantity is produced within a fixed duration. However, we want
 # to solve for producing ContinuousProducts here, which represent products
 # that are manufactured in variable-length production runs at a fixed rate.
-# Here we are going to product sweets and we'll case them in terms of
-# individual units (the generic type for this is BaseUnit).
+# Here we are going to produce sweets and we'll count them in terms of
+# individual units (the generic type for which is BaseUnit).
 
-# Only one product can be produced by this machine at any one time.
+# Note: only one product can be produced by this machine at any one time.
 product_1 = ContinuousProduct(name="Raspberry Sweet", base_dimension=BaseUnit)
 product_2 = ContinuousProduct(name="Apple Sweet", base_dimension=BaseUnit)
 product_3 = ContinuousProduct(name="Strawberry Sweet", base_dimension=BaseUnit)
@@ -55,7 +56,7 @@ machine.add_product(product_1, run_rate=Unit(80), per=Mins(1))
 machine.add_product(product_2, run_rate=Unit(75), per=Mins(1))
 machine.add_product(product_3, run_rate=Unit(72), per=Mins(1))
 
-# Next we need to specify a shift pattern for our machine. Defining shift
+# Next we need to specify a shift pattern for our machine. Creating shift
 # patterns is an involved process that will be covered later. For now we'll
 # load a pre-made example where the machine will run from 6am to 2pm, Monday to
 # Friday with no breaks (though it will finish at 13:30 on Friday).
@@ -68,7 +69,8 @@ problem.add_machine(machine)
 # TODO need to add a forecast
 
 # Since we have nothing more to define, we can finalise the problem, ready to
-# solve. A Problem can only be built once.
+# solve. A Problem can only be built once, but it must be built before it can
+# be solved.
 # TODO does nothing yet
 problem.build()
 
