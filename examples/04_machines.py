@@ -5,7 +5,7 @@ from pro_machina import (
     ContinuousProduct,
     Problem,
 )
-from pro_machina.durations import Hours, Mins
+from pro_machina.durations import Hours, Mins, Weeks
 from pro_machina.measures import (
     Area,
     BaseUnit,
@@ -25,7 +25,9 @@ from pro_machina.problem.constraints import (
 )
 
 config = Config()
-problem = Problem(start_time="2026-03-09 00:00:00", config=config)
+problem = Problem(
+    start_time="2026-03-09 00:00:00", length=Weeks(1), config=config
+)
 
 # Define some consumables
 sugar = Consumable("sugar", Weight)

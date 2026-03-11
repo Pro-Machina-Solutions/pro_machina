@@ -34,6 +34,9 @@ class DemandForecast:
     def add_order(self, order: Order) -> None:
         self._orders.append(order)
 
+    def _build(self, start_date: dt.date, end_date: dt.date):
+        pass
+
 
 class MadeToStock:
     pass

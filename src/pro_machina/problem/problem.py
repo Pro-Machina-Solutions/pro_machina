@@ -1,6 +1,7 @@
 import datetime as dt
 
 from ..config import Config
+from ..durations import Duration
 from ..util import parse_datetime
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
@@ -8,7 +9,10 @@ from .machines import BatchMachine, ContinuousMachine, _Machine
 
 class Problem:
     def __init__(
-        self, start_time: str | dt.datetime, config: Config | None = None
+        self,
+        start_time: str | dt.datetime,
+        length: Duration,
+        config: Config | None = None,
     ):
         if config is None:
             self.config = Config()
@@ -16,6 +20,7 @@ class Problem:
             self.config = config
 
         self.start_time = parse_datetime(start_time)
+        self.length = length
 
         # Flags
         self._is_built = False

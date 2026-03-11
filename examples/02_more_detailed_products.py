@@ -16,7 +16,7 @@ from pro_machina import (
     Problem,
     ShiftPattern,
 )
-from pro_machina.durations import Mins
+from pro_machina.durations import Mins, Weeks
 from pro_machina.measures import (
     Area,
     BaseUnit,
@@ -34,7 +34,9 @@ from pro_machina.measures import (
 )
 
 config = Config()
-problem = Problem(start_time="2026-02-23 00:00:00", config=config)
+problem = Problem(
+    start_time="2026-02-23 00:00:00", length=Weeks(1), config=config
+)
 
 # We'll define some consumables that will be used in our products. For now we
 # just define their base dimensions and we'll specify quantities for individual

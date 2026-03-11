@@ -17,7 +17,7 @@ from pro_machina import (
     Problem,
     ShiftPattern,
 )
-from pro_machina.durations import Mins
+from pro_machina.durations import Mins, Weeks
 from pro_machina.measures import BaseUnit, Unit
 
 # The main object in the pro_machina library is the Problem. This serves as a
@@ -25,13 +25,15 @@ from pro_machina.measures import BaseUnit, Unit
 # In complex setups, it's likely that a single Problem instance will be passed
 # around multiple modules as we build up the component parts.
 
-# All problems require a reference start date, and take an optional Config
-# instance. It is also possible that this config object will be passed around
-# with the Problem in cases where we wish to change things like hiding
-# warnings for specific modules. We'll just initialise it with the defaults for
-# now.
+# All problems require a reference start date, a duration for how far into the
+# future to solve for and take an optional Config instance. It is also possible
+# that this config object will be passed around with the Problem in cases where
+# we wish to change things like hiding warnings for specific modules. We'll
+# just initialise it with the defaults for now and solve for 1 week.
 config = Config()
-problem = Problem(start_time="2026-03-02 00:00:00", config=config)
+problem = Problem(
+    start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
+)
 
 # The next thing to do is to define some products that we want to make.
 # Products are split into two categories: ContinuousProducts and BatchProducts.
