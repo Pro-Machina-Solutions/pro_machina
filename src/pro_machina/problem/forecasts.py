@@ -8,7 +8,7 @@ from ..config import Config
 from ..exceptions import ForecastError
 from ..measures import CustomUnit, SizedDimension
 from ..util import as_midnight, parse_datetime
-from .products import BatchProduct, ContinuousProduct
+from .products import BatchProduct, ContinuousProduct, _Product
 
 
 class Order:
@@ -37,12 +37,53 @@ class DemandForecast:
         self._orders: list[Order] = []
 
         self._prod_demands: dict[int, npt.NDArray[np.float64]] = {}
+        self._cons_demands: dict[int, npt.NDArray[np.float64]] = {}
 
     def add_order(self, order: Order) -> None:
         self._orders.append(order)
 
-    def _get_bucket(self):
-        pass
+    def _sum_demand(
+        self,
+        aggregator: dict[int, npt.NDArray[np.float64]],
+        order: Order,
+        _id: int,
+        num_buckets: int,
+        start_date: dt.datetime,
+        horizon_secs: int,
+        timebucket_secs: int,
+        deflt_num_horizon_buckets: int,
+        multiplier: Decimal = Decimal(1),
+    ):
+        # Have we seen this product before? If not, fill it out with zero
+        # base demand for the whole problem
+        if _id not in aggregator:
+            aggregator[_id] = np.zeros(num_buckets)
+
+        # Determine the start bucket of the order. If it comes before the
+        # start date of the problem, then we need to bump it up to match
+        theo_start = order.date - dt.timedelta(seconds=horizon_secs)
+        if theo_start < start_date:
+            theo_start = start_date
+            demand_buckets = int(
+                (order.date - start_date).total_seconds() / timebucket_secs
+            )
+            start_index = 0
+            end_index = demand_buckets
+        else:
+            start_index = int(
+                (
+                    (order.date - dt.timedelta(seconds=horizon_secs))
+                    - start_date
+                ).total_seconds()
+                / timebucket_secs
+            )
+            end_index = int(start_index + deflt_num_horizon_buckets)
+            demand_buckets = int(deflt_num_horizon_buckets)
+
+        demand_per_bucket = float(
+            (order.qty._base_qty * multiplier) / Decimal(demand_buckets)
+        )
+        aggregator[_id][start_index:end_index] += demand_per_bucket
 
     def _build(
         self, start_date: dt.datetime, end_date: dt.datetime, config: Config
@@ -56,42 +97,62 @@ class DemandForecast:
         deflt_num_horizon_buckets = horizon_secs / timebucket_secs
 
         for order in self._orders:
-            prod_id = order.product._id
-            # Have we seen this product before? If not, fill it out with zero
-            # base demand for the whole problem
-            if prod_id not in self._prod_demands:
-                self._prod_demands[prod_id] = np.zeros(num_buckets)
-
-            # Determine the start bucket of the order. If it comes before the
-            # start date of the problem, then we need to bump it up to match
-            theo_start = order.date - dt.timedelta(seconds=horizon_secs)
-            if theo_start < start_date:
-                theo_start = start_date
-                demand_buckets = int(
-                    (order.date - start_date).total_seconds() / timebucket_secs
-                )
-                start_index = 0
-                end_index = demand_buckets
-            else:
-                start_index = int(
-                    (
-                        (order.date - dt.timedelta(seconds=horizon_secs))
-                        - start_date
-                    ).total_seconds()
-                    / timebucket_secs
-                )
-                end_index = int(start_index + deflt_num_horizon_buckets)
-                demand_buckets = int(deflt_num_horizon_buckets)
-
-            demand_per_bucket = float(
-                order.qty._base_qty / Decimal(demand_buckets)
+            self._sum_demand(
+                aggregator=self._prod_demands,
+                order=order,
+                _id=order.product._id,
+                num_buckets=num_buckets,
+                start_date=start_date,
+                horizon_secs=int(horizon_secs),
+                timebucket_secs=int(timebucket_secs),
+                deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
             )
-            self._prod_demands[prod_id][start_index:end_index] += (
-                demand_per_bucket
-            )
+
+            for consumable in order.product._consumables:
+                self._sum_demand(
+                    aggregator=self._cons_demands,
+                    order=order,
+                    _id=consumable["item"]._id,
+                    num_buckets=num_buckets,
+                    start_date=start_date,
+                    horizon_secs=int(horizon_secs),
+                    timebucket_secs=int(timebucket_secs),
+                    deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+                )
+
+            for subproduct in order.product._products:
+                self._sum_demand(
+                    aggregator=self._prod_demands,
+                    order=order,
+                    _id=subproduct["item"]._id,
+                    num_buckets=num_buckets,
+                    start_date=start_date,
+                    horizon_secs=int(horizon_secs),
+                    timebucket_secs=int(timebucket_secs),
+                    deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+                    multiplier=subproduct["qty"],
+                )
+                if isinstance(subproduct["item"], _Product):
+                    for consumable in subproduct["item"]._consumables:
+                        self._sum_demand(
+                            aggregator=self._cons_demands,
+                            order=order,
+                            _id=subproduct["item"]._id,
+                            num_buckets=num_buckets,
+                            start_date=start_date,
+                            horizon_secs=int(horizon_secs),
+                            timebucket_secs=int(timebucket_secs),
+                            deflt_num_horizon_buckets=int(
+                                deflt_num_horizon_buckets
+                            ),
+                            multiplier=consumable["qty"],
+                        )
 
         for k, v in self._prod_demands.items():
             self._prod_demands[k] = v.cumsum()
+
+        for k, v in self._cons_demands.items():
+            self._cons_demands[k] = v.cumsum()
 
 
 class MadeToStock:

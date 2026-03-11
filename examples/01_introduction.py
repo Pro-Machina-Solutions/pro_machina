@@ -32,7 +32,7 @@ from pro_machina.measures import BaseUnit, Unit
 # just initialise it with the defaults for now and solve for 1 week.
 config = Config()
 problem = Problem(
-    start_time="2026-03-02 00:00:00", length=Weeks(2), config=config
+    start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
 )
 
 # The next thing to do is to define some products that we want to make.

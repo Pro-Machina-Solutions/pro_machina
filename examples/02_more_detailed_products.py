@@ -13,6 +13,8 @@ from pro_machina import (
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
+    DemandForecast,
+    Order,
     Problem,
     ShiftPattern,
 )
@@ -35,7 +37,7 @@ from pro_machina.measures import (
 
 config = Config()
 problem = Problem(
-    start_time="2026-02-23 00:00:00", length=Weeks(1), config=config
+    start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
 )
 
 # We'll define some consumables that will be used in our products. For now we
@@ -111,16 +113,25 @@ problem.add_machine(machine)
 
 # Now that we have some individual sweets being made, we can also make a
 # finished product containing them. We'll also need another machine somewhere
-# else in the factory to create this product.
+# else in the factory to create this product. Create a tub to store it in.
 party_mix = ContinuousProduct("Party Mix", base_dimension=BaseUnit)
 party_mix.add_component(product_1, qty=Unit(8), per=Unit(1))
 party_mix.add_component(product_2, qty=Unit(7), per=Unit(1))
 party_mix.add_component(product_3, qty=Unit(9), per=Unit(1))
 
+tub = Consumable("Party Mix Tub", BaseUnit)
+party_mix.add_component(tub, Unit(1), Unit(1))
+
 machine_2 = ContinuousMachine("Bagging Machine")
 machine_2.add_product(party_mix, run_rate=Unit(10), per=Mins(1))
-
 problem.add_machine(machine_2)
+
+# This time we only need to set the forecast demand for the finished product.
+# All of the subproducts will automatically be accounted for
+forecast = DemandForecast()
+forecast.add_order(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
+problem.set_forecast(forecast)
+
 
 problem.build()
 
