@@ -2,6 +2,7 @@ import datetime as dt
 
 from ..config import Config
 from ..durations import Duration
+from ..exceptions import ProblemError
 from ..util import parse_datetime
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
@@ -22,12 +23,16 @@ class Problem:
         self.start_time = parse_datetime(start_time)
         self.length = length
 
+        self._end_time = self.start_time + dt.timedelta(
+            seconds=self.length.to_seconds()
+        )
+        self._forecast: DemandForecast | None = None
+
         # Flags
         self._is_built = False
 
         # Containers
         self._machines: dict[int, _Machine] = {}
-        self._forecast: DemandForecast | None = None
 
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
         if not isinstance(machine, _Machine):
@@ -40,6 +45,9 @@ class Problem:
         self._forecast = forecast
 
     def build(self) -> None:
+        if self._forecast is None:
+            raise ProblemError("No demand forecast has been set")
+        self._forecast._build(self.start_time, self._end_time, self.config)
         self._is_built = True
 
     def solve(self) -> None:

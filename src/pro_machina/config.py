@@ -1,6 +1,6 @@
 from secrets import randbelow
 
-from .durations import Duration, Mins, Secs
+from .durations import Duration, Mins, Secs, Weeks
 from .util import Singleton
 
 
@@ -15,8 +15,9 @@ class Config(metaclass=Singleton):
 
         self._max_iterations: int | None = None
         self._max_runtime: Duration | None = None
-        self._timebucket_mins: Duration | None = Mins(15)
+        self._timebucket: Duration = Mins(15)
         self._random_seed = randbelow(4294967296)
+        self._demand_horizon: Duration = Weeks(1)
 
     @property
     def max_iterations(self) -> int | None:
@@ -35,18 +36,18 @@ class Config(metaclass=Singleton):
     @max_runtime.setter
     def max_runtime(self, runtime: Duration) -> None:
         if runtime is not None and runtime.to_seconds() <= 0:
-            raise ValueError("Max runtime seconds must be positive")
+            raise ValueError("Max runtime duration must be positive")
         self._max_runtime = runtime
 
     @property
-    def timebucket_mins(self) -> Duration | None:
-        return self._timebucket_mins
+    def timebucket(self) -> Duration | None:
+        return self._timebucket
 
-    @timebucket_mins.setter
-    def timebucket_mins(self, timebucket_mins: Duration) -> None:
-        if timebucket_mins.to_seconds() <= 0:
-            raise ValueError("Timebucket mins must be positive")
-        self._timebucket_mins = timebucket_mins
+    @timebucket.setter
+    def timebucket(self, timebucket: Duration) -> None:
+        if timebucket.to_seconds() <= 0:
+            raise ValueError("Timebucket duration must be positive")
+        self._timebucket = timebucket
 
     @property
     def random_seed(self) -> int:
@@ -60,6 +61,16 @@ class Config(metaclass=Singleton):
                 " (the maximum unsigned 32-Bit integer, due to numpy overflow)"
             )
         self._random_seed = seed
+
+    @property
+    def demand_horizon(self) -> Duration:
+        return self._demand_horizon
+
+    @demand_horizon.setter
+    def demand_horizon(self, horizon: Duration) -> None:
+        if horizon.to_seconds() <= 0:
+            raise ValueError("Demand horizon must be a positive duration")
+        self._demand_horizon = horizon
 
     def __repr__(self) -> str:
         return "Hello"
