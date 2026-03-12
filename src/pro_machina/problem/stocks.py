@@ -1,20 +1,20 @@
 import datetime as dt
 
-from .products import BatchProduct, Consumable, ContinuousProduct
+from ..exceptions import UnitError
 from ..measures import SizedDimension
 from ..util import parse_datetime
-from ..exceptions import UnitError
+from .products import BatchProduct, Consumable, ContinuousProduct
 
 
 class StockHolding:
     """Represents the starting stock level of any Products or Consumables
-    
+
     If theb starting stock of any product or consumable is not set then it will
     be assumed to be zero. In the case of defined consumables, obviously no
     product that depends on that consumable will be possible to produce. This
     may be done deliberately, though, as it may be that you are waiting on a
     delivery (InboundStock) for that particular consumable.
-    
+
     Parameters
     ----------
     item : ContinuousProduct | BatchProduct | Consumable
@@ -22,12 +22,13 @@ class StockHolding:
     qty : SizedDimension
         The total quantity held at the start of the problem
     """
+
     def __init__(
         self,
         item: ContinuousProduct | BatchProduct | Consumable,
         qty: SizedDimension,
     ) -> None:
-        
+
         self._id = item._id
         self.item = item
 
@@ -38,7 +39,7 @@ class StockHolding:
 
 class InboundStock:
     """Represents some inbound delivery of a consumable
-    
+
     Parameters
     ----------
     item : Consumable
@@ -48,6 +49,7 @@ class InboundStock:
     date : str | dt.datetime
         The date after which this stock will be available for use
     """
+
     def __init__(
         self, item: Consumable, qty: SizedDimension, date: str | dt.datetime
     ):

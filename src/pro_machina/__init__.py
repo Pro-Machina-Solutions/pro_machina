@@ -8,10 +8,12 @@ from .problem import (
     ContinuousMachine,
     ContinuousProduct,
     DemandForecast,
+    InboundStock,
     Order,
     Problem,
     ProductBatch,
     ShiftBreak,
     ShiftBuilder,
     ShiftPattern,
+    StockHolding,
 )

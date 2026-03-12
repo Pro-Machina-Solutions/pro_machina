@@ -44,14 +44,17 @@ problem = Problem(
 # just define their base dimensions and we'll specify quantities for individual
 # products later. Consumables represent anything that we cannot make on site
 # and must therefore be bought in.
-sugar = Consumable("Sugar", Weight)
-gelatine = Consumable("Gelatine", Weight)
-rasp_flav = Consumable("Raspberry Flavour", FluidVolume)
-apple_flav = Consumable("Apple Flavour", FluidVolume)
-straw_flav = Consumable("Strawberry Flavour", FluidVolume)
-red_wrap = Consumable("Red Wrapper", Area)
-green_wrap = Consumable("Green Wrapper", Area)
-pink_wrap = Consumable("Pink Wrapper", Area)
+
+# We will set rate-limiting to False here, meaning that we don't care about
+# available stock levels; they're assumed to always be available
+sugar = Consumable("Sugar", Weight, rate_limiting=False)
+gelatine = Consumable("Gelatine", Weight, rate_limiting=False)
+rasp_flav = Consumable("Raspberry Flavour", FluidVolume, rate_limiting=False)
+apple_flav = Consumable("Apple Flavour", FluidVolume, rate_limiting=False)
+straw_flav = Consumable("Strawberry Flavour", FluidVolume, rate_limiting=False)
+red_wrap = Consumable("Red Wrapper", Area, rate_limiting=False)
+green_wrap = Consumable("Green Wrapper", Area, rate_limiting=False)
+pink_wrap = Consumable("Pink Wrapper", Area, rate_limiting=False)
 
 # Making the same products as before
 product_1 = ContinuousProduct(name="Raspberry Sweet", base_dimension=BaseUnit)
@@ -119,7 +122,7 @@ party_mix.add_component(product_1, qty=Unit(8), per=Unit(1))
 party_mix.add_component(product_2, qty=Unit(7), per=Unit(1))
 party_mix.add_component(product_3, qty=Unit(9), per=Unit(1))
 
-tub = Consumable("Party Mix Tub", BaseUnit)
+tub = Consumable("Party Mix Tub", BaseUnit, rate_limiting=False)
 party_mix.add_component(tub, Unit(1), Unit(1))
 
 machine_2 = ContinuousMachine("Bagging Machine")
