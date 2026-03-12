@@ -6,6 +6,7 @@ from ..exceptions import ProblemError
 from ..util import parse_datetime
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
+from .stocks import InboundStock, StockHolding
 
 
 class Problem:
@@ -33,6 +34,8 @@ class Problem:
 
         # Containers
         self._machines: dict[int, _Machine] = {}
+        self._starting_stocks: dict[int, StockHolding] = {}
+        self._inbound_stock: dict[int, InboundStock] = {}
 
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
         if not isinstance(machine, _Machine):
@@ -40,6 +43,12 @@ class Problem:
                 "Can only add types: ContinuousMachine and BatchMachine"
             )
         self._machines[machine._id] = machine
+
+    def add_stock(self, stock: StockHolding) -> None:
+        self._starting_stocks[stock._id] = stock
+
+    def add_inbound_stock(self, inbound: InboundStock) -> None:
+        self._inbound_stock[inbound._id] = inbound
 
     def set_forecast(self, forecast: DemandForecast):
         self._forecast = forecast
