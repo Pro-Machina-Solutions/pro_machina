@@ -46,6 +46,8 @@ class SizedDimension:
 
 
 class BaseUnit(Dimension):
+    """The base, unsized dimension for Unit"""
+
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, BaseUnit)
@@ -82,13 +84,15 @@ class Unit(BaseUnit, SizedDimension):
 
 
 class Weight(Dimension):
+    """The base, unsized dimension for all measures of weight"""
+
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Weight)
 
     @staticmethod
-    def get_base() -> Gram:
-        return Gram(1)
+    def get_base(val: float | str | Decimal = 1) -> Gram:
+        return Gram(val)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -167,13 +171,15 @@ class Ton(Weight, SizedDimension):
 
 
 class Length(Dimension):
+    """The base, unsized dimension for all measures of length"""
+
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Length)
 
     @staticmethod
-    def get_base() -> Centimetre:
-        return Centimetre(1)
+    def get_base(val: float | str | Decimal = 1) -> Centimetre:
+        return Centimetre(val)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -241,13 +247,15 @@ class Yard(Length, SizedDimension):
 
 
 class Area(Dimension):
+    """The base, unsized dimension for all measures of area"""
+
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Area)
 
     @staticmethod
-    def get_base() -> Sq_Centimetre:
-        return Sq_Centimetre(1)
+    def get_base(val: float | str | Decimal = 1) -> Sq_Centimetre:
+        return Sq_Centimetre(val)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -315,13 +323,15 @@ class Sq_Yard(Area, SizedDimension):
 
 
 class Volume(Dimension):
+    """The base, unsized dimension for all measures of volume"""
+
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Volume | FluidVolume)
 
     @staticmethod
-    def get_base() -> Cu_Centimetre:
-        return Cu_Centimetre(1)
+    def get_base(val: float | str | Decimal = 1) -> Cu_Centimetre:
+        return Cu_Centimetre(val)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -331,6 +341,8 @@ class Volume(Dimension):
 
 
 class FluidVolume(Dimension):
+    """The base, unsized dimension for all measures of liquid volume"""
+
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
         return isinstance(other, Volume | FluidVolume)
@@ -456,6 +468,7 @@ class Barrel(FluidVolume, SizedDimension):
         self.symbol = "bbl"
 
 
+# For type hinting only
 UnsizedDimension = (
     type[Area]
     | type[BaseUnit]
@@ -467,17 +480,46 @@ UnsizedDimension = (
 
 
 class CustomUnit:
-    def __init__(self, name: str, dimension: UnsizedDimension):
+    """Create a variable-sized unit for a Product or Consumable
+
+    This is designed to allow for the creation of flexibly-sized units to work
+    with. For example, we may want to specify a Pallet unit, which will hold
+    different quantities of different products/consumables. That can be done as
+    follows:
+
+    ```python
+    from pro_machina import Consumable
+    from pro_machina.measures import BaseUnit, CustomUnit, Kilo, Tonne, Weight
+
+    consumable_1 = Consumable("Sugar", Weight)
+    consumable_2 = Consumable("Flour", Weight)
+
+    Pallet = CustomUnit("A standard pallet", BaseUnit)
+    Pallet.size_for(consumable_1, Tonne("1.5"))
+    Pallet.size_for(consumable_2, Kilo(1200))
+    ```
+
+    Parameters
+    ----------
+    name : str
+        A descriptive name for the unit
+    dimension : UnsizedDimension
+        The unsized dimension of the unit e.g. Weight or BaseUnit
+    """
+
+    def __init__(self, name: str, dimension: UnsizedDimension) -> None:
         self.name = name
         self.dimension = dimension
         self._tmp_qty: Decimal = Decimal(0)
 
-    def size_for(self, item: _Product | Consumable, unit: SizedDimension):
+    def size_for(
+        self, item: _Product | Consumable, unit: SizedDimension
+    ) -> None:
         if not item.base_dimension.is_compatible(unit):
             raise UnitError(
                 f"{unit.name()} is an invalid unit measure for {item.name}"
             )
-        reg = UnitRegistry()
+        reg = _UnitRegistry()
         reg.add(self, item, unit)
 
     def __call__(self, qty: float | Decimal | str):
@@ -501,7 +543,7 @@ class CustomUnit:
         return f"<CustomUnit: {self.name}>"
 
 
-class UnitRegistry(metaclass=Singleton):
+class _UnitRegistry(metaclass=Singleton):
     def __init__(self) -> None:
         self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
             dict

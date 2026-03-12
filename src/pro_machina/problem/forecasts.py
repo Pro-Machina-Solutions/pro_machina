@@ -1,11 +1,12 @@
 import datetime as dt
 from decimal import Decimal
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from ..config import Config
-from ..durations import Duration, Weeks
+from ..durations import Duration
 from ..exceptions import ForecastError
 from ..measures import CustomUnit, SizedDimension
 from ..util import as_midnight, parse_datetime
@@ -13,16 +14,39 @@ from .products import BatchProduct, ContinuousProduct
 
 
 class Order:
+    """Create a fixed quantity demand for a product on a fixed date
+
+    Parameters
+    ----------
+    product : BatchProduct | ContinuousProduct
+        The product the order relates to
+    date : dt.date | str
+        The date on which the demand must be met
+    qty : SizedDimension
+        The due quantity of the order
+    meta : dict[Any, Any] | None, optional
+        A dictionary of any further information to store with the order such as
+        the order number etc.
+
+    Raises
+    ------
+    ForecastError
+        Raised if the order quantity is incompatible with the product units
+    """
+
     def __init__(
         self,
         product: BatchProduct | ContinuousProduct,
         date: dt.date | str,
         qty: SizedDimension,
+        meta: dict[Any, Any] | None = None,
     ) -> None:
+
         self.product = product
         self.date = as_midnight(parse_datetime(date))
 
         if isinstance(qty, CustomUnit):
+            # TODO
             pass
 
         if not product.base_dimension.is_compatible(qty):
@@ -31,9 +55,38 @@ class Order:
             )
 
         self.qty = qty
+        self.meta = meta
 
 
 class MadeToStock:
+    """Generate product demand that is not associated with a fixed order
+
+    Parameters
+    ----------
+    product : BatchProduct | ContinuousProduct
+        The product the demand relates to
+    qty : SizedDimension
+        The target quantity to produce
+    start_date : str | dt.datetime
+        The theoretical date that this applies to. For example, on a problem
+        that starts on a Monday, you might set the start date as the following
+        Friday, giving the plant five days to meet the demand
+    freq : Duration | None, optional
+        The frequency with which this demand should repeat. For example,
+        setting a qty of Unit(1000) and a freq of Weeks(1) will generate a
+        repeating demand every seven days from the start date. Set as None for
+        a one-off demand
+    end_date : str | dt.datetime | None, optional
+        An optional end date for which repeated demand should cease
+
+    Raises
+    ------
+    ForecastError
+        Raised if the stated quantity is incompatible with the product units
+    ValueError
+        Raised if an end_date is set but no freq has been specified
+    """
+
     def __init__(
         self,
         product: BatchProduct | ContinuousProduct,
@@ -50,7 +103,7 @@ class MadeToStock:
             )
 
         if end_date is not None and freq is None:
-            raise ForecastError(
+            raise ValueError(
                 "Cannot set an end date for MadeToStock without specifying a"
                 " frequency of restocking"
             )
@@ -63,6 +116,8 @@ class MadeToStock:
 
 
 class DemandForecast:
+    """Container class to hold all Orders and MadeToStock quantities"""
+
     def __init__(self) -> None:
         self._orders: list[Order] = []
         self._made_to_stock: list[MadeToStock] = []
@@ -71,7 +126,13 @@ class DemandForecast:
         self._cons_demands: dict[int, npt.NDArray[np.float64]] = {}
 
     def add_order(self, order: Order | MadeToStock) -> None:
+        """Add product demand to the forecast
 
+        Parameters
+        ----------
+        order : Order | MadeToStock
+            Either a fixed-date Order or a variable MadeToStock target
+        """
         if isinstance(order, Order):
             self._orders.append(order)
         else:
@@ -137,9 +198,9 @@ class DemandForecast:
                 _id=order.product._id,
                 num_buckets=num_buckets,
                 start_date=start_date,
-                horizon_secs=int(horizon_secs),
-                timebucket_secs=int(timebucket_secs),
-                deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+                horizon_secs=horizon_secs,
+                timebucket_secs=timebucket_secs,
+                deflt_num_horizon_buckets=deflt_num_horizon_buckets,
             )
 
             for subproduct_id, qty in order.product._bom_products.items():
@@ -149,9 +210,9 @@ class DemandForecast:
                     _id=subproduct_id,
                     num_buckets=num_buckets,
                     start_date=start_date,
-                    horizon_secs=int(horizon_secs),
-                    timebucket_secs=int(timebucket_secs),
-                    deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+                    horizon_secs=horizon_secs,
+                    timebucket_secs=timebucket_secs,
+                    deflt_num_horizon_buckets=deflt_num_horizon_buckets,
                     multiplier=qty,
                 )
             for consumable_id, qty in order.product._bom_consumables.items():
@@ -161,9 +222,9 @@ class DemandForecast:
                     _id=consumable_id,
                     num_buckets=num_buckets,
                     start_date=start_date,
-                    horizon_secs=int(horizon_secs),
-                    timebucket_secs=int(timebucket_secs),
-                    deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+                    horizon_secs=horizon_secs,
+                    timebucket_secs=timebucket_secs,
+                    deflt_num_horizon_buckets=deflt_num_horizon_buckets,
                     multiplier=qty,
                 )
 
@@ -171,21 +232,21 @@ class DemandForecast:
         self, start_date: dt.datetime, end_date: dt.datetime, config: Config
     ):
 
-        timebucket_secs = config._timebucket.to_seconds()
+        timebucket_secs = int(config._timebucket.to_seconds())
         tot_problem_secs = (end_date - start_date).total_seconds()
         num_buckets = int(tot_problem_secs / timebucket_secs)
 
-        horizon_secs = config.demand_horizon.to_seconds()
-        deflt_num_horizon_buckets = horizon_secs / timebucket_secs
+        horizon_secs = int(config.demand_horizon.to_seconds())
+        deflt_num_horizon_buckets = int(horizon_secs / timebucket_secs)
 
         # First process set orders
         self._process_order_list(
             self._orders,
             num_buckets=num_buckets,
             start_date=start_date,
-            horizon_secs=int(horizon_secs),
-            timebucket_secs=int(timebucket_secs),
-            deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+            horizon_secs=horizon_secs,
+            timebucket_secs=timebucket_secs,
+            deflt_num_horizon_buckets=deflt_num_horizon_buckets,
         )
 
         # Now process any made to stock targets
@@ -267,9 +328,9 @@ class DemandForecast:
             mts_orders,
             num_buckets=num_buckets,
             start_date=start_date,
-            horizon_secs=int(horizon_secs),
-            timebucket_secs=int(timebucket_secs),
-            deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+            horizon_secs=horizon_secs,
+            timebucket_secs=timebucket_secs,
+            deflt_num_horizon_buckets=deflt_num_horizon_buckets,
         )
 
         for k, v in self._prod_demands.items():

@@ -13,8 +13,8 @@ from ..measures import (
     CustomUnit,
     Dimension,
     SizedDimension,
-    UnitRegistry,
     UnsizedDimension,
+    _UnitRegistry,
 )
 from .constraints import HardConstraint, SoftConstraint
 from .consumables import Consumable
@@ -108,7 +108,7 @@ class _Product:
             )
 
         if isinstance(qty, CustomUnit):
-            reg = UnitRegistry()
+            reg = _UnitRegistry()
 
             # Specifies the SizedDimension of the CustomUnit for this
             # Consumable. e.g. "Bag of Sugar" -> "0.25kg"
