@@ -7,7 +7,7 @@ import numpy.typing as npt
 
 from ..config import Config
 from ..durations import Duration
-from ..exceptions import ForecastError
+from ..exceptions import UnitError
 from ..measures import CustomUnit, SizedDimension
 from ..util import as_midnight, parse_datetime
 from .products import BatchProduct, ContinuousProduct
@@ -30,7 +30,7 @@ class Order:
 
     Raises
     ------
-    ForecastError
+    UnitError
         Raised if the order quantity is incompatible with the product units
     """
 
@@ -50,7 +50,7 @@ class Order:
             pass
 
         if not product.base_dimension.is_compatible(qty):
-            raise ForecastError(
+            raise UnitError(
                 f"{qty} is not a compatible quantity for {product}"
             )
 
@@ -81,7 +81,7 @@ class MadeToStock:
 
     Raises
     ------
-    ForecastError
+    UnitError
         Raised if the stated quantity is incompatible with the product units
     ValueError
         Raised if an end_date is set but no freq has been specified
@@ -98,7 +98,7 @@ class MadeToStock:
         self.start_date = as_midnight(parse_datetime(start_date))
 
         if not product.base_dimension.is_compatible(qty):
-            raise ForecastError(
+            raise UnitError(
                 f"{qty} is not a compatible quantity for {product}"
             )
 

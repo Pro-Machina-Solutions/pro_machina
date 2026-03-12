@@ -20,7 +20,3 @@ class MachineError(ProblemError):
 
 class ConstraintError(ProblemError):
     """Incorrect specification of a constraint"""
-
-
-class ForecastError(ProblemError):
-    """Incorrect specification of forecasted demand"""
