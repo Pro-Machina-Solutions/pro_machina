@@ -113,7 +113,7 @@ problem.add_machine(machine)
 
 # Now that we have some individual sweets being made, we can also make a
 # finished product containing them. We'll also need another machine somewhere
-# else in the factory to create this product. Create a tub to store it in.
+# else in the factory to create this product. Create a tub to store it in too.
 party_mix = ContinuousProduct("Party Mix", base_dimension=BaseUnit)
 party_mix.add_component(product_1, qty=Unit(8), per=Unit(1))
 party_mix.add_component(product_2, qty=Unit(7), per=Unit(1))

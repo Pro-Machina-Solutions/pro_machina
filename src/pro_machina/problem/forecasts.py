@@ -8,7 +8,7 @@ from ..config import Config
 from ..exceptions import ForecastError
 from ..measures import CustomUnit, SizedDimension
 from ..util import as_midnight, parse_datetime
-from .products import BatchProduct, ContinuousProduct, _Product
+from .products import BatchProduct, ContinuousProduct
 
 
 class Order:
@@ -108,45 +108,30 @@ class DemandForecast:
                 deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
             )
 
-            for consumable in order.product._consumables:
-                self._sum_demand(
-                    aggregator=self._cons_demands,
-                    order=order,
-                    _id=consumable["item"]._id,
-                    num_buckets=num_buckets,
-                    start_date=start_date,
-                    horizon_secs=int(horizon_secs),
-                    timebucket_secs=int(timebucket_secs),
-                    deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
-                )
-
-            for subproduct in order.product._products:
+            for subproduct_id, qty in order.product._bom_products.items():
                 self._sum_demand(
                     aggregator=self._prod_demands,
                     order=order,
-                    _id=subproduct["item"]._id,
+                    _id=subproduct_id,
                     num_buckets=num_buckets,
                     start_date=start_date,
                     horizon_secs=int(horizon_secs),
                     timebucket_secs=int(timebucket_secs),
                     deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
-                    multiplier=subproduct["qty"],
+                    multiplier=qty,
                 )
-                if isinstance(subproduct["item"], _Product):
-                    for consumable in subproduct["item"]._consumables:
-                        self._sum_demand(
-                            aggregator=self._cons_demands,
-                            order=order,
-                            _id=subproduct["item"]._id,
-                            num_buckets=num_buckets,
-                            start_date=start_date,
-                            horizon_secs=int(horizon_secs),
-                            timebucket_secs=int(timebucket_secs),
-                            deflt_num_horizon_buckets=int(
-                                deflt_num_horizon_buckets
-                            ),
-                            multiplier=consumable["qty"],
-                        )
+            for consumable_id, qty in order.product._bom_consumables.items():
+                self._sum_demand(
+                    aggregator=self._cons_demands,
+                    order=order,
+                    _id=consumable_id,
+                    num_buckets=num_buckets,
+                    start_date=start_date,
+                    horizon_secs=int(horizon_secs),
+                    timebucket_secs=int(timebucket_secs),
+                    deflt_num_horizon_buckets=int(deflt_num_horizon_buckets),
+                    multiplier=qty,
+                )
 
         for k, v in self._prod_demands.items():
             self._prod_demands[k] = v.cumsum()

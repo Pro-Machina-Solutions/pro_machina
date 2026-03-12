@@ -146,7 +146,7 @@ class _Product:
             )
             self._seen_products.add(component._id)
 
-            # Hoist up any suproduct BOM data
+            # Hoist up any subproduct BOM data
             self._bom_products[component._id] = amt
 
             for subprod_id, subprod_qty in component._bom_products.items():
