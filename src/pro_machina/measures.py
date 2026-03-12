@@ -29,6 +29,18 @@ class SizedDimension:
     _base_qty: Decimal
     get_base: Callable[[], Dimension]
 
+    def __mul__(self, val: float | Decimal | str) -> SizedDimension:
+        val = Decimal(val)
+        self.qty *= val
+        self._base_qty *= val
+        return self
+
+    def __truediv__(self, val: float | Decimal | str) -> SizedDimension:
+        val = Decimal(val)
+        self.qty /= val
+        self._base_qty /= val
+        return self
+
 
 ############# UNIT #############
 
@@ -39,8 +51,8 @@ class BaseUnit(Dimension):
         return isinstance(other, BaseUnit)
 
     @staticmethod
-    def get_base() -> Unit:
-        return Unit(1)
+    def get_base(val: float | str | Decimal = 1) -> Unit:
+        return Unit(val)
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
@@ -58,6 +70,12 @@ class Unit(BaseUnit, SizedDimension):
         self.qty = Decimal(qty)
         self._base_qty = Decimal(qty)
         self.symbol = "unit"
+
+    # def __mul__(self, factor: float | Decimal | str) -> Self:
+    #     factor = Decimal(factor)
+    #     self.qty * factor
+    #     self._base_qty * factor
+    #     return self
 
 
 ############# WEIGHT #############
