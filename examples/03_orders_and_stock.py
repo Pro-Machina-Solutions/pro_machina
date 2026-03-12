@@ -15,6 +15,7 @@ from pro_machina import (
     ContinuousProduct,
     DemandForecast,
     InboundStock,
+    MadeToStock,
     Order,
     Problem,
     ShiftPattern,
@@ -44,7 +45,7 @@ problem = Problem(
     start_time="2026-03-02 00:00:00", length=Weeks(4), config=config
 )
 
-# Consumables. This time we will leave them as rate-limiting (the default).
+# For Consumables, this time we will leave them as rate-limiting (the default).
 # Note that we are specifying some metadata for our own (made up) product code
 # and a unit that we want to measure stock in
 counter = count(500)
@@ -165,12 +166,34 @@ machine_2 = ContinuousMachine("Bagging Machine")
 machine_2.add_product(party_mix, run_rate=Unit(10), per=Mins(1))
 problem.add_machine(machine_2)
 
-# In this case, we could do exactly the same as we did for Consumables in terms
-# of defining the starting stock for our products. Note, however, that we
-# cannot define InboundStock for Products. However, we're not setting any here.
-
 forecast = DemandForecast()
 forecast.add_order(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
+
+# In addition to the defined order, we can also set a steady demand to make to
+# stock. This could be important for balancing production during quiet periods
+# because pro_machina will let machines go idle if there is insufficient
+# demand to jusify production. That can be managed more effectively with
+# custom constraints that will be covered later, but for now we'll just set a
+# custom demand level
+
+# Here we specify a start date of the Friday following our set Order. This
+# means that we will try shift the order first and then the following week the
+# demand will switch to MTS. We set no end_date and set a freq of 1 week
+# meaning that the MTS demand will be reviewed every week until the problem end
+# date
+
+# NOTE: It's not strictly true that the machine will switch priorities in such
+# a strict manner (strictly handling orders and only then handliung MTS). In
+# reality it's a lot more complicated and would be directed by other
+# constraints (coming later) but it's helpful to conceptualise it this way
+mts = MadeToStock(
+    product=party_mix, start_date="2026-03-13", qty=Unit(800), freq=Weeks(1)
+)
+
 problem.set_forecast(forecast)
 
+# If we want to set the stock levels for products, there is currently no
+# aggregate method (e.g. `ContinuousProducts.get_all()`) because there are so
+# many ways that they can be altered/used, so you may wish to aggregate them in
+# your own structure
 problem.build()

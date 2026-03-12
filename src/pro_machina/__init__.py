@@ -9,6 +9,7 @@ from .problem import (
     ContinuousProduct,
     DemandForecast,
     InboundStock,
+    MadeToStock,
     Order,
     Problem,
     ProductBatch,

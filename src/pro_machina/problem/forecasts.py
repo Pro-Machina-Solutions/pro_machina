@@ -338,3 +338,6 @@ class DemandForecast:
 
         for k, v in self._cons_demands.items():
             self._cons_demands[k] = v.cumsum()
+
+
+__all__ = ["Order", "MadeToStock", "DemandForecast"]

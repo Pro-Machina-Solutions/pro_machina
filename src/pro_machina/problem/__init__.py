@@ -1,6 +1,6 @@
 from .constraints import MaxProductionTime, MinProductionTime
 from .consumables import Consumable
-from .forecasts import DemandForecast, Order
+from .forecasts import DemandForecast, MadeToStock, Order
 from .machines import BatchMachine, ContinuousMachine
 from .problem import Problem
 from .products import BatchProduct, ContinuousProduct, ProductBatch

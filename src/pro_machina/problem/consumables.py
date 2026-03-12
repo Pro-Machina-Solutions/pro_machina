@@ -96,3 +96,6 @@ class Consumable:
 
     def __repr__(self) -> str:
         return f"<Consumable: {self.name}>"
+
+
+__all__ = ["Consumable"]
