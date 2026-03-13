@@ -71,6 +71,9 @@ class _Machine:
                 "Cannot set an end date without an explicit start date"
             )
 
+        if not isinstance(shift, ShiftPattern):
+            raise TypeError("Not a valid shift pattern")
+
         if start_date is not None:
             start_date = to_str_date(start_date)
         if end_date is not None:
@@ -79,6 +82,10 @@ class _Machine:
         self._shifts.append(
             _MachineShift(start=start_date, end=end_date, shift=shift)
         )
+
+    def clear_shifts(self) -> None:
+        """Helper function to remove any pre-defined shifts"""
+        self._shifts = []
 
 
 class ContinuousMachine(_Machine):
