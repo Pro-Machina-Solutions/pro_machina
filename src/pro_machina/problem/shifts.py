@@ -711,6 +711,11 @@ class ShiftBuilder:
             rtn._is_built = True
         return rtn
 
+    def inspect(self) -> None:
+        """Helper method to sense-check the current raw pattern"""
+        for item in self._shift_days:
+            print(item)
+
 
 class ShiftPattern:
     """Instantiate a ShiftPattern directly from a finalised ShiftBuilder

@@ -68,7 +68,9 @@ machine = ContinuousMachine("Some Machine")
 machine.add_shift(six_two_pattern)
 
 # We can do the same to define a 10-6 shift rotation. Note here that it starts
-# on the Sunday evening, so we need to knock our date back one day
+# on the Sunday evening, so we need to knock our date back one day. Because we
+# start work (albeit for two hours) on the Sunday, we don't want to add a
+# downday to our pattern
 ten_six = ShiftBuilder(ref_start_date="2000-02-06", name="Stanbdard Ten-Six")
 
 ten_six.add_work_period(
@@ -93,22 +95,24 @@ ten_six.add_work_period(
 )  # Thursday - Friday
 
 ten_six.add_downday(date="2000-02-12")
-ten_six.add_downday(date="2000-02-13")
 
 ten_six.build()
 ten_six_pattern = ShiftPattern(ten_six)
 
 # Note now that the machine will be working 10-6 and 6-2 shifts throughout the
 # problem span. The shifts do not overlap on hours but will work to form
-# complete 16 hour blocks of production
+# complete 16 hour blocks of production.
 machine.add_shift(ten_six_pattern)
 
 # The first question now is what happens if there is a factory shutdown period?
-# We can cover that by instead choosing set dates
+# We can cover that by instead choosing set dates.
+
 # We need to be careful here now, though, because we originally set the shift
-# patterns to cover all weeks. So whilst the below is valid code it will not
+# patterns to cover all weeks. So, whilst the below is valid code it will not
 # avail you unless you clear the shift list first. Normally you wouldn't need
-# to do this as you can layer shifts up, but it's provided as a convenience
+# to do this as you can layer shifts up, but it's provided as a convenience.
+# Shifts are applied in the order that they are defined, so this sets a new
+# base shift pattern for our machine.
 machine.clear_shifts()
 
 machine.add_shift(
@@ -181,14 +185,15 @@ six_two.add_work_period(
 six_two.add_downday(date="2000-02-12")
 six_two.add_downday(date="2000-02-13")
 
-# We're done adding days, so we can finalise the pattern
 six_two.build()
 
 machine.clear_shifts()
 machine.add_shift(ShiftPattern(six_two))
 
-# We could combine the two shifts, though to make our life easier. We can also
-# account for reduced production during shift handovers if we wanted to.
+# We could combine the two shifts though to make our life easier. We can also
+# account for reduced production during shift handovers if we wanted to. This
+# is going to be LONG (hence why you might want to save pre-mades as JSON).
+# We'll do it piece-by-piece here though just to demonstrate.
 combined = ShiftBuilder(ref_start_date="2000-02-06", name="Ten-Six, Six-Two")
 
 combined.add_work_period(
@@ -203,7 +208,7 @@ combined.add_work_period(
         ShiftBreak("2000-02-07 04:00:00", "2000-02-07 04:15:00"),
     ],
     end_time="2000-02-07 06:00:00",
-)  # Main night shift assuming 100% poroductivity, but zero during breaks
+)  # Main night shift assuming 100% productivity, but zero during breaks
 combined.add_work_period(
     start_time="2000-02-07 06:00:00",
     end_time="2000-02-07 06:30:00",
@@ -216,8 +221,120 @@ combined.add_work_period(
         ShiftBreak("2000-02-07 12:00:00", "2000-02-07 12:15:00"),
     ],
     end_time="2000-02-07 14:00:00",
-)  # Main morning shift assuming 100% poroductivity, but zero during breaks
+)  # Main morning shift assuming 100% productivity, but zero during breaks
+combined.add_work_period(
+    start_time="2000-02-07 22:00:00",
+    end_time="2000-02-07 22:30:00",
+    productivity=50,
+)  # Night shift again
+combined.add_work_period(
+    start_time="2000-02-07 22:30:00",
+    breaks=[
+        ShiftBreak("2000-02-08 02:00:00", "2000-02-08 02:30:00"),
+        ShiftBreak("2000-02-08 04:00:00", "2000-02-08 04:15:00"),
+    ],
+    end_time="2000-02-08 06:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-08 06:00:00",
+    end_time="2000-02-08 06:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-08 06:30:00",
+    breaks=[
+        ShiftBreak("2000-02-08 10:00:00", "2000-02-08 10:30:00"),
+        ShiftBreak("2000-02-08 12:00:00", "2000-02-08 12:15:00"),
+    ],
+    end_time="2000-02-08 14:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-08 22:00:00",
+    end_time="2000-02-08 22:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-08 22:30:00",
+    breaks=[
+        ShiftBreak("2000-02-09 02:00:00", "2000-02-09 02:30:00"),
+        ShiftBreak("2000-02-09 04:00:00", "2000-02-09 04:15:00"),
+    ],
+    end_time="2000-02-09 06:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-09 06:00:00",
+    end_time="2000-02-09 06:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-09 06:30:00",
+    breaks=[
+        ShiftBreak("2000-02-09 10:00:00", "2000-02-09 10:30:00"),
+        ShiftBreak("2000-02-09 12:00:00", "2000-02-09 12:15:00"),
+    ],
+    end_time="2000-02-09 14:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-09 22:00:00",
+    end_time="2000-02-09 22:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-09 22:30:00",
+    breaks=[
+        ShiftBreak("2000-02-10 02:00:00", "2000-02-10 02:30:00"),
+        ShiftBreak("2000-02-10 04:00:00", "2000-02-10 04:15:00"),
+    ],
+    end_time="2000-02-10 06:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-10 06:00:00",
+    end_time="2000-02-10 06:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-10 06:30:00",
+    breaks=[
+        ShiftBreak("2000-02-10 10:00:00", "2000-02-10 10:30:00"),
+        ShiftBreak("2000-02-10 12:00:00", "2000-02-10 12:15:00"),
+    ],
+    end_time="2000-02-10 14:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-10 22:00:00",
+    end_time="2000-02-10 22:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-10 22:30:00",
+    breaks=[
+        ShiftBreak("2000-02-11 02:00:00", "2000-02-11 02:30:00"),
+        ShiftBreak("2000-02-11 04:00:00", "2000-02-11 04:15:00"),
+    ],
+    end_time="2000-02-11 06:00:00",
+)
+combined.add_work_period(
+    start_time="2000-02-11 06:00:00",
+    end_time="2000-02-11 06:30:00",
+    productivity=50,
+)
+combined.add_work_period(
+    start_time="2000-02-11 06:30:00",
+    breaks=[
+        ShiftBreak("2000-02-11 10:00:00", "2000-02-11 10:30:00"),
+        ShiftBreak("2000-02-11 12:00:00", "2000-02-11 12:15:00"),
+    ],
+    end_time="2000-02-11 14:00:00",
+)
+
+# Just add the Saturday as a downday
+combined.add_downday(date="2000-02-12")
+
 combined.build()
+
+# Since this is quite complicated and repetitive in terms of code, we can
+# inspect what the built shift pattern looks like in the terminal.
+combined.inspect()
 
 sp = ShiftPattern.load_example_pattern("six_two_example")
 
