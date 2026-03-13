@@ -1,3 +1,4 @@
+import datetime as dt
 from collections.abc import Sequence
 from itertools import count
 from typing import NotRequired, TypedDict
@@ -8,6 +9,8 @@ from pro_machina.durations import Duration
 from pro_machina.exceptions import MachineError
 from pro_machina.measures import SizedDimension
 
+from ..exceptions import ShiftDefinitionError
+from ..util import to_str_date
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
@@ -21,18 +24,63 @@ class _MachineProduct(TypedDict):
     run_rate_per: NotRequired[Duration]
 
 
+class _MachineShift(TypedDict):
+    start: str | None
+    end: str | None
+    shift: ShiftPattern
+
+
 class _Machine:
     _ids = count(0)
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self._id = next(self._ids)
         self.name = name
 
         self._products: dict[int, _MachineProduct] = {}
-        self._shifts: dict[int, ShiftPattern] | ShiftPattern | None = None
+        self._shifts: list[_MachineShift] = []
 
-    def add_shift(self, shift: dict[int, ShiftPattern] | ShiftPattern):
-        self._shifts = shift
+    def add_shift(
+        self,
+        shift: ShiftPattern,
+        start_date: str | dt.datetime | None = None,
+        end_date: str | dt.datetime | None = None,
+    ) -> None:
+        """Add a shift rotation to a machine
+
+        If a shift is specified without a start and end date, it will be
+        assumed that the machine operates on this shift pattern throughout the
+        span of the problem.
+
+        It's important to note that shifts are processed in order. Therefore,
+        if you specify a 6-2 shift pattern with no dates first, that will be
+        the assumed base shift. If you then specify a 6-2,2-10 shift for a
+        couple of weeks, that will take precedence over the regular 6-2 shift
+        for those two weeks. However, if you specify the shifts the other way
+        around, the 6-2,2-10 shift rotation will be completely overwritten.
+
+        Parameters
+        ----------
+        shift : ShiftPattern
+            A defined shift pattern for a model time period
+        start_date : str | dt.datetime | None, optional
+            The start date of the particular shift rotation
+        end_date : str | dt.datetime | None, optional
+            The end date of the particular shift rotation
+        """
+        if end_date is not None and start_date is None:
+            raise ShiftDefinitionError(
+                "Cannot set an end date without an explicit start date"
+            )
+
+        if start_date is not None:
+            start_date = to_str_date(start_date)
+        if end_date is not None:
+            end_date = to_str_date(end_date)
+
+        self._shifts.append(
+            _MachineShift(start=start_date, end=end_date, shift=shift)
+        )
 
 
 class ContinuousMachine(_Machine):

@@ -11,6 +11,14 @@ def parse_datetime(_dt: str | dt.date) -> dt.datetime:
     return _dt
 
 
+def to_str_date(_dt: str | dt.date | dt.datetime) -> str:
+    if isinstance(_dt, str):
+        rtn = dt.datetime.fromisoformat(_dt).strftime("%Y-%m-%d")
+    else:
+        rtn = _dt.strftime("%Y-%m-%d")
+    return rtn
+
+
 def as_midnight(date: dt.date) -> dt.datetime:
     """Convert a date object to a datetime object
 

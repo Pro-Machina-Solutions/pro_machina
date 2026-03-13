@@ -179,8 +179,8 @@ forecast.add_order(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
 # Here we specify a start date of the Friday following our set Order. This
 # means that we will try shift the order first and then the following week the
 # demand will switch to MTS. We set no end_date and set a freq of 1 week
-# meaning that the MTS demand will be reviewed every week until the problem end
-# date
+# meaning that the MTS demand will be renewewed every week until the problem
+# end date
 
 # NOTE: It's not strictly true that the machine will switch priorities in such
 # a strict manner (strictly handling orders and only then handliung MTS). In
