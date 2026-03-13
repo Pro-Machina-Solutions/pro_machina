@@ -193,7 +193,8 @@ machine.add_shift(ShiftPattern(six_two))
 # We could combine the two shifts though to make our life easier. We can also
 # account for reduced production during shift handovers if we wanted to. This
 # is going to be LONG (hence why you might want to save pre-mades as JSON).
-# We'll do it piece-by-piece here though just to demonstrate.
+# You could loop this but we'll do it piece-by-piece here though to
+# demonstrate.
 combined = ShiftBuilder(ref_start_date="2000-02-06", name="Ten-Six, Six-Two")
 
 combined.add_work_period(
@@ -335,223 +336,14 @@ combined.build()
 # Since this is quite complicated and repetitive in terms of code, we can
 # inspect what the built shift pattern looks like in the terminal.
 combined.inspect()
-
-sp = ShiftPattern.load_example_pattern("six_two_example")
-
-
-sb = ShiftBuilder(ref_start_date="2026-02-23", name="Single day")
-sb.add_work_period(
-    start_time="2026-02-23 06:00:00",
-    end_time="2026-02-23 06:30:00",
-    productivity=25,
-)
-sb.add_work_period(
-    start_time="2026-02-23 06:30:00",
-    end_time="2026-02-23 13:30:00",
-    productivity=100,
-)
-sb.add_work_period(
-    start_time="2026-02-23 13:30:00",
-    end_time="2026-02-23 14:00:00",
-    productivity=60,
-)
-
 print()
-print("###############")
-print("SAME DAY RAMP UP AND DOWN")
-sb.build()
-for item in sb._shift_days:
-    print(item)
-
-############################################
-
-# Simplest shift with no breaks
-sb = ShiftBuilder(ref_start_date="2026-02-23", name="6-2")
-sb.add_work_period(
-    start_time="2026-02-23 06:00:00",
-    end_time="2026-02-23 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-24 06:00:00",
-    end_time="2026-02-24 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-25 06:00:00",
-    end_time="2026-02-25 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-26 06:00:00",
-    end_time="2026-02-26 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-27 06:00:00",
-    end_time="2026-02-27 13:30:00",
-)
-sb.add_downday(date="2026-02-28")
-sb.add_downday(date="2026-03-01 10:00:00")
-
+print("********************")
 print()
-print("###############")
-print("6-2 SHIFT WITH NO BREAKS")
-sb.build()
-for item in sb._shift_days:
-    print(item)
+# The last thing to cover are pattens that don't follow a regular weekly
+# rotation like Continental shift patterns. Since these are irregular
+# week-on-week, it's important to ensure that the start date chosen (although
+# still somewhat arbitrary) actually aligns with the rotation itself.
 
-pattern = ShiftPattern(sb)
-# sb.save_pattern("six_two_example.json")
-
-############################################
-
-# Simplest shift with no breaks
-sb = ShiftBuilder(ref_start_date="2026-02-23", name="two_ten")
-sb.add_work_period(
-    start_time="2026-02-23 14:00:00",
-    # breaks=ShiftBreak("2026-02-23 18:00:00", "2026-02-23 18:30:00", 50),
-    end_time="2026-02-23 22:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-24 14:00:00",
-    # breaks=ShiftBreak("2026-02-24 18:00:00", "2026-02-24 18:30:00", 50),
-    end_time="2026-02-24 22:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-25 14:00:00",
-    # breaks=ShiftBreak("2026-02-25 18:00:00", "2026-02-25 18:30:00", 50),
-    end_time="2026-02-25 22:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-26 14:00:00",
-    # breaks=ShiftBreak("2026-02-26 18:00:00", "2026-02-26 18:30:00", 50),
-    end_time="2026-02-26 22:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-27 14:00:00",
-    # breaks=ShiftBreak("2026-02-27 18:00:00", "2026-02-27 18:30:00", 50),
-    end_time="2026-02-27 21:30:00",
-)
-sb.add_downday(date="2026-02-28")
-sb.add_downday(date="2026-03-01 10:00:00")
-sb.build()
-# sb.save_pattern("two_ten_example.json")
-
-# Shift goes beyond midnight, with no breaks
-sb = ShiftBuilder(ref_start_date="2026-02-22", name="10-6")
-sb.add_work_period(
-    start_time="2026-02-22 22:00:00",
-    end_time="2026-02-23 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-23 22:00:00",
-    end_time="2026-02-24 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-24 22:00:00",
-    end_time="2026-02-25 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-25 22:00:00",
-    end_time="2026-02-26 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-26 22:00:00",
-    end_time="2026-02-27 06:00:00",
-)
-sb.add_downday("2026-02-28")
-sb.add_downday("2026-03-01")
-
-sb.build()
-print()
-print("###############")
-print("10-6 SHIFT NO BREAKS")
-for item in sb._shift_days:
-    print(item)
-
-#########################
-
-# Simplest shift with breaks
-sb = ShiftBuilder(
-    ref_start_date="2026-02-23", name="6am-2pm break 10am-10:30am"
-)
-sb.add_work_period(
-    start_time="2026-02-23 06:00:00",
-    breaks=ShiftBreak("2026-02-23 10:00:00", "2026-02-23 10:30:00", 50),
-    end_time="2026-02-23 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-24 06:00:00",
-    breaks=ShiftBreak("2026-02-24 10:00:00", "2026-02-24 10:30:00", 50),
-    end_time="2026-02-24 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-25 06:00:00",
-    breaks=ShiftBreak("2026-02-25 10:00:00", "2026-02-25 10:30:00", 50),
-    end_time="2026-02-25 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-26 06:00:00",
-    breaks=ShiftBreak("2026-02-26 10:00:00", "2026-02-26 10:30:00", 50),
-    end_time="2026-02-26 14:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-27 06:00:00",
-    breaks=ShiftBreak("2026-02-27 10:00:00", "2026-02-27 10:30:00", 50),
-    end_time="2026-02-27 13:30:00",
-)
-sb.add_downday(date="2026-02-28")
-sb.add_downday(date="2026-03-01 10:00:00")
-
-print()
-print("###############")
-print("6am-2 SHIFT WITH 1 BREAK")
-sb.build()
-for item in sb._shift_days:
-    print(item)
-
-# sb.save_pattern("six_two_break_example.json")
-
-############################################
-
-# Shift goes beyond midnight, with a break in the next day
-sb = ShiftBuilder(ref_start_date="2026-02-22", name="10-6")
-sb.add_work_period(
-    start_time="2026-02-22 22:00:00",
-    breaks=ShiftBreak("2026-02-23 02:00:00", "2026-02-23 02:30:00", 50),
-    end_time="2026-02-23 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-23 22:00:00",
-    breaks=ShiftBreak("2026-02-24 02:00:00", "2026-02-24 02:30:00", 50),
-    end_time="2026-02-24 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-24 22:00:00",
-    breaks=ShiftBreak("2026-02-25 02:00:00", "2026-02-25 02:30:00", 50),
-    end_time="2026-02-25 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-25 22:00:00",
-    breaks=ShiftBreak("2026-02-26 02:00:00", "2026-02-26 02:30:00", 50),
-    end_time="2026-02-26 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-26 22:00:00",
-    breaks=ShiftBreak("2026-02-27 02:00:00", "2026-02-27 02:30:00", 50),
-    end_time="2026-02-27 06:00:00",
-)
-sb.add_downday("2026-02-28")
-sb.add_downday("2026-03-01")
-
-sb.build()
-print()
-print("###############")
-print("10-6 SHIFT WITH 1 BREAK")
-for item in sb._shift_days:
-    print(item)
-
-############################################
-
-# A continental shift pattern where the repeating unit is 8 days, not 7
-# Also multiple breaks
 sb = ShiftBuilder("2026-02-23 00:00:00", name="Continental Rotation 1")
 sb.add_work_period(
     start_time="2026-02-23 06:00:00",
@@ -590,52 +382,5 @@ sb.add_downday(date="2026-02-28")
 sb.add_downday(date="2026-03-01")
 sb.add_downday(date="2026-03-02")
 
-print()
-print("###############")
-print("4 ON, 4 OFF CONTINENTAL, 2 BREAKS")
 sb.build()
-for item in sb._shift_days:
-    print(item)
-
-# sb.save_pattern("continental_example.json")
-
-############################################
-
-# Shift goes beyond midnight, with a break spanning midnight
-sb = ShiftBuilder(ref_start_date="2026-02-22", name="10-6")
-sb.add_work_period(
-    start_time="2026-02-22 22:00:00",
-    breaks=ShiftBreak("2026-02-22 23:45:00", "2026-02-23 00:15:00", 50),
-    end_time="2026-02-23 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-23 22:00:00",
-    breaks=ShiftBreak("2026-02-23 23:45:00", "2026-02-24 00:15:00", 50),
-    end_time="2026-02-24 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-24 22:00:00",
-    breaks=ShiftBreak("2026-02-24 23:45:00", "2026-02-25 00:15:00", 50),
-    end_time="2026-02-25 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-25 22:00:00",
-    breaks=ShiftBreak("2026-02-25 23:45:00", "2026-02-26 00:15:00", 50),
-    end_time="2026-02-26 06:00:00",
-)
-sb.add_work_period(
-    start_time="2026-02-26 22:00:00",
-    breaks=ShiftBreak("2026-02-26 23:45:00", "2026-02-27 00:15:00", 50),
-    end_time="2026-02-27 06:00:00",
-)
-sb.add_downday("2026-02-28")
-sb.add_downday("2026-03-01")
-
-sb.build()
-print()
-print("###############")
-print("10-6 SHIFT WITH 1 BREAK SPANNING MIDNIGHT")
-for item in sb._shift_days:
-    print(item)
-
-############################################
+sb.inspect()
