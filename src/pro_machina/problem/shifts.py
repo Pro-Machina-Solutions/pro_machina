@@ -360,30 +360,51 @@ class ShiftBuilder:
             day_end = as_midnight(this["start"] + dt.timedelta(days=1))
 
             if _break.start > day_end:
-                # Break starts past midnight. Tie up the current day
-                shift_day.add_period(
-                    _Activity(
-                        start=this["start"], end=day_end, prod=this["prod"]
+                if b == 0:
+                    # Break starts past midnight. Tie up the current day
+                    shift_day.add_period(
+                        _Activity(
+                            start=this["start"], end=day_end, prod=this["prod"]
+                        )
                     )
-                )
-                self._shift_days.append(shift_day)
-                rolling_dt = day_end
+                    self._shift_days.append(shift_day)
+                    rolling_dt = day_end
 
-                # Start the next day in production mode until break
-                shift_day = _ShiftDay()
-                shift_day.add_period(
-                    _Activity(
-                        start=rolling_dt, end=_break.start, prod=this["prod"]
+                    # Start the next day in production mode until break
+                    shift_day = _ShiftDay()
+                    shift_day.add_period(
+                        _Activity(
+                            start=rolling_dt,
+                            end=_break.start,
+                            prod=this["prod"],
+                        )
                     )
-                )
-                shift_day.add_period(
-                    _Activity(
-                        start=_break.start,
-                        end=_break.end,
-                        prod=_break.productivity,
+                    shift_day.add_period(
+                        _Activity(
+                            start=_break.start,
+                            end=_break.end,
+                            prod=_break.productivity,
+                        )
                     )
-                )
-                rolling_dt = _break.end
+                    rolling_dt = _break.end
+
+                else:
+                    # Tie up production from last break to this one
+                    shift_day.add_period(
+                        _Activity(
+                            start=rolling_dt,
+                            end=_break.start,
+                            prod=this["prod"],
+                        )
+                    )
+                    shift_day.add_period(
+                        _Activity(
+                            start=_break.start,
+                            end=_break.end,
+                            prod=_break.productivity,
+                        )
+                    )
+                    rolling_dt = _break.end
 
             else:
                 if b == 0:

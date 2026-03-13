@@ -191,11 +191,11 @@ machine.add_shift(ShiftPattern(six_two))
 # account for reduced production during shift handovers if we wanted to.
 combined = ShiftBuilder(ref_start_date="2000-02-06", name="Ten-Six, Six-Two")
 
-# combined.add_work_period(
-#     start_time="2000-02-06 22:00:00",
-#     end_time="2000-02-06 22:30:00",
-#     productivity=50,
-# )  # Night shift ramp up time
+combined.add_work_period(
+    start_time="2000-02-06 22:00:00",
+    end_time="2000-02-06 22:30:00",
+    productivity=50,
+)  # Night shift ramp up time
 combined.add_work_period(
     start_time="2000-02-06 22:30:00",
     breaks=[
@@ -204,21 +204,20 @@ combined.add_work_period(
     ],
     end_time="2000-02-07 06:00:00",
 )  # Main night shift assuming 100% poroductivity, but zero during breaks
-# combined.add_work_period(
-#     start_time="2000-02-07 06:00:00",
-#     end_time="2000-02-07 06:30:00",
-#     productivity=50,
-# )  # Morning shift ramp up time
-# combined.add_work_period(
-#     start_time="2000-02-07 06:30:00",
-#     breaks=[
-#         ShiftBreak("2000-02-07 10:00:00", "2000-02-07 10:30:00"),
-#         ShiftBreak("2000-02-07 12:00:00", "2000-02-07 12:15:00"),
-#     ],
-#     end_time="2000-02-07 14:00:00",
-# )  # Main morning shift assuming 100% poroductivity, but zero during breaks
+combined.add_work_period(
+    start_time="2000-02-07 06:00:00",
+    end_time="2000-02-07 06:30:00",
+    productivity=50,
+)  # Morning shift ramp up time
+combined.add_work_period(
+    start_time="2000-02-07 06:30:00",
+    breaks=[
+        ShiftBreak("2000-02-07 10:00:00", "2000-02-07 10:30:00"),
+        ShiftBreak("2000-02-07 12:00:00", "2000-02-07 12:15:00"),
+    ],
+    end_time="2000-02-07 14:00:00",
+)  # Main morning shift assuming 100% poroductivity, but zero during breaks
 combined.build()
-
 
 sp = ShiftPattern.load_example_pattern("six_two_example")
 
