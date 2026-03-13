@@ -4,12 +4,10 @@ from itertools import count
 from typing import NotRequired, TypedDict
 from warnings import warn
 
-from pro_machina import Config
-from pro_machina.durations import Duration
-from pro_machina.exceptions import MachineError
-from pro_machina.measures import SizedDimension
-
-from ..exceptions import ShiftDefinitionError
+from ..config import Config
+from ..durations import Duration
+from ..exceptions import MachineError, ShiftDefinitionError
+from ..measures import SizedDimension
 from ..util import to_str_date
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product

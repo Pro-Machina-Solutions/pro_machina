@@ -8,9 +8,9 @@ from typing import Required, Self, TypedDict
 import numpy as np
 import numpy.typing as npt
 
-from pro_machina.durations import Duration, Hours, Secs
-from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
-from pro_machina.util import as_midnight, parse_datetime
+from ..durations import Duration, Hours, Secs
+from ..exceptions import ShiftDefinitionError, ShiftIntegrityError
+from ..util import as_midnight, parse_datetime
 
 
 class ShiftBreak:
