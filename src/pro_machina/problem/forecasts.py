@@ -125,7 +125,7 @@ class DemandForecast:
         self._prod_demands: dict[int, npt.NDArray[np.float64]] = {}
         self._cons_demands: dict[int, npt.NDArray[np.float64]] = {}
 
-    def add_order(self, order: Order | MadeToStock) -> None:
+    def add_demand(self, order: Order | MadeToStock) -> None:
         """Add product demand to the forecast
 
         Parameters
@@ -150,13 +150,13 @@ class DemandForecast:
         deflt_num_horizon_buckets: int,
         multiplier: Decimal = Decimal(1),
     ):
-        # Have we seen this product before? If not, fill it out with zero
-        # base demand for the whole problem
+        # Have we seen this item before? If not, fill it out with zero base
+        # demand for the whole problem
         if _id not in aggregator:
             aggregator[_id] = np.zeros(num_buckets)
 
-        # Determine the start bucket of the order. If it comes before the
-        # start date of the problem, then we need to bump it up to match
+        # Determine the start bucket of the order. If it comes before the start
+        # date of the problem, then we need to bump it up to match
         theo_start = order.date - dt.timedelta(seconds=horizon_secs)
         if theo_start < start_date:
             theo_start = start_date
@@ -309,7 +309,7 @@ class DemandForecast:
 
                 if running_date < end_date:
                     # Tie up any partial period. We need to know the earlier of
-                    # the specified freqnecy or the global problem end date
+                    # the specified end date or the global problem end date
                     e_d = mts.end_date if mts.end_date < end_date else end_date
                     partial_period = Decimal(
                         (e_d - running_date).total_seconds()

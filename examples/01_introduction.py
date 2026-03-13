@@ -74,9 +74,9 @@ problem.add_machine(machine)
 # case we'll make everything to order with some set dates. We could have
 # multiple orders for each product but we're only solving for one week here
 forecast = DemandForecast()
-forecast.add_order(Order(product_1, date="2026-03-06", qty=Unit(1000)))
-forecast.add_order(Order(product_2, date="2026-03-06", qty=Unit(1000)))
-forecast.add_order(Order(product_3, date="2026-03-06", qty=Unit(1000)))
+forecast.add_demand(Order(product_1, date="2026-03-06", qty=Unit(1000)))
+forecast.add_demand(Order(product_2, date="2026-03-06", qty=Unit(1000)))
+forecast.add_demand(Order(product_3, date="2026-03-06", qty=Unit(1000)))
 
 # Specify the demand forecast for the problem. There can only be one aggregated
 # forecast for the whole problem.

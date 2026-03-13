@@ -167,7 +167,7 @@ machine_2.add_product(party_mix, run_rate=Unit(10), per=Mins(1))
 problem.add_machine(machine_2)
 
 forecast = DemandForecast()
-forecast.add_order(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
+forecast.add_demand(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
 
 # In addition to the defined order, we can also set a steady demand to make to
 # stock. This could be important for balancing production during quiet periods

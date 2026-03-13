@@ -73,12 +73,6 @@ class Unit(BaseUnit, SizedDimension):
         self._base_qty = Decimal(qty)
         self.symbol = "unit"
 
-    # def __mul__(self, factor: float | Decimal | str) -> Self:
-    #     factor = Decimal(factor)
-    #     self.qty * factor
-    #     self._base_qty * factor
-    #     return self
-
 
 ############# WEIGHT #############
 

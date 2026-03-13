@@ -132,7 +132,7 @@ problem.add_machine(machine_2)
 # This time we only need to set the forecast demand for the finished product.
 # All of the subproducts will automatically be accounted for
 forecast = DemandForecast()
-forecast.add_order(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
+forecast.add_demand(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
 problem.set_forecast(forecast)
 
 problem.build()

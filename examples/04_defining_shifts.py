@@ -339,11 +339,11 @@ combined.inspect()
 print()
 print("********************")
 print()
+
 # The last thing to cover are pattens that don't follow a regular weekly
 # rotation like Continental shift patterns. Since these are irregular
 # week-on-week, it's important to ensure that the start date chosen (although
 # still somewhat arbitrary) actually aligns with the rotation itself.
-
 sb = ShiftBuilder("2026-02-23 00:00:00", name="Continental Rotation 1")
 sb.add_work_period(
     start_time="2026-02-23 06:00:00",
