@@ -284,7 +284,7 @@ class ContinuousMachine(_Machine):
 
 
 class BatchMachine(_Machine):
-    def __init__(self, name):
+    def __init__(self, name) -> None:
         super().__init__(name)
 
         self._products: dict[int, _MachineProduct] = {}

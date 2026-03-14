@@ -16,11 +16,11 @@ class _MetaConsumable(TypedDict):
 
 
 class _ConsumableRegistry(metaclass=Singleton):
-    def __init__(self):
+    def __init__(self) -> None:
         self._by_name: dict[str, _MetaConsumable] = {}
         self._by_id: dict[int, _MetaConsumable] = {}
 
-    def add(self, cons: _MetaConsumable):
+    def add(self, cons: _MetaConsumable) -> None:
         self._by_name[cons["name"]] = cons
         self._by_id[cons["_id"]] = cons
 

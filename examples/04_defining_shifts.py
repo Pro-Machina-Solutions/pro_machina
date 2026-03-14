@@ -334,7 +334,9 @@ combined.add_downday(date="2000-02-12")
 combined.build()
 
 # Since this is quite complicated and repetitive in terms of code, we can
-# inspect what the built shift pattern looks like in the terminal.
+# inspect what the built shift pattern looks like in the terminal. It's
+# important to note that a built shift pattern will fully cover 24 hours of
+# every day, accounting for any downtime that was not defined for each day.
 combined.inspect()
 print()
 print("********************")

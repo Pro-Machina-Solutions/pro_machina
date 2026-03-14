@@ -785,7 +785,7 @@ class ShiftPattern:
         builder = ShiftBuilder._load_pattern(path)
         return cls(builder=builder)
 
-    def _parse_to_secs(self):
+    def _parse_to_secs(self) -> None:
         """Creates a shift pattern of all activities for each day in seconds"""
         for i, day in enumerate(self._builder._shift_days):
             period: _Activity

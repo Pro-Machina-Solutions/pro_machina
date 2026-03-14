@@ -813,6 +813,39 @@ class TestShiftPatternYieldDay:
         assert result[33] == 100  # Make sure next shift is not lost
         assert np.isclose(result.sum(), 2133.333333333333)  # Whole day adds up
 
+    def test_multiple_breaks_on_day_after_shift_start(self):
+        combined = ShiftBuilder(
+            ref_start_date="2000-02-06", name="Ten-Six, Six-Two"
+        )
+
+        combined.add_work_period(
+            start_time="2000-02-06 22:00:00",
+            end_time="2000-02-06 22:30:00",
+            productivity=50,
+        )  # Night shift ramp up time
+        combined.add_work_period(
+            start_time="2000-02-06 22:30:00",
+            breaks=[
+                ShiftBreak("2000-02-07 02:00:00", "2000-02-07 02:30:00"),
+                ShiftBreak("2000-02-07 04:00:00", "2000-02-07 04:15:00"),
+            ],
+            end_time="2000-02-07 06:00:00",
+        )  # Main night shift assuming 100% productivity
+        combined.add_work_period(
+            start_time="2000-02-07 06:00:00",
+            end_time="2000-02-07 06:30:00",
+            productivity=50,
+        )  # Morning shift ramp up time
+        combined.add_work_period(
+            start_time="2000-02-07 06:30:00",
+            breaks=[
+                ShiftBreak("2000-02-07 10:00:00", "2000-02-07 10:30:00"),
+                ShiftBreak("2000-02-07 12:00:00", "2000-02-07 12:15:00"),
+            ],
+            end_time="2000-02-07 14:00:00",
+        )  # Main morning shift assuming 100% productivity
+        combined.build()
+
 
 # ===========================================================================
 # Integration – end-to-end scenarios
