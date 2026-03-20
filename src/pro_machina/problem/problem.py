@@ -14,12 +14,9 @@ class Problem:
         self,
         start_time: str | dt.datetime,
         length: Duration,
-        config: Config | None = None,
     ):
-        if config is None:
-            self.config = Config()
-        else:
-            self.config = config
+        # Config is a singleton
+        self.config = Config()
 
         self.start_time = parse_datetime(start_time)
         self.length = length

@@ -9,7 +9,6 @@ of products. We'll also expand ob unit measures.
 """
 
 from pro_machina import (
-    Config,
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
@@ -35,10 +34,7 @@ from pro_machina.measures import (
     Weight,
 )
 
-config = Config()
-problem = Problem(
-    start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
-)
+problem = Problem(start_time="2026-03-02 00:00:00", length=Weeks(1))
 
 # We'll define some consumables that will be used in our products. For now we
 # just define their base dimensions and we'll specify quantities for individual

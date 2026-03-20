@@ -9,7 +9,6 @@ new features being introduced.
 """
 
 from pro_machina import (
-    Config,
     ContinuousMachine,
     ContinuousProduct,
     DemandForecast,
@@ -25,15 +24,9 @@ from pro_machina.measures import BaseUnit, Unit
 # In complex setups, it's likely that a single Problem instance will be passed
 # around multiple modules as we build up the component parts.
 
-# All problems require a reference start date, a duration for how far into the
-# future to solve for and take an optional Config instance. It is also possible
-# that this config object will be passed around with the Problem in cases where
-# we wish to change things like hiding warnings for specific modules. We'll
-# just initialise it with the defaults for now and solve for 1 week.
-config = Config()
-problem = Problem(
-    start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
-)
+# All problems require a reference start date, and a duration for how far into
+# the future to solve for.
+problem = Problem(start_time="2026-03-02 00:00:00", length=Weeks(1))
 
 # The next thing to do is to define some products that we want to make.
 # Products are split into two categories: ContinuousProducts and BatchProducts.

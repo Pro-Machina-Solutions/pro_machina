@@ -1,5 +1,4 @@
 from pro_machina import (
-    Config,
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
@@ -24,10 +23,7 @@ from pro_machina.problem.constraints import (
     MinProductionTime,
 )
 
-config = Config()
-problem = Problem(
-    start_time="2026-03-09 00:00:00", length=Weeks(1), config=config
-)
+problem = Problem(start_time="2026-03-09 00:00:00", length=Weeks(1))
 
 # Define some consumables
 sugar = Consumable("sugar", Weight)

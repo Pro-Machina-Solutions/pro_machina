@@ -9,7 +9,6 @@ from itertools import count
 from random import randint
 
 from pro_machina import (
-    Config,
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
@@ -39,11 +38,8 @@ from pro_machina.measures import (
     Weight,
 )
 
-config = Config()
 # We'll solve for a longer time period
-problem = Problem(
-    start_time="2026-03-02 00:00:00", length=Weeks(4), config=config
-)
+problem = Problem(start_time="2026-03-02 00:00:00", length=Weeks(4))
 
 # For Consumables, this time we will leave them as rate-limiting (the default).
 # Note that we are specifying some metadata for our own (made up) product code
