@@ -1,5 +1,4 @@
 import datetime as dt
-from collections.abc import Sequence
 from itertools import count
 from typing import NotRequired, TypedDict
 from warnings import warn
@@ -9,7 +8,7 @@ from ..durations import Duration
 from ..exceptions import MachineError, ShiftDefinitionError
 from ..measures import SizedDimension
 from ..util import to_str_date
-from .constraints import Constraint, HardConstraint, SoftConstraint
+from .constraints import HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
 
@@ -251,7 +250,7 @@ class ContinuousMachine(_Machine):
 
         _product = self._products[product._id]
 
-        existing_cons: Sequence[Constraint]
+        # existing_cons: Sequence[Constraint]
 
         if isinstance(constraint, HardConstraint):
             existing_cons = _product["hard_constraints"]
@@ -273,14 +272,14 @@ class ContinuousMachine(_Machine):
                 )
                 print()
             existing_cons = [con for con in existing_cons if con != constraint]
-            existing_cons.append(constraint)  # type: ignore
+            existing_cons.append(constraint)
         else:
-            existing_cons.append(constraint)  # type: ignore
+            existing_cons.append(constraint)
 
         if isinstance(constraint, HardConstraint):
-            _product["hard_constraints"] = existing_cons  # type: ignore
+            _product["hard_constraints"] = existing_cons
         else:
-            _product["soft_constraints"] = existing_cons  # type: ignore
+            _product["soft_constraints"] = existing_cons
 
 
 class BatchMachine(_Machine):

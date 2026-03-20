@@ -253,8 +253,8 @@ class ProductBatch:
 
 
 class BatchProduct(_Product):
-    def __init__(self, name: str, unit_measures) -> None:
-        super().__init__(name, unit_measures)
+    def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
+        super().__init__(name, base_dimension)
 
         self._batches = list[ProductBatch]
 

@@ -82,6 +82,13 @@ class Consumable:
 
     @staticmethod
     def get_all() -> list[Consumable]:
+        """Return all consumables defined so far
+
+        Returns
+        -------
+        list[Consumable]
+            All consumables defined so far
+        """
         reg = _ConsumableRegistry()
         return [
             Consumable(

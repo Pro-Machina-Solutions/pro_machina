@@ -3,6 +3,13 @@ In this example, we're just going to demonstrate how to define shift patterns
 without trying to solve any optimisation problem. That's because the methods
 are somewhat complex but it's a crucial feature that has a large impact on the
 solutions.
+
+A lot of effort has been made to ensure that relevant errors are thrown if any
+specification is incorrect; these will typically be in the form of
+`ShiftDefinitionError`, which should be possible to fix by user debugging. If,
+instead, a `ShiftIntegrityError` is thrown, it is more likely that pro_machina
+expected the shift definition to be possible and these issues might need to
+instead be raised on github for further investigation.
 """
 
 from pro_machina import (
@@ -128,7 +135,7 @@ machine.add_shift(
     ten_six_pattern, start_date="2026-03-19", end_date="2026-12-31"
 )
 
-# Next, we'll run foul of working time regulations if we don't include breaks
+# Next, we'll run afoul of working time regulations if we don't include breaks
 # so we can add them too. You get to choose the production during the break
 # period as not all machines will stop completely if you have staggered breaks.
 # This is specified as a percentage of the machine's typical output (by default
