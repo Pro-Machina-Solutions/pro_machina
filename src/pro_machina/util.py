@@ -43,7 +43,11 @@ def get_num_buckets(
     problem_start: dt.datetime,
     problem_end: dt.datetime,
     config: Config | None = None,
+    to_day_end: bool = True,
 ):
+    if to_day_end:
+        # We need to cover the 24 hours of the last day
+        problem_end = as_midnight(problem_end + dt.timedelta(days=1))
     config = config if config is not None else Config()
     timebucket_secs = int(config._timebucket.to_seconds())
     tot_problem_secs = (problem_end - problem_start).total_seconds()
