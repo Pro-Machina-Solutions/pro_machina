@@ -6,10 +6,8 @@ from .durations import Duration, Mins, Secs, Weeks
 class Config:
     def __init__(
         self,
-        silence_warnings: bool = False,
         base_time_unit: type[Duration] = Secs,
     ) -> None:
-        self.silence_warnings = silence_warnings
         self.base_time_unit = base_time_unit
 
         self._max_iterations: int | None = None
