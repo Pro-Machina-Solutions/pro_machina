@@ -6,7 +6,8 @@ from itertools import count
 from typing import TypedDict
 from warnings import warn
 
-from ..config import Config
+import pro_machina
+
 from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import (
@@ -168,11 +169,10 @@ class _Product:
         if not all(isinstance(item, HardConstraint) for item in constraints):
             raise TypeError("Constraints must all be of type HardConstraint")
 
-        conf = Config()
         to_remove = set()
         for cons in constraints:
             if cons in self._hard_constraints:
-                if not conf.silence_warnings:
+                if not pro_machina.options["silence_warnings"]:
                     warn(
                         (
                             f"{constraints.__class__.__name__} has already"
@@ -199,11 +199,10 @@ class _Product:
         if not all(isinstance(item, SoftConstraint) for item in constraints):
             raise TypeError("Constraints must all be of type SoftConstraint")
 
-        conf = Config()
         to_remove = set()
         for cons in constraints:
             if cons in self._soft_constraints:
-                if not conf.silence_warnings:
+                if not pro_machina.options["silence_warnings"]:
                     warn(
                         (
                             f"{constraints.__class__.__name__} has already"

@@ -8,6 +8,7 @@ from typing import Required, Self, TypedDict
 import numpy as np
 import numpy.typing as npt
 
+from ..config import Config
 from ..durations import Duration, Hours, Secs
 from ..exceptions import ShiftDefinitionError, ShiftIntegrityError
 from ..util import as_midnight, parse_datetime
@@ -543,12 +544,17 @@ class ShiftBuilder:
                         f"Break periods are overlapping:\n{_break}\n{other}"
                     )
 
-    def build(self) -> None:
+    def build(self, config: Config | None = None) -> None:
         """Finalise the shift pattern to be used in the solver
 
         This function will attempt to take all periods of defined work
         activity and form a completely contiguous description of machine
         output from the start date through to the end date.
+
+        Parameters
+        ----------
+        config : Config | None
+            Pass an optional Config object
 
         Raises
         ------
@@ -562,6 +568,8 @@ class ShiftBuilder:
             It was not possible to create a coherent, contiguous description
             of shift activities for the period
         """
+
+        self.config = config if config is not None else Config()
 
         if self._is_built:
             raise ValueError("The ShiftBuilder has already been finalised")

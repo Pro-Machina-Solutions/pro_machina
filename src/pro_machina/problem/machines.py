@@ -4,11 +4,14 @@ from itertools import count
 from typing import NotRequired, TypedDict
 from warnings import warn
 
-from ..config import Config
+import numpy as np
+
+import pro_machina
+
 from ..durations import Duration
 from ..exceptions import MachineError, ShiftDefinitionError
 from ..measures import SizedDimension
-from ..util import to_str_date
+from ..util import get_num_buckets, to_str_date
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
@@ -79,6 +82,10 @@ class _Machine:
         if end_date is not None:
             end_date = to_str_date(end_date)
 
+        if end_date is not None and start_date is not None:
+            if end_date < start_date:
+                raise ValueError("End date cannot be before start date")
+
         self._shifts.append(
             _MachineShift(start=start_date, end=end_date, shift=shift)
         )
@@ -86,6 +93,19 @@ class _Machine:
     def clear_shifts(self) -> None:
         """Helper function to remove any pre-defined shifts"""
         self._shifts = []
+
+    def _build_shift_productivity(self, problem_start, problem_end):
+        # Track total number of buckets in the problem
+        num_buckets = get_num_buckets(problem_start, problem_end)
+
+        # Shift patterns can only be applied on a per-day basis. Therefore, get
+        # the daily number of buckets too
+
+        base_array = np.zeros(num_buckets)
+
+        for shift in self._shifts:
+            if shift["start"] is None:
+                start_index = 0
 
 
 class ContinuousMachine(_Machine):
@@ -259,11 +279,10 @@ class ContinuousMachine(_Machine):
             existing_cons = _product["soft_constraints"]
 
         if constraint in existing_cons:
-            conf = Config()
-            if not conf.silence_warnings:
-                print()
+            if pro_machina.options["silence_warnings"]:
                 warn(
-                    (
+                    "\n"
+                    + (
                         f"{constraint.__class__.__name__} has already"
                         f" been defined for {product.name} and is being"
                         f" overwritten by {constraint} for Machine:"
@@ -271,7 +290,6 @@ class ContinuousMachine(_Machine):
                     ).lstrip(),
                     stacklevel=2,
                 )
-                print()
             existing_cons = [con for con in existing_cons if con != constraint]
             existing_cons.append(constraint)  # type: ignore
         else:

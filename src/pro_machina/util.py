@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import datetime as dt
+
+from .config import Config
 
 
 def parse_datetime(_dt: str | dt.date) -> dt.datetime:
@@ -20,7 +24,7 @@ def to_str_date(_dt: str | dt.date | dt.datetime) -> str:
 
 
 def as_midnight(date: dt.date) -> dt.datetime:
-    """Convert a date object to a datetime object
+    """Convert a date object to a datetime object.
 
     Parameters
     ----------
@@ -33,6 +37,18 @@ def as_midnight(date: dt.date) -> dt.datetime:
         A datetime representation of the date with 00:00:00 for %H:%M:%S
     """
     return dt.datetime.combine(date, dt.datetime.min.time())
+
+
+def get_num_buckets(
+    problem_start: dt.datetime,
+    problem_end: dt.datetime,
+    config: Config | None = None,
+):
+    config = config if config is not None else Config()
+    timebucket_secs = int(config._timebucket.to_seconds())
+    tot_problem_secs = (problem_end - problem_start).total_seconds()
+    num_buckets = int(tot_problem_secs / timebucket_secs)
+    return num_buckets
 
 
 class Singleton(type):

@@ -1,10 +1,9 @@
 from secrets import randbelow
 
 from .durations import Duration, Mins, Secs, Weeks
-from .util import Singleton
 
 
-class Config(metaclass=Singleton):
+class Config:
     def __init__(
         self,
         silence_warnings: bool = False,

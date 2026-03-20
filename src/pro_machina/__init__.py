@@ -1,6 +1,8 @@
 __version__ = "0.0.1"
 
-from .config import Config
+
+options = {"silence_warnings": False}
+
 from .problem import (
     BatchMachine,
     BatchProduct,
