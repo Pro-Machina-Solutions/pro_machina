@@ -633,7 +633,6 @@ class ShiftBuilder:
 
                     else:
                         # Roll over to the next day
-
                         day_end = as_day_end(this["start"])
                         shift_day.add_period(
                             _Activity(

@@ -37,7 +37,7 @@ class Config:
         self._max_runtime = runtime
 
     @property
-    def timebucket(self) -> Duration | None:
+    def timebucket(self) -> Duration:
         return self._timebucket
 
     @timebucket.setter

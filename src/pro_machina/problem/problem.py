@@ -3,7 +3,7 @@ import datetime as dt
 from ..config import Config
 from ..durations import Duration
 from ..exceptions import ProblemError
-from ..util import parse_datetime
+from ..util import as_day_end, as_day_start, parse_datetime
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
 from .stocks import InboundStock, StockHolding
@@ -18,18 +18,17 @@ class Problem:
         # Config is a singleton
         self.config = Config()
 
-        self.start_time = parse_datetime(start_time)
-        self.length = length
-
-        self._end_time = self.start_time + dt.timedelta(
-            seconds=self.length.to_seconds()
+        self.user_start_time = parse_datetime(start_time)
+        self._start = as_day_start(self.user_start_time)
+        self._end = as_day_end(
+            self._start + dt.timedelta(seconds=length.to_seconds())
         )
-        self._forecast: DemandForecast | None = None
 
         # Flags
         self._is_built = False
 
         # Containers
+        self._forecast: DemandForecast | None = None
         self._machines: dict[int, _Machine] = {}
         self._starting_stocks: dict[int, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
@@ -53,7 +52,7 @@ class Problem:
     def build(self) -> None:
         if self._forecast is None:
             raise ProblemError("No demand forecast has been set")
-        self._forecast._build(self.start_time, self._end_time, self.config)
+        self._forecast._build(self)
         self._is_built = True
 
     def solve(self) -> None:

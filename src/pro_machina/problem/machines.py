@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import datetime as dt
 from collections.abc import Sequence
 from itertools import count
-from typing import NotRequired, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
+
+if TYPE_CHECKING:
+    from .problem import Problem
 from warnings import warn
 
 import numpy as np
 
 import pro_machina
 
-from ..config import Config
 from ..durations import Days, Duration
 from ..exceptions import MachineError, ShiftDefinitionError
 from ..measures import SizedDimension
-from ..util import as_day_end, as_day_start, get_num_buckets, to_str_date
+from ..util import get_problem_buckets, to_str_date
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
@@ -95,38 +99,31 @@ class _Machine:
         """Helper function to remove any pre-defined shifts"""
         self._shifts = []
 
-    def _build_shift_productivity(
-        self,
-        problem_start: dt.datetime,
-        problem_end: dt.datetime,
-        config: Config,
-    ):
+    def _build_shift_productivity(self, problem: Problem):
         # Track total number of buckets in the problem.
-        # TODO it's getting confusing what is actually adding 24 hours on
-        problem_num_buckets = get_num_buckets(
-            problem_start, as_day_start(problem_end)
-        )
+
+        prob_num_buckets = get_problem_buckets(problem)
 
         # Default all buckets to zero productivity
-        base_array = np.zeros(problem_num_buckets)
+        base_array = np.zeros(prob_num_buckets)
 
         # Shift patterns can only be applied on a per-day basis. Therefore, get
         # the daily number of buckets too. We can just keep iterating through
         # and adding a day each time to fill out our base array
         num_daily_buckets = int(
-            Days(1).to_seconds() / config._timebucket.to_seconds()
+            Days(1).to_seconds() / problem.config._timebucket.to_seconds()
         )
         bucket_tally = 0
 
-        for shift in self._shifts:
-            if shift["start"] is None:
-                start_date = as_day_start(problem_start)
-            else:
-                start_date = as_day_start(shift["start"])
-            if shift["end"] is None:
-                end_date = as_day_end(problem_end)
-            else:
-                end_date = as_day_end(shift["end"])
+        # for shift in self._shifts:
+        #     if shift["start"] is None:
+        #         start_date = as_day_start(problem._start)
+        #     else:
+        #         start_date = as_day_start(shift["start"])
+        #     if shift["end"] is None:
+        #         end_date = as_day_end(problem_end)
+        #     else:
+        #         end_date = as_day_end(shift["end"])
 
 
 class ContinuousMachine(_Machine):

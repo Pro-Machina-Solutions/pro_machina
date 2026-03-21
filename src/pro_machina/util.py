@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import datetime as dt
+from functools import cache
+from typing import TYPE_CHECKING
 
-from .config import Config
+if TYPE_CHECKING:
+    from .problem import Problem
 
 
 def parse_datetime(_dt: str | dt.date | dt.datetime) -> dt.datetime:
@@ -63,20 +66,19 @@ def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
     return dt.datetime.combine(date, dt.datetime.min.time())
 
 
-def get_num_buckets(
+@cache
+def get_problem_buckets(problem: Problem) -> int:
+    timebucket_secs = int(problem.config._timebucket.to_seconds())
+    tot_problem_secs = (problem._end - problem._start).total_seconds()
+    return int(tot_problem_secs / timebucket_secs)
+
+
+def get_bucket_index(
     problem_start: dt.datetime,
     problem_end: dt.datetime,
-    config: Config | None = None,
-    to_day_end: bool = True,
-):
-    if to_day_end:
-        # We need to cover the 24 hours of the last day
-        problem_end = as_day_end(problem_end)
-    config = config if config is not None else Config()
-    timebucket_secs = int(config._timebucket.to_seconds())
-    tot_problem_secs = (problem_end - problem_start).total_seconds()
-    num_buckets = int(tot_problem_secs / timebucket_secs)
-    return num_buckets
+    timestamp: dt.datetime,
+) -> int:
+    pass
 
 
 class Singleton(type):

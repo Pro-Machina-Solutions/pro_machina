@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import datetime as dt
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .problem import Problem
 
 import numpy as np
 import numpy.typing as npt
 
-from ..config import Config
 from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import CustomUnit, SizedDimension
-from ..util import as_day_start, parse_datetime
+from ..util import as_day_start, get_problem_buckets, parse_datetime
 from .products import BatchProduct, ContinuousProduct
 
 
@@ -228,22 +232,19 @@ class DemandForecast:
                     multiplier=qty,
                 )
 
-    def _build(
-        self, start_date: dt.datetime, end_date: dt.datetime, config: Config
-    ):
+    def _build(self, problem: Problem):
 
-        timebucket_secs = int(config._timebucket.to_seconds())
-        tot_problem_secs = (end_date - start_date).total_seconds()
-        num_buckets = int(tot_problem_secs / timebucket_secs)
+        num_buckets = get_problem_buckets(problem)
+        timebucket_secs = int(problem.config.timebucket.to_seconds())
 
-        horizon_secs = int(config.demand_horizon.to_seconds())
+        horizon_secs = int(problem.config.demand_horizon.to_seconds())
         deflt_num_horizon_buckets = int(horizon_secs / timebucket_secs)
 
         # First process set orders
         self._process_order_list(
             self._orders,
             num_buckets=num_buckets,
-            start_date=start_date,
+            start_date=problem._start,
             horizon_secs=horizon_secs,
             timebucket_secs=timebucket_secs,
             deflt_num_horizon_buckets=deflt_num_horizon_buckets,
@@ -260,7 +261,7 @@ class DemandForecast:
                 running_date = mts.start_date
                 while (
                     running_date + dt.timedelta(seconds=mts.freq.to_seconds())
-                    < end_date
+                    < problem._end
                 ):
                     running_date += dt.timedelta(seconds=mts.freq.to_seconds())
                     dates.append(running_date)
@@ -271,17 +272,17 @@ class DemandForecast:
                         Order(mts.product, date=date, qty=mts.qty)
                     )
 
-                if running_date < end_date:
+                if running_date < problem._end:
                     # Tie up any partial period
                     partial_period = Decimal(
-                        (end_date - running_date).total_seconds()
+                        (problem._end - running_date).total_seconds()
                         / mts.freq.to_seconds()
                     )
 
                     mts_orders.append(
                         Order(
                             product=mts.product,
-                            date=end_date,
+                            date=problem._end,
                             qty=mts.qty * partial_period,
                         )
                     )
@@ -296,7 +297,7 @@ class DemandForecast:
                     < mts.end_date
                     and running_date
                     + dt.timedelta(seconds=mts.freq.to_seconds())
-                    < end_date
+                    < problem._end
                 ):
                     running_date += dt.timedelta(seconds=mts.freq.to_seconds())
                     dates.append(running_date)
@@ -307,10 +308,14 @@ class DemandForecast:
                         Order(mts.product, date=date, qty=mts.qty)
                     )
 
-                if running_date < end_date:
+                if running_date < problem._end:
                     # Tie up any partial period. We need to know the earlier of
                     # the specified end date or the global problem end date
-                    e_d = mts.end_date if mts.end_date < end_date else end_date
+                    e_d = (
+                        mts.end_date
+                        if mts.end_date < problem._end
+                        else problem._end
+                    )
                     partial_period = Decimal(
                         (e_d - running_date).total_seconds()
                         / mts.freq.to_seconds()
@@ -327,7 +332,7 @@ class DemandForecast:
         self._process_order_list(
             mts_orders,
             num_buckets=num_buckets,
-            start_date=start_date,
+            start_date=problem._start,
             horizon_secs=horizon_secs,
             timebucket_secs=timebucket_secs,
             deflt_num_horizon_buckets=deflt_num_horizon_buckets,

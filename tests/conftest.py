@@ -61,7 +61,6 @@ def simple_shift():
     six_two.add_downday(date="2000-02-13")
 
     six_two.build()
-    six_two.inspect()
     return ShiftPattern(six_two)
 
 
