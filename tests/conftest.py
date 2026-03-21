@@ -14,7 +14,7 @@ from pro_machina import (
 )
 from pro_machina.durations import Weeks
 from pro_machina.measures import Weight
-from pro_machina.util import as_midnight, parse_datetime
+from pro_machina.util import as_day_end, as_day_start, parse_datetime
 
 
 @pytest.fixture(scope="package")
@@ -44,7 +44,7 @@ def cont_machine():
 
 @pytest.fixture(scope="package")
 def simple_shift():
-    start_date = as_midnight(parse_datetime("2000-02-07"))
+    start_date = as_day_start(parse_datetime("2000-02-07"))
 
     six_two = ShiftBuilder(ref_start_date=start_date, name="Standard Six-Two")
     for _ in range(5):
@@ -55,7 +55,7 @@ def simple_shift():
             breaks=ShiftBreak(break_1_start, break_1_end),
             end_time=start_date + dt.timedelta(minutes=840),
         )
-        start_date = as_midnight(start_date + dt.timedelta(days=1))
+        start_date = as_day_end(start_date)
 
     six_two.add_downday(date="2000-02-12")
     six_two.add_downday(date="2000-02-13")
@@ -67,7 +67,7 @@ def simple_shift():
 
 @pytest.fixture(scope="package")
 def irregular_shift_pattern():
-    start_date = as_midnight(parse_datetime("2000-02-07"))
+    start_date = as_day_start(parse_datetime("2000-02-07"))
 
     sb = ShiftBuilder(start_date, name="Continental Rotation 1")
     for _ in range(4):
@@ -85,7 +85,7 @@ def irregular_shift_pattern():
             ],
             end_time=start_date + dt.timedelta(minutes=1080),
         )
-        start_date = as_midnight(start_date + dt.timedelta(days=1))
+        start_date = as_day_end(start_date)
 
     sb.add_downday(date="2000-02-11")
     sb.add_downday(date="2000-02-12")

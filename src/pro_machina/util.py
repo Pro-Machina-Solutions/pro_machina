@@ -5,11 +5,11 @@ import datetime as dt
 from .config import Config
 
 
-def parse_datetime(_dt: str | dt.date) -> dt.datetime:
+def parse_datetime(_dt: str | dt.date | dt.datetime) -> dt.datetime:
     if isinstance(_dt, str):
         _dt = dt.datetime.fromisoformat(_dt)
 
-    if not isinstance(_dt, dt.datetime):
+    if not isinstance(_dt, (dt.datetime, dt.date)):
         raise TypeError("Not a valid datetime")
 
     return _dt
@@ -23,7 +23,30 @@ def to_str_date(_dt: str | dt.date | dt.datetime) -> str:
     return rtn
 
 
-def as_midnight(date: dt.date) -> dt.datetime:
+def as_day_end(date: dt.date | dt.datetime | str) -> dt.datetime:
+    """Bump the datetime to the start of the next day.
+
+    This method will automatically add 1 day onto any datetime and then knock
+    it back to the very start of the day, to close off anything that requires
+    the previous 24 hours to be complete.
+
+    Parameters
+    ----------
+    date : dt.date | dt.datetime | str
+        The date to be bumped
+
+    Returns
+    -------
+    dt.datetime
+        The knocked-back datetime
+    """
+    date = parse_datetime(date)
+    return dt.datetime.combine(
+        date + dt.timedelta(days=1), dt.datetime.min.time()
+    )
+
+
+def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
     """Convert a date object to a datetime object.
 
     Parameters
@@ -36,6 +59,7 @@ def as_midnight(date: dt.date) -> dt.datetime:
     dt.datetime
         A datetime representation of the date with 00:00:00 for %H:%M:%S
     """
+    date = parse_datetime(date)
     return dt.datetime.combine(date, dt.datetime.min.time())
 
 
@@ -47,7 +71,7 @@ def get_num_buckets(
 ):
     if to_day_end:
         # We need to cover the 24 hours of the last day
-        problem_end = as_midnight(problem_end + dt.timedelta(days=1))
+        problem_end = as_day_end(problem_end)
     config = config if config is not None else Config()
     timebucket_secs = int(config._timebucket.to_seconds())
     tot_problem_secs = (problem_end - problem_start).total_seconds()

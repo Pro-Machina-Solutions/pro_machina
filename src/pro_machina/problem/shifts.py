@@ -11,7 +11,7 @@ import numpy.typing as npt
 from ..config import Config
 from ..durations import Duration, Hours, Secs
 from ..exceptions import ShiftDefinitionError, ShiftIntegrityError
-from ..util import as_midnight, parse_datetime
+from ..util import as_day_end, as_day_start, parse_datetime
 
 
 class ShiftBreak:
@@ -106,7 +106,7 @@ class _ShiftDay:
 
         start_time = self.periods[0]["start"]
 
-        if start_time != as_midnight(start_time.date()):
+        if start_time != as_day_start(start_time):
             raise ShiftIntegrityError(
                 "The shift day does not start at midnight"
             )
@@ -129,9 +129,7 @@ class _ShiftDay:
                 f"Period ends before it starts:\n{self.periods[i]}"
             )
 
-        if self.periods[-1]["end"] != as_midnight(
-            start_time + dt.timedelta(days=1)
-        ):
+        if self.periods[-1]["end"] != as_day_end(start_time):
             raise ShiftIntegrityError(
                 (
                     "The following shift does not run until midnight:"
@@ -219,9 +217,7 @@ class ShiftBuilder:
 
     def __init__(self, ref_start_date: str | dt.datetime, name: str) -> None:
         self.name = name
-        self.ref_start_date = parse_datetime(ref_start_date).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        self.ref_start_date = as_day_start(ref_start_date)
 
         self._shift_periods: list[_ShiftPeriod] = []
         self._shift_days: list[_ShiftDay] = []
@@ -320,10 +316,10 @@ class ShiftBuilder:
             if period["is_down_day"]:
                 continue
             if (
-                period["start"] > as_midnight(period["start"])
+                period["start"] > as_day_start(period["start"])
                 and period["start"].date() == date.date()
             ) or (
-                period["end"] > as_midnight(period["end"])
+                period["end"] > as_day_start(period["end"])
                 and period["end"].date() == date.date()
             ):
                 raise ShiftDefinitionError(
@@ -339,7 +335,7 @@ class ShiftBuilder:
         self, shift_day: _ShiftDay, rolling_dt: dt.datetime
     ) -> tuple[_ShiftDay, dt.datetime]:
 
-        day_end = as_midnight(rolling_dt + dt.timedelta(days=1))
+        day_end = as_day_end(rolling_dt)
 
         shift_day.add_period(_Activity(start=rolling_dt, end=day_end, prod=0))
         self._shift_days.append(shift_day)
@@ -358,7 +354,7 @@ class ShiftBuilder:
     ) -> tuple[_ShiftDay, dt.datetime]:
 
         for b, _break in enumerate(this["breaks"]):
-            day_end = as_midnight(this["start"] + dt.timedelta(days=1))
+            day_end = as_day_end(this["start"])
 
             if _break.start > day_end:
                 if b == 0:
@@ -482,7 +478,7 @@ class ShiftBuilder:
 
         if next is not None and next["start"].date() != this["end"].date():
             # Close off the current day
-            day_end = as_midnight(this["end"] + dt.timedelta(days=1))
+            day_end = as_day_end(this["end"])
 
             if this["end"] < day_end:
                 shift_day.add_period(
@@ -501,7 +497,7 @@ class ShiftBuilder:
 
         else:
             # Last period of the entire pattern
-            end = as_midnight(rolling_dt.date() + dt.timedelta(days=1))
+            end = as_day_end(rolling_dt.date())
             shift_day.add_period(_Activity(start=rolling_dt, end=end, prod=0))
             self._shift_days.append(shift_day)
 
@@ -638,9 +634,7 @@ class ShiftBuilder:
                     else:
                         # Roll over to the next day
 
-                        day_end = as_midnight(
-                            this["start"] + dt.timedelta(days=1)
-                        )
+                        day_end = as_day_end(this["start"])
                         shift_day.add_period(
                             _Activity(
                                 start=this["start"],
@@ -746,7 +740,7 @@ class ShiftPattern:
             )
         self._builder = builder
         self.name = self._builder.name
-        self.base_date = as_midnight(self._builder.ref_start_date)
+        self.base_date = as_day_start(self._builder.ref_start_date)
 
         self._day_span = len(self._builder._shift_days)
         self._day_secs: dict[int, list[_TimeBlock]] = defaultdict(list)
@@ -881,7 +875,7 @@ class ShiftPattern:
         npt.NDArray[np.float64]
             An array of productivity percentages covering the full day
         """
-        date = as_midnight(parse_datetime(date))
+        date = as_day_start(date)
         day_key = (date - self.base_date).days % self._day_span
 
         num_buckets = int(Hours(24).to_seconds() / timestep.to_seconds())

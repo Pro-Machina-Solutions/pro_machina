@@ -9,7 +9,7 @@ from ..config import Config
 from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import CustomUnit, SizedDimension
-from ..util import as_midnight, parse_datetime
+from ..util import as_day_start, parse_datetime
 from .products import BatchProduct, ContinuousProduct
 
 
@@ -43,7 +43,7 @@ class Order:
     ) -> None:
 
         self.product = product
-        self.date = as_midnight(parse_datetime(date))
+        self.date = as_day_start(date)
 
         if isinstance(qty, CustomUnit):
             # TODO
@@ -95,7 +95,7 @@ class MadeToStock:
         freq: Duration | None = None,
         end_date: str | dt.datetime | None = None,
     ):
-        self.start_date = as_midnight(parse_datetime(start_date))
+        self.start_date = as_day_start(start_date)
 
         if not product.base_dimension.is_compatible(qty):
             raise UnitError(

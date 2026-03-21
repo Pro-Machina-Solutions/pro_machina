@@ -12,7 +12,7 @@ from ..config import Config
 from ..durations import Days, Duration
 from ..exceptions import MachineError, ShiftDefinitionError
 from ..measures import SizedDimension
-from ..util import as_midnight, get_num_buckets, to_str_date
+from ..util import as_day_end, as_day_start, get_num_buckets, to_str_date
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
@@ -104,7 +104,7 @@ class _Machine:
         # Track total number of buckets in the problem.
         # TODO it's getting confusing what is actually adding 24 hours on
         problem_num_buckets = get_num_buckets(
-            problem_start, as_midnight(problem_end)
+            problem_start, as_day_start(problem_end)
         )
 
         # Default all buckets to zero productivity
@@ -120,13 +120,13 @@ class _Machine:
 
         for shift in self._shifts:
             if shift["start"] is None:
-                start_date = as_midnight(problem_start)
+                start_date = as_day_start(problem_start)
             else:
-                start_date = as_midnight(shift["start"])
+                start_date = as_day_start(shift["start"])
             if shift["end"] is None:
-                end_date = as_midnight(problem_end + dt.timedelta(days=1))
+                end_date = as_day_end(problem_end)
             else:
-                end_date = as_midnight(shift["end"] + dt.timedelta(days=1))
+                end_date = as_day_end(shift["end"])
 
 
 class ContinuousMachine(_Machine):

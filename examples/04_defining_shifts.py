@@ -77,7 +77,7 @@ machine.add_shift(six_two_pattern)
 # We can do the same to define a 10-6 shift rotation. Note here that it starts
 # on the Sunday evening, so we need to knock our date back one day. Because we
 # start work (albeit for two hours) on the Sunday, we don't want to add a
-# downday to our pattern
+# downday to our pattern for the subsequent Sunday.
 ten_six = ShiftBuilder(ref_start_date="2000-02-06", name="Stanbdard Ten-Six")
 
 ten_six.add_work_period(
