@@ -791,8 +791,16 @@ class ShiftPattern:
         for i, day in enumerate(self._builder._shift_days):
             period: _Activity
             for period in day.periods:
-                start = (period["start"] - self.base_date).total_seconds()
-                end = (period["end"] - self.base_date).total_seconds()
+                # Since we're calculating on a per-day basis, we need to reset
+                # the number of seconds for each 24hr period
+                days_passed = (period["start"] - self.base_date).days
+                secs_to_account_for = days_passed * 86400
+                start = (
+                    period["start"] - self.base_date
+                ).total_seconds() - secs_to_account_for
+                end = (
+                    period["end"] - self.base_date
+                ).total_seconds() - secs_to_account_for
                 prod = period["prod"]
                 self._day_secs[i].append(
                     _TimeBlock(start=Secs(start), end=Secs(end), prod=prod)

@@ -5,6 +5,8 @@ from collections.abc import Sequence
 from itertools import count
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
+import pandas as pd
+
 if TYPE_CHECKING:
     from .problem import Problem
 from warnings import warn
@@ -16,7 +18,12 @@ import pro_machina
 from ..durations import Days, Duration
 from ..exceptions import MachineError, ShiftDefinitionError
 from ..measures import SizedDimension
-from ..util import get_problem_buckets, to_str_date
+from ..util import (
+    as_day_end,
+    as_day_start,
+    get_problem_buckets,
+    to_str_date,
+)
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
@@ -101,7 +108,6 @@ class _Machine:
 
     def _build_shift_productivity(self, problem: Problem):
         # Track total number of buckets in the problem.
-
         prob_num_buckets = get_problem_buckets(problem)
 
         # Default all buckets to zero productivity
@@ -115,15 +121,23 @@ class _Machine:
         )
         bucket_tally = 0
 
-        # for shift in self._shifts:
-        #     if shift["start"] is None:
-        #         start_date = as_day_start(problem._start)
-        #     else:
-        #         start_date = as_day_start(shift["start"])
-        #     if shift["end"] is None:
-        #         end_date = as_day_end(problem_end)
-        #     else:
-        #         end_date = as_day_end(shift["end"])
+        for shift in self._shifts:
+            if shift["start"] is None:
+                start_date = problem._start
+            else:
+                start_date = as_day_start(shift["start"])
+            if shift["end"] is None:
+                end_date = problem._end
+            else:
+                end_date = as_day_end(shift["end"])
+
+            dates = pd.date_range(
+                start_date, end_date, freq="1D", inclusive="left"
+            )
+            for date in dates:
+                print("Yielding", date)
+                a = shift["shift"]._yield_day(date, problem.config.timebucket)
+                print(a)
 
 
 class ContinuousMachine(_Machine):

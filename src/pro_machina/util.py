@@ -26,6 +26,23 @@ def to_str_date(_dt: str | dt.date | dt.datetime) -> str:
     return rtn
 
 
+def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
+    """Convert a date object to a datetime object.
+
+    Parameters
+    ----------
+    date : dt.date
+        The date object to be converted to a datetime object
+
+    Returns
+    -------
+    dt.datetime
+        A datetime representation of the date with 00:00:00 for %H:%M:%S
+    """
+    date = parse_datetime(date)
+    return dt.datetime.combine(date, dt.datetime.min.time())
+
+
 def as_day_end(date: dt.date | dt.datetime | str) -> dt.datetime:
     """Bump the datetime to the start of the next day.
 
@@ -45,25 +62,8 @@ def as_day_end(date: dt.date | dt.datetime | str) -> dt.datetime:
     """
     date = parse_datetime(date)
     return dt.datetime.combine(
-        date + dt.timedelta(days=1), dt.datetime.min.time()
+        as_day_start(date + dt.timedelta(days=1)), dt.datetime.min.time()
     )
-
-
-def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
-    """Convert a date object to a datetime object.
-
-    Parameters
-    ----------
-    date : dt.date
-        The date object to be converted to a datetime object
-
-    Returns
-    -------
-    dt.datetime
-        A datetime representation of the date with 00:00:00 for %H:%M:%S
-    """
-    date = parse_datetime(date)
-    return dt.datetime.combine(date, dt.datetime.min.time())
 
 
 @cache
@@ -74,11 +74,16 @@ def get_problem_buckets(problem: Problem) -> int:
 
 
 def get_bucket_index(
-    problem_start: dt.datetime,
-    problem_end: dt.datetime,
+    problem: Problem,
     timestamp: dt.datetime,
 ) -> int:
-    pass
+    num_buckets = get_problem_buckets(problem)
+    frac = (timestamp - problem._start).total_seconds() / (
+        problem._duration_secs
+    ).total_seconds()
+    if not 0 <= frac <= 1:
+        raise ValueError("Timestamp outside of problem range")
+    return int(frac * num_buckets)
 
 
 class Singleton(type):
