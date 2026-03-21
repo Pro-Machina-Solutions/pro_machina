@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from itertools import count
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
+import numpy.typing as npt
 import pandas as pd
 
 if TYPE_CHECKING:
@@ -15,12 +16,13 @@ import numpy as np
 
 import pro_machina
 
-from ..durations import Days, Duration
+from ..durations import Duration
 from ..exceptions import MachineError, ShiftDefinitionError
 from ..measures import SizedDimension
 from ..util import (
     as_day_end,
     as_day_start,
+    get_bucket_index,
     get_problem_buckets,
     to_str_date,
 )
@@ -106,20 +108,14 @@ class _Machine:
         """Helper function to remove any pre-defined shifts"""
         self._shifts = []
 
-    def _build_shift_productivity(self, problem: Problem):
+    def _build_shift_productivity(
+        self, problem: Problem
+    ) -> npt.NDArray[np.float64]:
         # Track total number of buckets in the problem.
-        prob_num_buckets = get_problem_buckets(problem)
+        problem_num_buckets = get_problem_buckets(problem)
 
         # Default all buckets to zero productivity
-        base_array = np.zeros(prob_num_buckets)
-
-        # Shift patterns can only be applied on a per-day basis. Therefore, get
-        # the daily number of buckets too. We can just keep iterating through
-        # and adding a day each time to fill out our base array
-        num_daily_buckets = int(
-            Days(1).to_seconds() / problem.config._timebucket.to_seconds()
-        )
-        bucket_tally = 0
+        base_productivity = np.zeros(problem_num_buckets)
 
         for shift in self._shifts:
             if shift["start"] is None:
@@ -135,9 +131,14 @@ class _Machine:
                 start_date, end_date, freq="1D", inclusive="left"
             )
             for date in dates:
-                print("Yielding", date)
-                a = shift["shift"]._yield_day(date, problem.config.timebucket)
-                print(a)
+                pattern = shift["shift"]._yield_day(
+                    date, problem.config.timebucket
+                )
+                start_bucket = get_bucket_index(problem, date)
+                end_bucket = start_bucket + len(pattern)
+                base_productivity[start_bucket:end_bucket] = pattern
+
+        return base_productivity
 
 
 class ContinuousMachine(_Machine):

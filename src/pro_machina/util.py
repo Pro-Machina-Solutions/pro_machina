@@ -80,7 +80,7 @@ def get_bucket_index(
     num_buckets = get_problem_buckets(problem)
     frac = (timestamp - problem._start).total_seconds() / (
         problem._duration_secs
-    ).total_seconds()
+    )
     if not 0 <= frac <= 1:
         raise ValueError("Timestamp outside of problem range")
     return int(frac * num_buckets)
