@@ -24,7 +24,7 @@ from ..util import (
     as_day_start,
     get_bucket_index,
     get_problem_buckets,
-    to_str_date,
+    parse_datetime,
 )
 from .constraints import Constraint, HardConstraint, SoftConstraint
 from .products import BatchProduct, ContinuousProduct, _Product
@@ -40,8 +40,8 @@ class _MachineProduct(TypedDict):
 
 
 class _MachineShift(TypedDict):
-    start: str | None
-    end: str | None
+    start: dt.date | None
+    end: dt.date | None
     shift: ShiftPattern
 
 
@@ -92,9 +92,9 @@ class _Machine:
             raise TypeError("Not a valid shift pattern")
 
         if start_date is not None:
-            start_date = to_str_date(start_date)
+            start_date = parse_datetime(start_date)
         if end_date is not None:
-            end_date = to_str_date(end_date)
+            end_date = parse_datetime(end_date)
 
         if end_date is not None and start_date is not None:
             if end_date < start_date:

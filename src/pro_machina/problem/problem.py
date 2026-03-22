@@ -1,5 +1,8 @@
 import datetime as dt
 
+import numpy as np
+import numpy.typing as npt
+
 from ..config import Config
 from ..durations import Duration
 from ..exceptions import ProblemError
@@ -35,6 +38,10 @@ class Problem:
         self._starting_stocks: dict[int, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
 
+        self._machine_base_productivity: dict[
+            int, npt.NDArray[np.float64]
+        ] = {}
+
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
         if not isinstance(machine, _Machine):
             raise TypeError(
@@ -55,8 +62,11 @@ class Problem:
         if self._forecast is None:
             raise ProblemError("No demand forecast has been set")
         self._forecast._build(self)
-        for k, m in self._machines.items():
-            m._build_shift_productivity(self)
+
+        for machine_id, machine in self._machines.items():
+            self._machine_base_productivity[machine_id] = (
+                machine._build_shift_productivity(self)
+            )
         self._is_built = True
 
     def solve(self) -> None:
