@@ -174,7 +174,8 @@ class _Product:
             if cons in self._hard_constraints:
                 if not pro_machina.options["silence_warnings"]:
                     warn(
-                        (
+                        "\n"
+                        + (
                             f"{constraints.__class__.__name__} has already"
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}"
@@ -204,7 +205,8 @@ class _Product:
             if cons in self._soft_constraints:
                 if not pro_machina.options["silence_warnings"]:
                     warn(
-                        (
+                        "\n"
+                        + (
                             f"{constraints.__class__.__name__} has already"
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}"

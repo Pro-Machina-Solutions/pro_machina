@@ -159,6 +159,7 @@ tub = Consumable("Party Mix Tub", BaseUnit, rate_limiting=False)
 party_mix.add_component(tub, Unit(1), Unit(1))
 
 machine_2 = ContinuousMachine("Bagging Machine")
+machine_2.add_shift(shift)
 machine_2.add_product(party_mix, run_rate=Unit(10), per=Mins(1))
 problem.add_machine(machine_2)
 

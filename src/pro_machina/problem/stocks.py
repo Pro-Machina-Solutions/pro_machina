@@ -9,7 +9,7 @@ from .products import BatchProduct, Consumable, ContinuousProduct
 class StockHolding:
     """Represents the starting stock level of any Products or Consumables
 
-    If theb starting stock of any product or consumable is not set then it will
+    If the starting stock of any product or consumable is not set then it will
     be assumed to be zero. In the case of defined consumables, obviously no
     product that depends on that consumable will be possible to produce. This
     may be done deliberately, though, as it may be that you are waiting on a

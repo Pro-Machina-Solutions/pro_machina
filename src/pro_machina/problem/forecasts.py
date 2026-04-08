@@ -12,7 +12,7 @@ import numpy.typing as npt
 
 from ..durations import Duration
 from ..exceptions import UnitError
-from ..measures import CustomUnit, SizedDimension
+from ..measures import CustomUnit, SizedDimension, _UnitRegistry
 from ..util import as_day_start, get_problem_buckets, parse_datetime
 from .products import BatchProduct, ContinuousProduct
 
@@ -28,6 +28,9 @@ class Order:
         The date on which the demand must be met
     qty : SizedDimension
         The due quantity of the order
+    value : float | None
+        The total financial value of the order. If set to None then it will
+        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
     meta : dict[Any, Any] | None, optional
         A dictionary of any further information to store with the order such as
         the order number etc.
@@ -43,23 +46,33 @@ class Order:
         product: BatchProduct | ContinuousProduct,
         date: dt.date | str,
         qty: SizedDimension,
+        value: float | None = None,
         meta: dict[Any, Any] | None = None,
     ) -> None:
 
         self.product = product
         self.date = as_day_start(date)
 
-        if isinstance(qty, CustomUnit):
-            # TODO
-            pass
-
-        if not product.base_dimension.is_compatible(qty):
+        if not isinstance(
+            qty, CustomUnit
+        ) and not product.base_dimension.is_compatible(qty):
             raise UnitError(
                 f"{qty} is not a compatible quantity for {product}"
             )
 
-        self.qty = qty
+        if isinstance(qty, CustomUnit):
+            reg = _UnitRegistry()
+            custom_unit = reg.get_measure(qty, product)
+            custom_qty = qty._tmp_qty
+
+            self.qty: SizedDimension = product.base_dimension.get_base(
+                custom_unit._base_qty * custom_qty
+            )
+        else:
+            self.qty = qty
+
         self.meta = meta
+        self.value = value
 
 
 class MadeToStock:
@@ -82,6 +95,9 @@ class MadeToStock:
         a one-off demand
     end_date : str | dt.datetime | None, optional
         An optional end date for which repeated demand should cease
+    value : float | None
+        The total financial value of the stock. If set to None then it will
+        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
 
     Raises
     ------
@@ -98,6 +114,7 @@ class MadeToStock:
         start_date: str | dt.datetime,
         freq: Duration | None = None,
         end_date: str | dt.datetime | None = None,
+        value: float | None = None,
     ):
         self.start_date = as_day_start(start_date)
 
@@ -117,6 +134,7 @@ class MadeToStock:
         self.freq = freq
         if end_date is not None:
             self.end_date = parse_datetime(end_date)
+        self.value = value
 
 
 class DemandForecast:
