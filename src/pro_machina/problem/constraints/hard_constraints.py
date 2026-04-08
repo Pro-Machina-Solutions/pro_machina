@@ -1,8 +1,10 @@
+import datetime as dt
+
 from pro_machina.durations import Duration
 from pro_machina.exceptions import ConstraintError
 
 from ..constraints import HardConstraint
-from ..products import ContinuousProduct
+from ..products import ContinuousProduct, _Product
 
 
 class MinProductionTime(HardConstraint):
@@ -52,6 +54,21 @@ class MaxProductionTime(HardConstraint):
                     f" {product.__class__.__name__}"
                 ).lstrip()
             )
+        self.product = product
+
+
+class SeasonalProduction(HardConstraint):
+    def __init__(
+        self,
+        start_date: dt.datetime,
+        end_date: dt.datetime,
+        product: _Product | None = None,
+    ) -> None:
+        self.start_date = start_date
+        self.end_date = end_date
+        self.product = product
+
+    def set_product(self, product: _Product) -> None:
         self.product = product
 
 
