@@ -28,6 +28,9 @@ class Order:
         The date on which the demand must be met
     qty : SizedDimension
         The due quantity of the order
+    value : float | None
+        The total financial value of the order. If set to None then it will
+        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
     meta : dict[Any, Any] | None, optional
         A dictionary of any further information to store with the order such as
         the order number etc.
@@ -92,6 +95,9 @@ class MadeToStock:
         a one-off demand
     end_date : str | dt.datetime | None, optional
         An optional end date for which repeated demand should cease
+    value : float | None
+        The total financial value of the stock. If set to None then it will
+        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
 
     Raises
     ------

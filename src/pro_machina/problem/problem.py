@@ -1,7 +1,10 @@
 import datetime as dt
+from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+
+import pro_machina
 
 from ..config import Config
 from ..durations import Duration
@@ -47,6 +50,13 @@ class Problem:
             raise TypeError(
                 "Can only add types: ContinuousMachine and BatchMachine"
             )
+
+        if not machine._shifts and not pro_machina.options["silence_warnings"]:
+            warn(
+                "\n"
+                + f"No shift pattern added for {machine.name}. It's assumed to"
+                " always be running"
+            )
         self._machines[machine._id] = machine
 
     def add_stock(self, stock: StockHolding) -> None:
@@ -70,4 +80,6 @@ class Problem:
         self._is_built = True
 
     def solve(self) -> None:
-        return
+        if not self._is_built:
+            raise ProblemError("The problem has not been built")
+        payload = {}
