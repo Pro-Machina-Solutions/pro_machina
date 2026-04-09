@@ -118,19 +118,31 @@ class MadeToStock:
     ):
         self.start_date = as_day_start(start_date)
 
-        if not product.base_dimension.is_compatible(qty):
-            raise UnitError(
-                f"{qty} is not a compatible quantity for {product}"
-            )
-
         if end_date is not None and freq is None:
             raise ValueError(
                 "Cannot set an end date for MadeToStock without specifying a"
                 " frequency of restocking"
             )
 
+        if not isinstance(
+            qty, CustomUnit
+        ) and not product.base_dimension.is_compatible(qty):
+            raise UnitError(
+                f"{qty} is not a compatible quantity for {product}"
+            )
+
+        if isinstance(qty, CustomUnit):
+            reg = _UnitRegistry()
+            custom_unit = reg.get_measure(qty, product)
+            custom_qty = qty._tmp_qty
+
+            self.qty: SizedDimension = product.base_dimension.get_base(
+                custom_unit._base_qty * custom_qty
+            )
+        else:
+            self.qty = qty
+
         self.product = product
-        self.qty = qty
         self.freq = freq
         if end_date is not None:
             self.end_date = parse_datetime(end_date)
@@ -347,7 +359,33 @@ class DemandForecast:
                         )
                     )
 
-        # TODO and what exactly for non-repeating MTS?
+            else:
+                if mts.start_date < problem._end:
+                    mts_orders.append(
+                        Order(mts.product, date=mts.start_date, qty=mts.qty)
+                    )
+                else:
+                    # We have a MTS order that is outside of the Problem
+                    # window. First we need to decide whether it even exists
+                    # inside the scope of the problem horizon
+                    theo_start = mts.start_date - dt.timedelta(
+                        seconds=horizon_secs
+                    )
+                    if theo_start < problem._end:
+                        # At least some part of this order needs to be
+                        # completed within the problem scope
+                        partial_period = Decimal(
+                            (problem._end - theo_start).total_seconds()
+                            / horizon_secs
+                        )
+
+                        mts_orders.append(
+                            Order(
+                                mts.product,
+                                date=problem._end,
+                                qty=(mts.qty * partial_period),
+                            )
+                        )
 
         self._process_order_list(
             mts_orders,

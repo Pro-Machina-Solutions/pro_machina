@@ -55,7 +55,8 @@ class Problem:
             warn(
                 "\n"
                 + f"No shift pattern added for {machine.name}. It's assumed to"
-                " always be running"
+                " always be running",
+                stacklevel=2,
             )
         self._machines[machine._id] = machine
 
