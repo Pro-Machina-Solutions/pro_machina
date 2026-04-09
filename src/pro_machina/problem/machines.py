@@ -115,7 +115,10 @@ class _Machine:
         problem_num_buckets = get_problem_buckets(problem)
 
         # Default all buckets to zero productivity
-        base_productivity = np.zeros(problem_num_buckets)
+        if not self._shifts:
+            base_productivity = np.full(problem_num_buckets, 1.)
+        else:
+            base_productivity = np.zeros(problem_num_buckets)
 
         for shift in self._shifts:
             if shift["start"] is None:
