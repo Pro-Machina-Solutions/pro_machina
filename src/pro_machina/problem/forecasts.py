@@ -223,9 +223,17 @@ class DemandForecast:
         horizon_secs: int,
         timebucket_secs: int,
         deflt_num_horizon_buckets: int,
+        problem_end_date: dt.datetime,
     ):
 
         for order in order_list:
+            if (
+                order.date - dt.timedelta(seconds=horizon_secs)
+                > problem_end_date
+            ):
+                # We don't even need to consider this because it's completely
+                # outside of the problem scope
+                continue
             self._sum_demand(
                 aggregator=self._prod_demands,
                 order=order,
@@ -278,6 +286,7 @@ class DemandForecast:
             horizon_secs=horizon_secs,
             timebucket_secs=timebucket_secs,
             deflt_num_horizon_buckets=deflt_num_horizon_buckets,
+            problem_end_date=problem._end,
         )
 
         # Now process any made to stock targets
@@ -394,6 +403,7 @@ class DemandForecast:
             horizon_secs=horizon_secs,
             timebucket_secs=timebucket_secs,
             deflt_num_horizon_buckets=deflt_num_horizon_buckets,
+            problem_end_date=problem._end,
         )
 
         for k, v in self._prod_demands.items():

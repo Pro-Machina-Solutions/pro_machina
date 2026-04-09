@@ -116,7 +116,7 @@ class _Machine:
 
         # Default all buckets to zero productivity
         if not self._shifts:
-            base_productivity = np.full(problem_num_buckets, 1.)
+            base_productivity = np.full(problem_num_buckets, 1.0)
         else:
             base_productivity = np.zeros(problem_num_buckets)
 
