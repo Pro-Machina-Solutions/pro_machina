@@ -29,7 +29,7 @@ def base_problem():
     return problem
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def batch_prod():
     return BatchProduct("test batch", base_dimension=Weight)
 
@@ -44,9 +44,12 @@ def batch_machine():
     return BatchMachine("test batch machine")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def cont_machine():
-    return ContinuousMachine("test continuous machine")
+    machine = ContinuousMachine("test continuous machine")
+    machine.clear_shifts()
+    machine._id = 0
+    return machine
 
 
 @pytest.fixture(scope="function")
