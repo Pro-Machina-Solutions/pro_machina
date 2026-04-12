@@ -12,37 +12,44 @@ from pro_machina import (
     ShiftBuilder,
     ShiftPattern,
 )
-from pro_machina.durations import Weeks
+from pro_machina.config import Config
+from pro_machina.durations import Mins, Weeks
 from pro_machina.measures import Weight
 from pro_machina.util import as_day_end, as_day_start, parse_datetime
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="function", autouse=True)
 def base_problem():
-    return Problem(start_time="2026-03-02 00:00:00", length=Weeks(1))
+    conf = Config()
+    conf.timebucket = Mins(15)
+    problem = Problem(
+        start_time="2026-03-02 00:00:00", length=Weeks(1), config=conf
+    )
+
+    return problem
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="session")
 def batch_prod():
     return BatchProduct("test batch", base_dimension=Weight)
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="function")
 def cont_prod():
     return ContinuousProduct("test continuous", base_dimension=Weight)
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="function")
 def batch_machine():
     return BatchMachine("test batch machine")
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="session")
 def cont_machine():
     return ContinuousMachine("test continuous machine")
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="function")
 def simple_shift():
     start_date = as_day_start(parse_datetime("2000-02-07"))
 
@@ -64,7 +71,7 @@ def simple_shift():
     return ShiftPattern(six_two)
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="function")
 def irregular_shift_pattern():
     start_date = as_day_start(parse_datetime("2000-02-07"))
 

@@ -46,7 +46,7 @@ class _MachineShift(TypedDict):
 
 
 class _Machine:
-    _ids = count(0)
+    _ids = count()
 
     def __init__(self, name: str) -> None:
         self._id = next(self._ids)
@@ -114,9 +114,10 @@ class _Machine:
         # Track total number of buckets in the problem.
         problem_num_buckets = get_problem_buckets(problem)
 
-        # Default all buckets to zero productivity
+        # Default all buckets to zero productivity unless no shifts are
+        # specified, in which case the machine is assumed to always be on
         if not self._shifts:
-            base_productivity = np.full(problem_num_buckets, 1.0)
+            base_productivity = np.full(problem_num_buckets, 100.0)
         else:
             base_productivity = np.zeros(problem_num_buckets)
 

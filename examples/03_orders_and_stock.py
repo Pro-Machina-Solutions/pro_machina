@@ -186,6 +186,7 @@ forecast.add_demand(Order(party_mix, date="2026-03-06", qty=Unit(1000)))
 mts = MadeToStock(
     product=party_mix, start_date="2026-03-13", qty=Unit(800), freq=Weeks(1)
 )
+forecast.add_demand(mts)
 
 problem.set_forecast(forecast)
 

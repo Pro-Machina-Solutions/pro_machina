@@ -146,6 +146,8 @@ class MadeToStock:
         self.freq = freq
         if end_date is not None:
             self.end_date = parse_datetime(end_date)
+        else:
+            self.end_date = None
         self.value = value
 
 
