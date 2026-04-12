@@ -5,7 +5,7 @@ involved in their production and can form layers moving through from WIP to a
 finished product.
 
 We'll expand the definition here, still using sweets but making multiple levels
-of products. We'll also expand ob unit measures.
+of products. We'll also expand on unit measures.
 """
 
 from pro_machina import (
