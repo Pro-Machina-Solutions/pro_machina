@@ -1,7 +1,7 @@
 # import datetime as dt
 import pytest
 
-from pro_machina import DemandForecast
+from pro_machina import DemandForecast, Problem
 from pro_machina.durations import Mins
 
 # from pro_machina import ShiftBuilder, ShiftBreak, ShiftPattern
@@ -46,10 +46,8 @@ def test_shift_pattern_start_end_correct(cont_machine, simple_shift):
         )
 
 
-def test_machine_default_on(base_problem, cont_machine):
-
+def test_machine_default_on(base_problem: Problem, cont_machine):
     base_problem.set_forecast(DemandForecast())
     base_problem.add_machine(cont_machine)
     base_problem.build()
-    print(base_problem._machine_base_productivity)
-    assert base_problem._machine_base_productivity[0].sum() == 67200.0
+    assert sum(base_problem._machine_base_productivity[0]) == 67200

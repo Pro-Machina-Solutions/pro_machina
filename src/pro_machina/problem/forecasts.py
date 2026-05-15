@@ -147,7 +147,7 @@ class MadeToStock:
         if end_date is not None:
             self.end_date = parse_datetime(end_date)
         else:
-            self.end_date = None
+            self.end_date = None  # type: ignore
         self.value = value
 
 
@@ -161,6 +161,8 @@ class DemandForecast:
         self._prod_demands: dict[int, npt.NDArray[np.float64]] = {}
         self._cons_demands: dict[int, npt.NDArray[np.float64]] = {}
 
+        self._product_names: dict[int, str] = {}
+
     def add_demand(self, order: Order | MadeToStock) -> None:
         """Add product demand to the forecast
 
@@ -173,6 +175,8 @@ class DemandForecast:
             self._orders.append(order)
         else:
             self._made_to_stock.append(order)
+
+        self._product_names[order.product._id] = order.product.name
 
     def _sum_demand(
         self,

@@ -31,6 +31,13 @@ class MinProductionTime(HardConstraint):
             )
         self.product = product
 
+    def for_payload(self):
+        return {
+            "name": "MIN_PRODUCTION_TIME",
+            "product_id": self.product._id,
+            "time": self.min_time,
+        }
+
 
 class MaxProductionTime(HardConstraint):
     def __init__(
@@ -56,6 +63,13 @@ class MaxProductionTime(HardConstraint):
             )
         self.product = product
 
+    def for_payload(self):
+        return {
+            "name": "MAX_PRODUCTION_TIME",
+            "product_id": self.product._id,
+            "time": self.max_time,
+        }
+
 
 class SeasonalProduction(HardConstraint):
     def __init__(
@@ -70,6 +84,14 @@ class SeasonalProduction(HardConstraint):
 
     def set_product(self, product: _Product) -> None:
         self.product = product
+
+    def for_payload(self):
+        return {
+            "name": "SEASONAL_PRODUCTION",
+            "product_id": self.product._id,
+            "start_date": dt.datetime.strftime(self.start_date, "%Y-%m-%d"),
+            "end_date": dt.datetime.strftime(self.end_date, "%Y-%m-%d"),
+        }
 
 
 __all__ = ["MinProductionTime", "MaxProductionTime"]

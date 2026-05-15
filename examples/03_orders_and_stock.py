@@ -195,3 +195,4 @@ problem.set_forecast(forecast)
 # many ways that they can be altered/used, so you may wish to aggregate them in
 # your own structure
 problem.build()
+problem.solve()

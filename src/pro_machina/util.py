@@ -8,12 +8,15 @@ if TYPE_CHECKING:
     from .problem import Problem
 
 
-def parse_datetime(_dt: str | dt.date | dt.datetime) -> dt.datetime:
+def parse_datetime(_dt: str | dt.datetime) -> dt.datetime:
     if isinstance(_dt, str):
         _dt = dt.datetime.fromisoformat(_dt)
 
     if not isinstance(_dt, (dt.datetime, dt.date)):
         raise TypeError("Not a valid datetime")
+
+    # if isinstance(_dt, dt.date):
+    #     _dt = dt.datetime.combine(_dt, dt.datetime.min.time())
 
     return _dt
 
@@ -39,7 +42,8 @@ def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
     dt.datetime
         A datetime representation of the date with 00:00:00 for %H:%M:%S
     """
-    date = parse_datetime(date)
+    if isinstance(date, str):
+        date = parse_datetime(date)
     return dt.datetime.combine(date, dt.datetime.min.time())
 
 
@@ -60,7 +64,8 @@ def as_day_end(date: dt.date | dt.datetime | str) -> dt.datetime:
     dt.datetime
         The knocked-back datetime
     """
-    date = parse_datetime(date)
+    if isinstance(date, str):
+        date = parse_datetime(date)
     return dt.datetime.combine(
         as_day_start(date + dt.timedelta(days=1)), dt.datetime.min.time()
     )

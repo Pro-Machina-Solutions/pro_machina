@@ -316,7 +316,7 @@ class ContinuousMachine(_Machine):
             existing_cons = _product["soft_constraints"]
 
         if constraint in existing_cons:
-            if pro_machina.options["silence_warnings"]:
+            if not pro_machina.options["silence_warnings"]:
                 warn(
                     "\n"
                     + (

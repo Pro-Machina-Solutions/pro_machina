@@ -1,4 +1,6 @@
 import datetime as dt
+import json
+import uuid
 from warnings import warn
 
 import numpy as np
@@ -9,25 +11,49 @@ import pro_machina
 from ..config import Config
 from ..durations import Duration
 from ..exceptions import ProblemError
-from ..util import as_day_start, parse_datetime
+from ..util import (
+    as_day_start,
+    get_problem_buckets,
+    parse_datetime,
+    to_str_date,
+)
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
 from .stocks import InboundStock, StockHolding
 
 
 class Problem:
+    """The main object to store all components involved in the optimisation
+
+    Parameters
+    ----------
+    start_time : str | dt.datetime | dt.date
+        The starting day of the problem. All problems will start at midnight on
+        the date that is provided.
+    length : Duration
+        The duration for the solution time window. For example, Weeks(2) will
+        produce a solution for the two weeks (14 days) following the start
+        date.
+    config : Config | None
+        A custom config object setting the solver parameters. If this is not
+        provided then the algorithm will run with the default settings. These
+        may not be suitable for all problems but they should provide a
+        reasonable starting basis for most problems.
+    """
+
     def __init__(
         self,
-        start_time: str | dt.datetime,
+        start_time: str | dt.datetime | dt.date,
         length: Duration,
         config: Config | None = None,
     ):
-        if config is not None:
-            self.config = config
-        else:
-            self.config = Config()
+        self.config = config if config is not None else Config()
 
-        self._user_start_time = parse_datetime(start_time)
+        self._user_start_time: dt.datetime | dt.date
+        if isinstance(start_time, str):
+            self._user_start_time = parse_datetime(start_time)
+        else:
+            self._user_start_time = start_time
         self._start = as_day_start(self._user_start_time)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
@@ -45,11 +71,42 @@ class Problem:
             int, npt.NDArray[np.float64]
         ] = {}
 
+        self._machine_names: dict[int, str] = {}
+        self._product_names: dict[int, str] = {}
+        self._consumable_names: dict[int, str] = {}
+
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
+        """Add a machine to the problem
+
+        The machine is assumed to be fully specified at this point, including
+        all machine-level constraints and all product production specifications
+        having been set.
+
+        Parameters
+        ----------
+        machine : BatchMachine | ContinuousMachine
+            The defined machine to be added
+
+        Raises
+        ------
+        TypeError
+            Attempted to add something that isn't of type ContinuousMachine or
+            BatchMachine
+        ProblemError
+            Attempted to add the same machine to a problem twice
+        ProblemError
+            Attempted to alter a finalised, built problem
+        """
+        if self._is_built:
+            raise ProblemError("Cannot alter a built problem")
+
         if not isinstance(machine, _Machine):
             raise TypeError(
-                "Can only add types: ContinuousMachine and BatchMachine"
+                "Can only add types: ContinuousMachine or BatchMachine"
             )
+
+        if machine._id in self._machines:
+            raise ProblemError("Cannot add the same machine twice")
 
         if not machine._shifts and not pro_machina.options["silence_warnings"]:
             warn(
@@ -61,26 +118,139 @@ class Problem:
         self._machines[machine._id] = machine
 
     def add_stock(self, stock: StockHolding) -> None:
+        """Add units of stock available at the problem start date
+
+        If the starting stock is added more than once (for example, it appears
+        in two or more data sources you are drawing from) then a warning will
+        be issued (unless silenced) and the last value seen will be used.
+
+        Parameters
+        ----------
+        stock : StockHolding
+            A SizedDimension type stating the starting stock
+
+        Raises
+        ------
+        TypeError
+            Attempted to add something that isn't of type StockHolding
+        ProblemError
+            Attempted to alter a finalised, built problem
+        """
+        if self._is_built:
+            raise ProblemError("Cannot alter a built problem")
+
+        if not isinstance(stock, StockHolding):
+            raise TypeError("Starting stock type not recognised")
+
+        if (
+            stock._id in self._starting_stocks
+            and not pro_machina.options["silence_warnings"]
+        ):
+            warn(
+                "\n" + f"{stock.item.name} starting stock being overwritten",
+                stacklevel=2,
+            )
         self._starting_stocks[stock._id] = stock
 
     def add_inbound_stock(self, inbound: InboundStock) -> None:
+        """Add units of consumable stock becoming available during the problem
+
+        Parameters
+        ----------
+        stock : InboundStock
+            A SizedDimension type stating the quantity of consumable arriving
+            on site on a specific date
+
+        Raises
+        ------
+        TypeError
+            Attempted to add something that isn't of type InboundStock
+        ProblemError
+            Attempted to alter a finalised, built problem
+        """
+        if self._is_built:
+            raise ProblemError("Cannot alter a built problem")
+
+        if not isinstance(inbound, InboundStock):
+            raise TypeError("Inbound stock type not recognised")
+
         self._inbound_stock[inbound._id] = inbound
 
     def set_forecast(self, forecast: DemandForecast):
+        """Set the forecast for orders and made to stock quantities
+
+        Parameters
+        ----------
+        forecast : DemandForecast
+            A DemandForecast detailing all product demands for the site
+
+        Raises
+        ------
+        TypeError
+            Attempted to add something that isn't of type DemandForecast
+        ProblemError
+            Attempted to alter a finalised, built problem
+        """
+        if self._is_built:
+            raise ProblemError("Cannot alter a built problem")
+
+        if not isinstance(forecast, DemandForecast):
+            raise TypeError("Invalid forecast type")
+
         self._forecast = forecast
 
     def build(self) -> None:
+        """Finalise the problem to be passed to the solver
+
+        Once the problem has been built, no further alterations can be made to
+        the problem definition. This is because multiple pre-processing steps
+        will occur at this point to prepare the data for dispatch to the
+        solver. Problems cannot be solved until they have been built.
+
+        Raises
+        ------
+        ProblemError
+            _description_
+        ProblemError
+            _description_
+        """
         if self._forecast is None:
             raise ProblemError("No demand forecast has been set")
-        self._forecast._build(self)
+
+        if not self._machines:
+            raise ProblemError("No machines have been defined")
 
         for machine_id, machine in self._machines.items():
             self._machine_base_productivity[machine_id] = (
-                machine._build_shift_productivity(self)
+                machine._build_shift_productivity(self).tolist()
             )
+            self._machine_names[machine_id] = machine.name
+            for prod_id, machine_prod in machine._products.items():
+                self._product_names[prod_id] = machine_prod["product"].name
+
+        self._forecast._build(self)
+        self._product_names = (
+            self._product_names | self._forecast._product_names
+        )
         self._is_built = True
 
     def solve(self) -> None:
         if not self._is_built:
             raise ProblemError("The problem has not been built")
-        payload = {}
+
+        payload = {
+            "start_date": to_str_date(self._start),
+            "bucket_duration_secs": self.config._timebucket.to_seconds(),
+            "num_buckets": get_problem_buckets(self),
+            "problem_id": uuid.uuid4().hex,
+        }
+
+        payload["machine_productivity"] = self._machine_base_productivity
+
+        # We know this type to be DemandForecast because otherwise the problem
+        # would not have self._is_built == True
+        payload["product_forecast"] = self._forecast._prod_demands  # type: ignore
+        payload["consumable_forecast"] = self._forecast._cons_demands  # type: ignore
+
+        with open("payload.json", "w") as outfile:
+            json.dump(payload, outfile, indent=4)

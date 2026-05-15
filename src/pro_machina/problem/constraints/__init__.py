@@ -12,6 +12,9 @@ class Constraint(ABC):
     @abstractmethod
     def set_product(self, _Product) -> None: ...
 
+    @abstractmethod
+    def for_payload(self) -> dict[str, str | float]: ...
+
     def __hash__(self):
         return hash(type(self).__name__)
 
