@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 
 class Duration(ABC):
+    duration: float
+
     @abstractmethod
     def to_seconds(self) -> float: ...
 
@@ -21,6 +23,9 @@ class Duration(ABC):
 
     @abstractmethod
     def __div__(self, val: float) -> Duration: ...
+
+    def __repr__(self) -> str:
+        return f"<Duration: {self.duration} {self.__class__.__name__}>"
 
 
 class Secs(Duration):

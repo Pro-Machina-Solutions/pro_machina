@@ -316,16 +316,16 @@ class ContinuousMachine(_Machine):
             existing_cons = _product["soft_constraints"]
 
         if constraint in existing_cons:
-            if not pro_machina.options["silence_warnings"]:
+            if not pro_machina.options["silence_constraint_overrides"]:
                 warn(
                     "\n"
                     + (
                         f"{constraint.__class__.__name__} has already"
                         f" been defined for {product.name} and is being"
                         f" overwritten by {constraint} for Machine:"
-                        f" {self.name}"
+                        f" {self.name}\n"
                     ),
-                    stacklevel=2,
+                    stacklevel=3,
                 )
             existing_cons = [con for con in existing_cons if con != constraint]
             existing_cons.append(constraint)  # type: ignore

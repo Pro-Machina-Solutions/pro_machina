@@ -52,7 +52,18 @@ class MinProductionTime(HardConstraint):
             "machine_id": self.machine._id,
             "name": "MAX_PRODUCTION_TIME",
             "time": self.min_time.to_seconds(),
+            "start_date": self.start_date,
+            "end_date": self.end_date,
         }
+
+    def __repr__(self) -> str:
+        prod = self.product.name if self.product is not None else "All"
+        mach = self.machine.name if self.machine is not None else "All"
+        return (
+            f"<{self.__class__.__name__}. Product: {prod}, Machine: {mach},"
+            f" Run time: {self.min_time}, Start date: {self.start_date},"
+            f" End date: {self.end_date}>"
+        )
 
 
 class MaxProductionTime(HardConstraint):
@@ -95,7 +106,18 @@ class MaxProductionTime(HardConstraint):
             "machine_id": self.machine._id,
             "name": "MAX_PRODUCTION_TIME",
             "time": self.max_time.to_seconds(),
+            "start_date": self.start_date,
+            "end_date": self.end_date,
         }
+
+    def __repr__(self) -> str:
+        prod = self.product.name if self.product is not None else "All"
+        mach = self.machine.name if self.machine is not None else "All"
+        return (
+            f"<{self.__class__.__name__}. Product: {prod}, Machine: {mach},"
+            f" Run time: {self.max_time}, Start date: {self.start_date},"
+            f" End date: {self.end_date}>"
+        )
 
 
 class SeasonalProduction(HardConstraint):

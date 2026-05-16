@@ -110,7 +110,7 @@ class Problem:
                 "\n"
                 + f"No shift pattern added for {machine.name}. It's assumed to"
                 " always be running",
-                stacklevel=2,
+                stacklevel=3,
             )
         self._machines[machine._id] = machine
 
@@ -145,7 +145,7 @@ class Problem:
         ):
             warn(
                 "\n" + f"{stock.item.name} starting stock being overwritten",
-                stacklevel=2,
+                stacklevel=3,
             )
         self._starting_stocks[stock._id] = stock
 

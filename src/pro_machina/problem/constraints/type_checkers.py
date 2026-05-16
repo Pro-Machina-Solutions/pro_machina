@@ -1,11 +1,11 @@
 from ...exceptions import ConstraintError
 from ..machines import ContinuousMachine
 from ..products import ContinuousProduct
-from . import HardConstraint, SoftConstraint
+from . import Constraint
 
 
 def check_continuous_prod_only(
-    constraint: HardConstraint | SoftConstraint, product: ContinuousProduct
+    constraint: Constraint, product: ContinuousProduct
 ):
     if not isinstance(product, ContinuousProduct):
         raise ConstraintError(
@@ -17,7 +17,7 @@ def check_continuous_prod_only(
 
 
 def check_continuous_machine_only(
-    constraint: HardConstraint | SoftConstraint, machine: ContinuousMachine
+    constraint: Constraint, machine: ContinuousMachine
 ):
     if not isinstance(machine, ContinuousMachine):
         raise ConstraintError(

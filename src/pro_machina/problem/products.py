@@ -172,15 +172,15 @@ class _Product:
         to_remove = set()
         for cons in constraints:
             if cons in self._hard_constraints:
-                if not pro_machina.options["silence_warnings"]:
+                if not pro_machina.options["silence_constraint_overrides"]:
                     warn(
                         "\n"
                         + (
                             f"{constraints.__class__.__name__} has already"
                             f" been defined for {self.name} and is being"
-                            f" overwritten by {constraints}"
+                            f" overwritten by {constraints}\n"
                         ),
-                        stacklevel=2,
+                        stacklevel=3,
                     )
                 to_remove.add(cons)
             cons._set_product(self)
@@ -203,15 +203,15 @@ class _Product:
         to_remove = set()
         for cons in constraints:
             if cons in self._soft_constraints:
-                if not pro_machina.options["silence_warnings"]:
+                if not pro_machina.options["silence_constraint_overrides"]:
                     warn(
                         "\n"
                         + (
                             f"{constraints.__class__.__name__} has already"
                             f" been defined for {self.name} and is being"
-                            f" overwritten by {constraints}"
+                            f" overwritten by {constraints}\n"
                         ),
-                        stacklevel=2,
+                        stacklevel=3,
                     )
                 to_remove.add(cons)
             cons._set_product(self)

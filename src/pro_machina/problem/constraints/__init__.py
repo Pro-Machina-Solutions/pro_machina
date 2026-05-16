@@ -37,22 +37,15 @@ class Constraint(metaclass=ABCMeta):
 
 
 class HardConstraint(Constraint):
-    def _set_product(self, _Product):
-        pass
-
-    def _set_machine(self, _Machine):
-        pass
-
-    def _for_payload(self):
-        pass
+    pass
 
 
 class SoftConstraint(Constraint):
-    def _set_product(self, _Product):
-        return None
-
-    def _set_machine(self, _Machine):
-        return None
+    pass
 
 
-from .hard_constraints import MaxProductionTime, MinProductionTime
+from .hard_constraints import (
+    MaxProductionTime,
+    MinProductionTime,
+    SeasonalProduction,
+)
