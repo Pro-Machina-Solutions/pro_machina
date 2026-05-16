@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import datetime as dt
 from abc import ABCMeta, abstractmethod
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from ...exceptions import ConstraintError
 
 if TYPE_CHECKING:
-    from ..machines import ContinuousMachine, _Machine
-    from ..products import ContinuousProduct, _Product
+    from ..machines import _Machine
+    from ..products import _Product
 
 
 class Constraint(metaclass=ABCMeta):
+    start_date: dt.datetime | None
+    end_date: dt.datetime | None
+
     @abstractmethod
     def _set_product(self, _Product) -> None: ...
 
@@ -27,7 +30,10 @@ class Constraint(metaclass=ABCMeta):
     def __eq__(self, other: object):
         if not isinstance(other, Constraint):
             raise NotImplementedError
-        return hash(type(self).__name__) == hash(type(other).__name__)
+        return (
+            hash(type(self).__name__) == hash(type(other).__name__)
+            and self.start_date == other.start_date
+        )
 
 
 class HardConstraint(Constraint):
