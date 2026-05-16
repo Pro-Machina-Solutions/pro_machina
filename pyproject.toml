@@ -8,23 +8,44 @@ authors = [
     { "name" = "Josh Pilkington", "email" = "josh.pilkington@pro-machina.co.uk" },
 ]
 version = "0.0.1"
-description = "A production scheduling toolkit"
+description = "A production scheduling toolkit for complex, interrelated and continuous machines in an FMCG environment"
 dependencies = [
-    "setuptools>=68.2.2",
-    "pandas>=2.1.2",
-    "polars>=1.38.1",
-    "isoweek==1.3.3",
-    "networkx",
-    "python-dotenv>=1.0.0",
-    "requests>=2.31.0",
-    "ruff>=0.12.3",
-    "PuLP>=3.3.0",
-    "pytest>=9.0.2",
-    "mypy>=1.19.1",
-    "pandas-stubs=3.0.0.260204",
+    "setuptools<=82.0.1",
+    "pandas<=3.0.2",
+    "polars<=1.40.0",
+    "isoweek<=1.3.3",
+    "networkx<=3.6.1",
+    "python-dotenv<=1.2.1",
+    "requests<=2.32.5",
+    "ruff<=0.15.11",
+    "PuLP<=3.3.1",
+    "pytest<=9.0.2",
+    "mypy<=1.20.1",
+    "pandas-stubs<=3.0.0.260204",
 ]
+license-files = ["LICENSE.txt"]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+license = "Apache-2.0"
+
+[project.urls]
+Source = "https://github.com/Pro-Machina-Solutions/pro_machina"
 
 [tool.ruff]
 src = ["src"]

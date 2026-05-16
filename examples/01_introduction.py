@@ -78,7 +78,6 @@ problem.set_forecast(forecast)
 # Since we have nothing more to define, we can finalise the problem, ready to
 # solve. A Problem can only be built once, but it must be built before it can
 # be solved.
-# TODO does nothing yet
 problem.build()
 
 # TODO does nothing yet
