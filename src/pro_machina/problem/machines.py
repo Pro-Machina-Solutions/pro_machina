@@ -324,7 +324,7 @@ class ContinuousMachine(_Machine):
                         f" been defined for {product.name} and is being"
                         f" overwritten by {constraint} for Machine:"
                         f" {self.name}"
-                    ).lstrip(),
+                    ),
                     stacklevel=2,
                 )
             existing_cons = [con for con in existing_cons if con != constraint]

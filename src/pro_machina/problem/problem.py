@@ -50,10 +50,7 @@ class Problem:
         self.config = config if config is not None else Config()
 
         self._user_start_time: dt.datetime | dt.date
-        if isinstance(start_time, str):
-            self._user_start_time = parse_datetime(start_time)
-        else:
-            self._user_start_time = start_time
+        self._user_start_time = parse_datetime(start_time)
         self._start = as_day_start(self._user_start_time)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
@@ -210,9 +207,9 @@ class Problem:
         Raises
         ------
         ProblemError
-            _description_
+            No demand forecast has been set
         ProblemError
-            _description_
+            No machines have been added to the problem
         """
         if self._forecast is None:
             raise ProblemError("No demand forecast has been set")
@@ -247,10 +244,18 @@ class Problem:
 
         payload["machine_productivity"] = self._machine_base_productivity
 
-        # We know this type to be DemandForecast because otherwise the problem
-        # would not have self._is_built == True
-        payload["product_forecast"] = self._forecast._prod_demands  # type: ignore
-        payload["consumable_forecast"] = self._forecast._cons_demands  # type: ignore
+        # Ignore types here. We know that they cannot be None because we would
+        # have already errored if the forecast hadn't been set.
+        prod_demands = self._forecast._prod_demands  # type: ignore[union-attr]
+        for k, v in prod_demands.items():
+            prod_demands[k] = v.tolist()
+
+        cons_demands = self._forecast._cons_demands  # type: ignore[union-attr]
+        for k, v in cons_demands.items():
+            cons_demands[k] = v.tolist()
+
+        payload["product_forecast"] = prod_demands
+        payload["consumable_forecast"] = cons_demands
 
         with open("payload.json", "w") as outfile:
             json.dump(payload, outfile, indent=4)
