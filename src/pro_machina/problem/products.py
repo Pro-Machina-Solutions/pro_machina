@@ -179,11 +179,11 @@ class _Product:
                             f"{constraints.__class__.__name__} has already"
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}"
-                        ).lstrip(),
+                        ),
                         stacklevel=2,
                     )
                 to_remove.add(cons)
-            cons.set_product(self)
+            cons._set_product(self)
 
         new_cons = [
             item for item in self._hard_constraints if item not in to_remove
@@ -210,11 +210,11 @@ class _Product:
                             f"{constraints.__class__.__name__} has already"
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}"
-                        ).lstrip(),
+                        ),
                         stacklevel=2,
                     )
                 to_remove.add(cons)
-            cons.set_product(self)
+            cons._set_product(self)
 
         new_cons = [
             item for item in self._soft_constraints if item not in to_remove
