@@ -303,7 +303,7 @@ class Volume(Dimension):
 
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
-        return isinstance(other, Volume | FluidVolume)
+        return isinstance(other, (Volume, FluidVolume))
 
     @staticmethod
     def get_base(val: float | str | Decimal = 1) -> Cu_Centimetre:
@@ -315,7 +315,7 @@ class FluidVolume(Dimension):
 
     @staticmethod
     def is_compatible(other: SizedDimension) -> bool:
-        return isinstance(other, Volume | FluidVolume)
+        return isinstance(other, (Volume, FluidVolume))
 
     @staticmethod
     def get_base() -> Millilitre:

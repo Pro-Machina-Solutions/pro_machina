@@ -17,13 +17,13 @@ from ..util import (
     parse_datetime,
     to_str_date,
 )
-from .constraints import HardConstraint, SoftConstraint
+from .constraints import Constraint, HardConstraint, SoftConstraint
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
 from .stocks import InboundStock, StockHolding
 
 
-def _check_constraint_is_fully_specified(constraint) -> None:
+def _check_constraint_is_fully_specified(constraint: Constraint) -> None:
 
     if constraint.product is None or (
         hasattr(constraint, "machine") and constraint.machine is None
@@ -34,7 +34,7 @@ def _check_constraint_is_fully_specified(constraint) -> None:
                 " and that's not the case for"
                 f" {constraint.__class__.__name__}. If the constraint"
                 " takes a product and a machine, then both must be"
-                " specified"
+                " specified."
             ).lstrip()
         )
 
@@ -236,7 +236,12 @@ class Problem:
         ConstraintError
             Raised when the constraint does not specify both the product and
             the machine it applies to
+        ProblemError
+            Attempted to alter a finalised, built problem
         """
+
+        if self._is_built:
+            raise ProblemError("Cannot alter a built problem")
 
         if not isinstance(constraint, HardConstraint):
             raise TypeError(
@@ -254,7 +259,7 @@ class Problem:
                 f" product: {constraint.product} and machine:"
                 f" {constraint.machine} already and is being set at the"
                 " problem level",
-                stacklevel=3
+                stacklevel=3,
             )
         self._hard_constraints.add(constraint)
 
@@ -278,7 +283,12 @@ class Problem:
         ConstraintError
             Raised when the constraint does not specify both the product and
             the machine it applies to
+        ProblemError
+            Attempted to alter a finalised, built problem
         """
+
+        if self._is_built:
+            raise ProblemError("Cannot alter a built problem")
 
         if not isinstance(constraint, SoftConstraint):
             raise TypeError(
@@ -296,7 +306,7 @@ class Problem:
                 f" product: {constraint.product} and machine:"
                 f" {constraint.machine} already and is being set at the"
                 " problem level",
-                stacklevel=3
+                stacklevel=3,
             )
         self._soft_constraints.add(constraint)
 
