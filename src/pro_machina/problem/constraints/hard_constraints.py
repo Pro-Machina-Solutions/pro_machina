@@ -149,4 +149,38 @@ class SeasonalProduction(HardConstraint):
         }
 
 
+class SlowedProduction(HardConstraint):
+    def __init__(
+        self,
+        start_date: str | dt.datetime | dt.date,
+        end_date: str | dt.datetime | dt.date,
+        percentage_of_normal: int,
+        product: ContinuousProduct | None = None,
+        machine: ContinuousMachine | None = None,
+    ):
+
+        self.start_date = parse_datetime(start_date)
+        self.end_date = parse_datetime(end_date)
+        self.product = product
+        self.machine = machine
+        self.percentage_of_normal = percentage_of_normal
+
+    def _set_product(self, product: ContinuousProduct) -> None:
+        check_continuous_prod_only(self, product)
+        self.product = product
+
+    def _set_machine(self, machine: ContinuousMachine) -> None:
+        check_continuous_machine_only(self, machine)
+        self.machine = machine
+
+    def _for_payload(self):
+        return {
+            "product_id": self.product._id,
+            "machine_id": self.machine._id,
+            "name": "SLOWED_PRODUCTION",
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+        }
+
+
 __all__ = ["MinProductionTime", "MaxProductionTime", "SeasonalProduction"]
