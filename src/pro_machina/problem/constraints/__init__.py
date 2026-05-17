@@ -57,8 +57,12 @@ class SoftConstraint(Constraint):
     pass
 
 
+from .groupings import MutuallyExclusiveMachines, PairedMachines, ProductGroup
 from .hard_constraints import (
     MaxProductionTime,
+    MaxProductLifetime,
+    MaxStorageCapacity,
     MinProductionTime,
+    ReducedProductionPeriod,
     SeasonalProduction,
 )
