@@ -21,6 +21,12 @@ class Dimension:
     def name(self):
         return self.__class__.__name__
 
+    def __str__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
+    def __repr__(self) -> str:
+        return f"{self.qty} {self.symbol}"
+
 
 class SizedDimension:
     name: Callable[[], str]
@@ -56,12 +62,6 @@ class BaseUnit(Dimension):
     def get_base(val: float | str | Decimal = 1) -> Unit:
         return Unit(val)
 
-    def __str__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
-    def __repr__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
 
 class Unit(BaseUnit, SizedDimension):
     """Individual items"""
@@ -87,12 +87,6 @@ class Weight(Dimension):
     @staticmethod
     def get_base(val: float | str | Decimal = 1) -> Gram:
         return Gram(val)
-
-    def __str__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
-    def __repr__(self) -> str:
-        return f"{self.qty} {self.symbol}"
 
 
 class Gram(Weight, SizedDimension):
@@ -175,12 +169,6 @@ class Length(Dimension):
     def get_base(val: float | str | Decimal = 1) -> Centimetre:
         return Centimetre(val)
 
-    def __str__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
-    def __repr__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
 
 class Centimetre(Length, SizedDimension):
     """Metric centimetres"""
@@ -250,12 +238,6 @@ class Area(Dimension):
     @staticmethod
     def get_base(val: float | str | Decimal = 1) -> Sq_Centimetre:
         return Sq_Centimetre(val)
-
-    def __str__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
-    def __repr__(self) -> str:
-        return f"{self.qty} {self.symbol}"
 
 
 class Sq_Centimetre(Area, SizedDimension):
@@ -327,12 +309,6 @@ class Volume(Dimension):
     def get_base(val: float | str | Decimal = 1) -> Cu_Centimetre:
         return Cu_Centimetre(val)
 
-    def __str__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
-    def __repr__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
 
 class FluidVolume(Dimension):
     """The base, unsized dimension for all measures of liquid volume"""
@@ -344,12 +320,6 @@ class FluidVolume(Dimension):
     @staticmethod
     def get_base() -> Millilitre:
         return Millilitre(1)
-
-    def __str__(self) -> str:
-        return f"{self.qty} {self.symbol}"
-
-    def __repr__(self) -> str:
-        return f"{self.qty} {self.symbol}"
 
 
 class Cu_Centimetre(Volume, SizedDimension):
