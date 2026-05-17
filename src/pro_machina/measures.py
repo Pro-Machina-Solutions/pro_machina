@@ -123,7 +123,7 @@ class Tonne(Weight, SizedDimension):
 
 
 class Ounce(Weight, SizedDimension):
-    """imperial ounces"""
+    """Imperial ounces"""
 
     def __init__(self, qty: float | Decimal | str) -> None:
         super().__init__()

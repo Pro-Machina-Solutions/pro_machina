@@ -41,7 +41,7 @@ class Config:
         meet the demand by running just an additional 30 minutes, but that
         option is off the table in this scenario.
     random_seed : int
-        Set a random seed between 0 and 4294967296 to make ther algorithm
+        Set a random seed between 0 and 4294967296 to make the algorithm
         consistent between runs
     demand_horizon : Duration
         Set the default time horizon to consider production for an upcoming

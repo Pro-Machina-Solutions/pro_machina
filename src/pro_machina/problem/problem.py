@@ -234,8 +234,8 @@ class Problem:
         TypeError
             Raised when passing something other than a HardConstraint
         ConstraintError
-            Raised when the constraint does not specify both the product and
-            the machine it applies to
+            Raised when the constraint does not specify the minimum criteria
+            to fully define it
         ProblemError
             Attempted to alter a finalised, built problem
         """
@@ -281,8 +281,8 @@ class Problem:
         TypeError
             Raised when passing something other than a SoftConstraint
         ConstraintError
-            Raised when the constraint does not specify both the product and
-            the machine it applies to
+            Raised when the constraint does not specify the minimum criteria
+            to fully define it
         ProblemError
             Attempted to alter a finalised, built problem
         """
@@ -358,13 +358,13 @@ class Problem:
 
         payload["machine_productivity"] = self._machine_base_productivity
 
-        # Ignore types here. We know that they cannot be None because we would
-        # have already errored if the forecast hadn't been set.
-        prod_demands = self._forecast._prod_demands  # type: ignore[union-attr]
+        assert self._forecast is not None
+
+        prod_demands = self._forecast._prod_demands
         for k, v in prod_demands.items():
             prod_demands[k] = v.tolist()
 
-        cons_demands = self._forecast._cons_demands  # type: ignore[union-attr]
+        cons_demands = self._forecast._cons_demands
         for k, v in cons_demands.items():
             cons_demands[k] = v.tolist()
 
