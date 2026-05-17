@@ -13,6 +13,47 @@ from .type_checkers import (
 
 
 class MinProductionTime(HardConstraint):
+    """Specify the minimum continuous run time of a product or a machine
+
+    **Only applies to Continous Products/Machines**
+
+    This constraint can be applied in multiple ways depending on the desired
+    outcome. It could be used to say that Product A, regardless of the machine
+    it is produced by, **must** always be produced in a minimum run of
+    Hours(4).
+
+    If applied on the machine-level, you could suggest that Machine A must
+    never do a production run of **any** product for less than Hours(4).
+
+    Finally, it could be specified for a specific Product-Machine pairing for
+    fine control.
+
+    Parameters
+    ----------
+    min_time : Duration
+        The minimum continuous duration that this product can be produced
+    product : ContinuousProduct | None, optional
+        Specify a particular product that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    machine : ContinuousMachine | None, optional
+        Specify a particular machine that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    start_date : str | dt.datetime | dt.date | None, optional
+        The start date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
+    end_date : str | dt.datetime | dt.date | None, optional
+        The end date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
+
+    Raises
+    ------
+    ConstraintError
+        Raised if this is applied to a product or machine that is not
+        Continuous
+    """
+
     def __init__(
         self,
         min_time: Duration,
@@ -21,6 +62,7 @@ class MinProductionTime(HardConstraint):
         start_date: str | dt.datetime | dt.date | None = None,
         end_date: str | dt.datetime | dt.date | None = None,
     ) -> None:
+
         if product is not None:
             check_continuous_prod_only(self, product)
         if machine is not None:
@@ -67,6 +109,47 @@ class MinProductionTime(HardConstraint):
 
 
 class MaxProductionTime(HardConstraint):
+    """Specify the maximum continuous run time of a product or a machine
+
+    **Only applies to Continous Products/Machines**
+
+    This constraint can be applied in multiple ways depending on the desired
+    outcome. It could be used to say that Product A, regardless of the machine
+    it is produced by, **must** always be produced in a maximum run of
+    Hours(12).
+
+    If applied on the machine-level, you could suggest that Machine A must
+    never do a production run of **any** product for less than Hours(12).
+
+    Finally, it could be specified for a specific Product-Machine pairing for
+    fine control.
+
+    Parameters
+    ----------
+    max_time : Duration
+        The maximum continuous duration that this product can be produced
+    product : ContinuousProduct | None, optional
+        Specify a particular product that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    machine : ContinuousMachine | None, optional
+        Specify a particular machine that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    start_date : str | dt.datetime | dt.date | None, optional
+        The start date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
+    end_date : str | dt.datetime | dt.date | None, optional
+        The end date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
+
+    Raises
+    ------
+    ConstraintError
+        Raised if this is applied to a product or machine that is not
+        Continuous
+    """
+
     def __init__(
         self,
         max_time: Duration,
@@ -121,6 +204,41 @@ class MaxProductionTime(HardConstraint):
 
 
 class SeasonalProduction(HardConstraint):
+    """Specify a date range in which a product can be produced
+
+    This is useful for promos or events e.g. products that are only produced
+    for Christmas should not be produced before November 1st and should not be
+    produced after December 23rd (regardless of whether the total demand was
+    met by that point or not).
+
+    This can be specified on a product or machine level. For example, if you
+    have one machine that only runs promo items then the constraint will
+    automatically apply to all of the products that it produces.
+
+    However, if you have a promo product that can be made by multiple machines
+    then you can specify the constrain on the product level and it will
+    propagate to all machines.
+
+    If the machine is **specifically** only for promo periods, then it would be
+    more efficient to set a shift pattern that applies during the run-up period
+    instead of using this constraint.
+
+    Parameters
+    ----------
+    start_date : str | dt.datetime | dt.date
+        The start date of the production period
+    end_date : str | dt.datetime | dt.date
+        The end date of the production period
+    product : ContinuousProduct | None, optional
+        Specify a particular product that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    machine : ContinuousMachine | None, optional
+        Specify a particular machine that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    """
+
     def __init__(
         self,
         start_date: str | dt.datetime | dt.date,
@@ -149,7 +267,37 @@ class SeasonalProduction(HardConstraint):
         }
 
 
-class SlowedProduction(HardConstraint):
+class ReducedProductionPeriod(HardConstraint):
+    """Define a period in which the production rate is lower than normal
+
+    This is useful in cases where seasonality affects production. For example,
+    in a sweet factory during the summer, the higher humidity causes the batch
+    rollers to slip on the sugar mixture, making them less efficient. If the
+    machine drew too hard on the flow out of the rollers, it would snap the
+    thread going into the cutters so they ran machines at 80% of the usual rate
+    to prevent such incidents.
+
+    Parameters
+    ----------
+    start_date : str | dt.datetime | dt.date
+        The start date of the reduced run rate
+    end_date : str | dt.datetime | dt.date
+        The end date of the reduced run rate
+    percentage_of_normal : int
+        A percentage of the normal run rate that applies during this period.
+        For example, if a machine normally produces 100 products per minute,
+        setting this as 80 would mean that the machine only produces 80
+        products per minute during this period
+    product : ContinuousProduct | None, optional
+        Specify a particular product that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    machine : ContinuousMachine | None, optional
+        Specify a particular machine that this applies to, by default None. If
+        left as None, it will be determined by the context in which the
+        constraint is specified (on the product-level or machine-level)
+    """
+
     def __init__(
         self,
         start_date: str | dt.datetime | dt.date,
@@ -158,7 +306,6 @@ class SlowedProduction(HardConstraint):
         product: ContinuousProduct | None = None,
         machine: ContinuousMachine | None = None,
     ):
-
         self.start_date = parse_datetime(start_date)
         self.end_date = parse_datetime(end_date)
         self.product = product
@@ -181,6 +328,16 @@ class SlowedProduction(HardConstraint):
             "start_date": self.start_date,
             "end_date": self.end_date,
         }
+
+
+class MaxStorageCapacity(HardConstraint):
+    def __init__(self):
+        pass
+
+
+class MaxProductLifetime(HardConstraint):
+    def __init__(self):
+        pass
 
 
 __all__ = ["MinProductionTime", "MaxProductionTime", "SeasonalProduction"]
