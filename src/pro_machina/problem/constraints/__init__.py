@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 class Constraint(metaclass=ABCMeta):
     start_date: dt.datetime | None
     end_date: dt.datetime | None
+    product: _Product | None
+    machine: _Machine | None
 
     @abstractmethod
     def _set_product(self, _Product) -> None: ...
@@ -30,9 +32,20 @@ class Constraint(metaclass=ABCMeta):
     def __eq__(self, other: object):
         if not isinstance(other, Constraint):
             raise NotImplementedError
+
+        try:
+            start = self.start_date
+        except AttributeError:
+            start = None
+
+        try:
+            other_start = other.start_date
+        except AttributeError:
+            other_start = None
+
         return (
             hash(type(self).__name__) == hash(type(other).__name__)
-            and self.start_date == other.start_date
+            and start == other_start
         )
 
 

@@ -270,6 +270,8 @@ class SeasonalProduction(HardConstraint):
 class ReducedProductionPeriod(HardConstraint):
     """Define a period in which the production rate is lower than normal
 
+    **Only applies to Continous Products/Machines**
+
     This is useful in cases where seasonality affects production. For example,
     in a sweet factory during the summer, the higher humidity causes the batch
     rollers to slip on the sugar mixture, making them less efficient. If the

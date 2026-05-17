@@ -10,16 +10,33 @@ import pro_machina
 
 from ..config import Config
 from ..durations import Duration
-from ..exceptions import ProblemError
+from ..exceptions import ConstraintError, ProblemError
 from ..util import (
     as_day_start,
     get_problem_buckets,
     parse_datetime,
     to_str_date,
 )
+from .constraints import HardConstraint, SoftConstraint
 from .forecasts import DemandForecast
 from .machines import BatchMachine, ContinuousMachine, _Machine
 from .stocks import InboundStock, StockHolding
+
+
+def _check_constraint_is_fully_specified(constraint) -> None:
+
+    if constraint.product is None or (
+        hasattr(constraint, "machine") and constraint.machine is None
+    ):
+        raise ConstraintError(
+            (
+                "Constraints on the Problem level must be fully specified"
+                " and that's not the case for"
+                f" {constraint.__class__.__name__}. If the constraint"
+                " takes a product and a machine, then both must be"
+                " specified"
+            ).lstrip()
+        )
 
 
 class Problem:
@@ -63,6 +80,9 @@ class Problem:
         self._machines: dict[int, _Machine] = {}
         self._starting_stocks: dict[int, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
+
+        self._hard_constraints: set[HardConstraint] = set()
+        self._soft_constraints: set[SoftConstraint] = set()
 
         self._machine_base_productivity: dict[
             int, npt.NDArray[np.float64]
@@ -195,6 +215,90 @@ class Problem:
             raise TypeError("Invalid forecast type")
 
         self._forecast = forecast
+
+    def add_hard_constraint(self, constraint: HardConstraint) -> None:
+        """Add a hard constraint at the problem level
+
+        In this case, a hard constraint can be added directly to the problem,
+        which supercedes any other constraints that have been defined either on
+        the product or machine level. For this, the constraint **must** specify
+        the machine and the product that it applies to.
+
+        Parameters
+        ----------
+        constraint : HardConstraint
+            The hard constraint being applied to the machine-product pairing
+
+        Raises
+        ------
+        TypeError
+            Raised when passing something other than a HardConstraint
+        ConstraintError
+            Raised when the constraint does not specify both the product and
+            the machine it applies to
+        """
+
+        if not isinstance(constraint, HardConstraint):
+            raise TypeError(
+                f"{constraint.__class__.__name__} is not a hard constraint"
+            )
+
+        _check_constraint_is_fully_specified(constraint)
+
+        if (
+            constraint in self._hard_constraints
+            and not pro_machina.options["silence_constraint_overrides"]
+        ):
+            warn(
+                f"\n{constraint.__class__.__name__} has been specified for"
+                f" product: {constraint.product} and machine:"
+                f" {constraint.machine} already and is being set at the"
+                " problem level",
+                stacklevel=3
+            )
+        self._hard_constraints.add(constraint)
+
+    def add_soft_constraint(self, constraint: SoftConstraint) -> None:
+        """Add a soft constraint at the problem level
+
+        In this case, a soft constraint can be added directly to the problem,
+        which supercedes any other constraints that have been defined either on
+        the product or machine level. For this, the constraint **must** specify
+        the machine and the product that it applies to.
+
+        Parameters
+        ----------
+        constraint : SoftConstraint
+            The soft constraint being applied to the machine-product pairing
+
+        Raises
+        ------
+        TypeError
+            Raised when passing something other than a SoftConstraint
+        ConstraintError
+            Raised when the constraint does not specify both the product and
+            the machine it applies to
+        """
+
+        if not isinstance(constraint, SoftConstraint):
+            raise TypeError(
+                f"{constraint.__class__.__name__} is not a soft constraint"
+            )
+
+        _check_constraint_is_fully_specified(constraint)
+
+        if (
+            constraint in self._soft_constraints
+            and not pro_machina.options["silence_constraint_overrides"]
+        ):
+            warn(
+                f"\n{constraint.__class__.__name__} has been specified for"
+                f" product: {constraint.product} and machine:"
+                f" {constraint.machine} already and is being set at the"
+                " problem level",
+                stacklevel=3
+            )
+        self._soft_constraints.add(constraint)
 
     def build(self) -> None:
         """Finalise the problem to be passed to the solver
