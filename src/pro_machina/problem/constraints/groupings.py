@@ -81,6 +81,55 @@ class ProductGroup:
             raise TypeError("Incorrect type added to product group")
 
 
+class MachineGroup:
+    _ids = count(0)
+
+    def __init__(
+        self, name: str, machines: list[_Machine] | None = None
+    ) -> None:
+        self._id = next(self._ids)
+        self.name = name
+        self.machines: list[_Machine] = (
+            machines if machines is not None else []
+        )
+
+        if self.machines:
+            if not all(isinstance(item, _Machine) for item in self.machines):
+                raise TypeError("Incorrect type added to machine group")
+
+    def add_machine(self, machines: _Machine | list[_Machine]) -> None:
+        """Add a machine to an existing grouping
+
+        Parameters
+        ----------
+        machines : _Machine | list[_Machine]
+            The machine(s) to be added
+
+        Raises
+        ------
+        TypeError
+            Attempted to add something other than a Machine to the grouping
+        """
+        if isinstance(machines, _Machine):
+            self.machines.append(machines)
+        else:
+            self.machines.extend(machines)
+
+        prev_len = len(self.machines)
+        self.machines = list(set(self.machines))
+        if (
+            len(self.machines) < prev_len
+            and not pro_machina.options["silence_warnings"]
+        ):
+            warn(
+                f"\n Duplicate machines were added to group: {self.name}\n",
+                stacklevel=3,
+            )
+
+        if not all(isinstance(item, _Machine) for item in self.machines):
+            raise TypeError("Incorrect type added to machine group")
+
+
 class PairedMachines:
     """Create a pairing of machines that must produce the same product
 
