@@ -43,6 +43,29 @@ class Config:
     random_seed : int
         Set a random seed between 0 and 4294967296 to make the algorithm
         consistent between runs
+    min_default_swap_block : Duration
+        For Continuous problems, we want to have some sensible production runs
+        to prevent a machine swapping product every 15 minutes. This sets a
+        global lower bound for a production run, which can later be overridden
+        by specific constraints if needed. By default this is 4 hours meaning
+        that, in the absence of specific constraints, no production run of a
+        product of less than 4 hours will appear in the solution.
+    max_default_swap_block : Duration
+        Similar to min_default_swap_block, we want to set an upper bound on the
+        length of a production run in any one swap in the solution search. By
+        default this is set to 12 hours. It is important to note that this does
+        NOT mean that a production run of a single product will be limited to
+        12 hours and then the machine **must** switch to a different product.
+        What it does mean is that, in any single swap during the solution
+        search, no production run of greater than 12 hours will be inserted
+        into the schedule. However, in the final solution, it is still
+        perfectly possible that multiple 12 hour blocks of production of the
+        same product will be stacked together, effectively becoming a single,
+        continuous run.
+
+        If you want to force a maximum production run such that these blocks
+        cannot be stacked in arbitrary length runs then you will need to set a
+        MaxProductionTime constraint instead.
     demand_horizon : Duration
         Set the default time horizon to consider production for an upcoming
         order or made-to-stock target. For example, if you have an order due on
@@ -73,9 +96,10 @@ class Config:
         self._max_iterations: int | None = None
         self._max_runtime: Duration | None = None
         self._timebucket: Duration = Mins(15)
-        self._random_seed = randbelow(4294967296)
+        self._random_seed: int = randbelow(4294967296)
+        self._min_default_swap_block: Duration = Hours(4)
+        self._max_default_swap_block: Duration = Hours(12)
         self._demand_horizon: Duration = Weeks(1)
-        self._default_min_product_block_time: Duration = Hours(4)
 
     @property
     def max_iterations(self) -> int | None:
@@ -131,14 +155,24 @@ class Config:
         self._demand_horizon = horizon
 
     @property
-    def default_min_product_block_time(self) -> Duration:
-        return self._default_min_product_block_time
+    def min_default_swap_block(self) -> Duration:
+        return self._min_default_swap_block
 
-    @default_min_product_block_time.setter
-    def default_min_product_block_time(self, runtime: Duration) -> None:
-        if runtime.to_seconds() <= 0:
-            raise ValueError("Default min runtime must be a positive duration")
-        self._default_min_product_block_time = runtime
+    @min_default_swap_block.setter
+    def min_default_swap_block(self, duration: Duration) -> None:
+        if duration.to_seconds() <= 0:
+            raise ValueError("Default min duration must be a positive")
+        self._min_default_swap_block = duration
+
+    @property
+    def max_default_swap_block(self) -> Duration:
+        return self._max_default_swap_block
+
+    @max_default_swap_block.setter
+    def max_default_swap_block(self, duration: Duration) -> None:
+        if duration.to_seconds() <= 0:
+            raise ValueError("Default max duration must be a positive")
+        self._max_default_swap_block = duration
 
     def __repr__(self) -> str:
         return "Hello"

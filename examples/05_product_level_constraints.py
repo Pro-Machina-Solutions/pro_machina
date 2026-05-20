@@ -14,8 +14,9 @@ additional example files will show how this hierarchy hopefully builds into a
 coherent statement of the overall constraints within the problem.
 """
 
-from pro_machina import ContinuousMachine, ContinuousProduct
-from pro_machina.durations import Hours, Mins
+from pro_machina import ContinuousMachine, ContinuousProduct, Problem
+from pro_machina.config import Config
+from pro_machina.durations import Hours, Mins, Weeks
 from pro_machina.measures import BaseUnit, Unit
 from pro_machina.problem.constraints import (
     MaxProductionTime,
@@ -30,30 +31,48 @@ c = ProductGroup
 # The first thing to do is create an example product
 product_1 = ContinuousProduct(name="Product 1", base_dimension=BaseUnit)
 
-# Swapping machines between products often comes with downtime. Therefore, to
-# prevent unnecessary swapping, we might want to state that each production run
-# of this product must be bounded by a minimum run time i.e. once the machine
-# is set up and, even if it is *feasible* that you could swap after 1 hour if
-# targets come down to the wire, you just practically can't keep swapping. Set
-# a minimum runtime on the product-level.
-product_1.add_hard_constraint(MinProductionTime(min_time=Hours(4)))
+# Before touching the constraint modules themselves, we need to look at the
+# Config option which sets one default constraint, and another guide for the
+# solver.
 
-# Equally, it may be that you don't want a single continuous run of this
-# product to exceed some threshold. This aspect is NOT as intuitive as you
-# might initially think. Unlike MinProductionTime, there are good business
-# reasons why you might run a single product for any arbitrary time period
-# (weeks, even) to meet demand.
+# The Pro Machina solver works by swapping blocks of production between
+# different products or downtime and evaluates the cost function of the new
+# solution. For Continuous problems, we need to have sensible bounds on the
+# the duration of these blocks. If we set a lower bound of 15 minutes then we
+# might get a solution where machines sometimes swich rapidly between different
+# products in a way that is utterly nonsensical. Equally, we don't want the
+# solver trying to consider whether dumping an entire 48 hour block of
+# production into a schedule is a good/bad thing in one go.
 
-# Instead what this does is tell that algorithm that, during any swap in the
-# search for a solution, it should not insert a production run into the
-# schedule that exceeds this duration for a product. We set a Max here of 12
-# hours but there's nothing stopping it putting three 12 hour runs of the same
-# product back-to-back such that the outcome is a 36 hour continuous run of the
-# same product.
+# The defaults are a lower bound of 4 hours and an upper bound of 12 hours. If
+# you wanted to change them (we don't here) then you can do so as follows:
+config = Config()
+config.min_default_swap_block = Hours(4)
+config.max_default_swap_block = Hours(12)
 
-# TODO: Perhaps this needs to be pushed into Config to avoid confusion? It's
-# more an optimiser setting than a constraint
-product_1.add_hard_constraint(MaxProductionTime(max_time=Hours(12)))
+problem = Problem(
+    start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
+)
+
+# It's important to know what this means. Two things:
+# 1 - No run of a product will be for less than 4 hours (unless we use a
+#     constraint coming up).
+# 2 - This does NOT mean that production runs of a single product for an entire
+#     week are not possible. It only means that only a maximum of 12 hours of
+#     production will be changed at any one time. It doesn't stop multiple such
+#     blocks being stacked together in contiguous runs. We can limit production
+#     runs using a hard constraint if needed.
+
+# So, let's say that we're happy for production runs of no less than 4 hours
+# for all products by default, but we want to change it for one product:
+product_1.add_hard_constraint(MinProductionTime(min_time=Hours(2)))
+
+# Now let's say that we also don't want unbounded runs on a single product. We
+# already know that the maximum product swap under consideration is 12 hours,
+# but what if we wanted to limit the number of contiguous blocks of a single
+# product run? This will ensure that, at most, no more than 24 hours of
+# consecutive production of our product can be done.
+product_1.add_hard_constraint(MaxProductionTime(max_time=Hours(24)))
 
 # Now we can create two machines and add this product to each of them
 machine_1 = ContinuousMachine("Machine 1")
