@@ -21,12 +21,10 @@ from pro_machina.measures import BaseUnit, Unit
 from pro_machina.problem.constraints import (
     MaxProductionTime,
     MinProductionTime,
-    ProductGroup,
 )
 
 a = MinProductionTime
 b = MaxProductionTime
-c = ProductGroup
 
 # The first thing to do is create an example product
 product_1 = ContinuousProduct(name="Product 1", base_dimension=BaseUnit)

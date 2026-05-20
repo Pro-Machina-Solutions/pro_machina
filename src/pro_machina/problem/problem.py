@@ -17,9 +17,18 @@ from ..util import (
     parse_datetime,
     to_str_date,
 )
-from .constraints import Constraint, HardConstraint, SoftConstraint
+from .constraints import (
+    Constraint,
+    HardConstraint,
+    SoftConstraint,
+)
 from .forecasts import DemandForecast
-from .machines import BatchMachine, ContinuousMachine, _Machine
+from .machines import (
+    BatchMachine,
+    ContinuousMachine,
+    ContinuousMachineGroup,
+    _Machine,
+)
 from .stocks import InboundStock, StockHolding
 
 
@@ -78,6 +87,7 @@ class Problem:
         # Containers
         self._forecast: DemandForecast | None = None
         self._machines: dict[int, _Machine] = {}
+        self._machine_groups: dict[int, dict[int, _Machine]] = {}
         self._starting_stocks: dict[int, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
 
@@ -133,6 +143,9 @@ class Problem:
                 stacklevel=3,
             )
         self._machines[machine._id] = machine
+
+    def add_machine_group(self, machine_group: ContinuousMachineGroup) -> None:
+        pass
 
     def add_stock(self, stock: StockHolding) -> None:
         """Add units of stock available at the problem start date

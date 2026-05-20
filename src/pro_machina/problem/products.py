@@ -246,6 +246,89 @@ class ContinuousProduct(_Product):
         super().__init__(name, base_dimension)
 
 
+class ContinuousProductGroup:
+    """Create a grouping of products that share some characteristic
+
+    This can be useful for situations where products are competing for a
+    resource. For example, you might only have a total storage capacity of 50
+    pallets that must be shared between multiple different products. Setting
+    them in a group ensures that, as an aggregate group, you would not have
+    more than 50 pallets, regardless of which individual products are actually
+    in storage at any one time.
+
+    Another case might be distinguishing between products that contain gelatine
+    and others that do not. Switching from gelatine-based products to
+    non-gelatine alternatives can come with a clean-down period of the machine,
+    regardless of the individual product from the group being made.
+
+    It's also useful in cases where a particular machine can make multiple
+    products at the same rate, for example, so you can adjust them all in one
+    go rather than setting the run rate on an individual product level.
+
+    Parameters
+    ----------
+    name : str
+        A name for the grouping
+    products : list[_Product] | None, optional
+        Optionally instantiate the group with a list of pre-defined
+        products. Otherwise, you can instantitate an empty group and add
+        products to it as and when they are defined in your code
+
+    Raises
+    ------
+    TypeError
+        Attempted to add something other than a Product to the grouping
+    """
+
+    _ids = count(0)
+
+    def __init__(
+        self, name: str, products: list[_Product] | None = None
+    ) -> None:
+
+        self._id = next(self._ids)
+        self.name = name
+        self.products: list[_Product] = (
+            products if products is not None else []
+        )
+
+        if self.products:
+            if not all(isinstance(item, _Product) for item in self.products):
+                raise TypeError("Incorrect type added to product group")
+
+    def add_products(self, products: _Product | list[_Product]) -> None:
+        """Add a product to an existing grouping
+
+        Parameters
+        ----------
+        products : _Product | list[_Product]
+            The product(s) to be added
+
+        Raises
+        ------
+        TypeError
+            Attempted to add something other than a Product to the grouping
+        """
+        if isinstance(products, _Product):
+            self.products.append(products)
+        else:
+            self.products.extend(products)
+
+        prev_len = len(self.products)
+        self.products = list(set(self.products))
+        if (
+            len(self.products) < prev_len
+            and not pro_machina.options["silence_warnings"]
+        ):
+            warn(
+                f"\n Duplicate products were added to group: {self.name}\n",
+                stacklevel=3,
+            )
+
+        if not all(isinstance(item, _Product) for item in self.products):
+            raise TypeError("Incorrect type added to product group")
+
+
 @dataclass
 class ProductBatch:
     name: str
