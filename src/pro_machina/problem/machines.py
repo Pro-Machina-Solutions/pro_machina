@@ -354,6 +354,9 @@ class ContinuousMachineGroup(ContinuousMachine):
             if not all(isinstance(item, _Machine) for item in self.machines):
                 raise TypeError("Incorrect type added to machine group")
 
+        self._hard_constraints: list[HardConstraint] = []
+        self._soft_constraints: list[SoftConstraint] = []
+
     def add_machine(self, machines: _Machine | list[_Machine]) -> None:
         """Add a machine to an existing grouping
 

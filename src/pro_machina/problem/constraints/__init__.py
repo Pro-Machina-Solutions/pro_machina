@@ -57,7 +57,7 @@ class SoftConstraint(Constraint):
     pass
 
 
-from .groupings import (
+from .constraint_groupings import (
     MutuallyExclusiveMachines,
     PairedMachines,
 )

@@ -1,9 +1,12 @@
 """
-Constraints (both hard and soft) are broadly categorised into three levels.
+Constraints (both hard and soft) are broadly categorised into six levels.
 These are, from the most granular to the most broad:
-1. Product-level constraints
-2. Machine-level constraints
-3. Problem-level constraints
+1. Default "constraints" (set by Config) that are somewhat pseudo-constraints
+2. Product-level constraints
+3. Product-group-level constraints
+4. Machine-level constraints
+5. Machine-group-level
+6. Problem-level constraints
 
 The hierarchy of constraints proceeds in that order, too. So, a machine-level
 constraint will supercede any product-level constraint, and a problem-level
@@ -30,8 +33,8 @@ b = MaxProductionTime
 product_1 = ContinuousProduct(name="Product 1", base_dimension=BaseUnit)
 
 # Before touching the constraint modules themselves, we need to look at the
-# Config option which sets one default constraint, and another guide for the
-# solver.
+# Config option which sets one default constraint, and another as a guide for
+# the solver.
 
 # The Pro Machina solver works by swapping blocks of production between
 # different products or downtime and evaluates the cost function of the new
@@ -40,7 +43,7 @@ product_1 = ContinuousProduct(name="Product 1", base_dimension=BaseUnit)
 # might get a solution where machines sometimes swich rapidly between different
 # products in a way that is utterly nonsensical. Equally, we don't want the
 # solver trying to consider whether dumping an entire 48 hour block of
-# production into a schedule is a good/bad thing in one go.
+# production into a schedule is a good/bad move in one single iteration.
 
 # The defaults are a lower bound of 4 hours and an upper bound of 12 hours. If
 # you wanted to change them (we don't here) then you can do so as follows:
@@ -48,13 +51,19 @@ config = Config()
 config.min_default_swap_block = Hours(4)
 config.max_default_swap_block = Hours(12)
 
+# Pass the new config to the problem to override the defaults
 problem = Problem(
     start_time="2026-03-02 00:00:00", length=Weeks(1), config=config
 )
 
 # It's important to know what this means. Two things:
+
 # 1 - No run of a product will be for less than 4 hours (unless we use a
-#     constraint coming up).
+#     constraint coming up) or unless it isn't a factor of the shift duration.
+#     So, for example, it may be that a six hour shift will have four hours of
+#     Product A and two hours of Product B, simply because the four hour block
+#     of Product B happens to run into downtime.
+
 # 2 - This does NOT mean that production runs of a single product for an entire
 #     week are not possible. It only means that only a maximum of 12 hours of
 #     production will be changed at any one time. It doesn't stop multiple such
@@ -69,7 +78,8 @@ product_1.add_hard_constraint(MinProductionTime(min_time=Hours(2)))
 # already know that the maximum product swap under consideration is 12 hours,
 # but what if we wanted to limit the number of contiguous blocks of a single
 # product run? This will ensure that, at most, no more than 24 hours of
-# consecutive production of our product can be done.
+# consecutive production of our product can be done before either switching to
+# another product or going offline.
 product_1.add_hard_constraint(MaxProductionTime(max_time=Hours(24)))
 
 # Now we can create two machines and add this product to each of them
