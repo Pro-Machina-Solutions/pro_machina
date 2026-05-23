@@ -12,7 +12,7 @@ The hierarchy of constraints proceeds in that order, too. So, a machine-level
 constraint will supercede any product-level constraint, and a problem-level
 constraint will override any machine- or product-level constraint.
 
-In this example, we'll start with the problem-level constraint and the
+In this example, we'll start with the product-level constraint and the
 additional example files will show how this hierarchy hopefully builds into a
 coherent statement of the overall constraints within the problem.
 """
