@@ -4,27 +4,56 @@ import datetime as dt
 from functools import cache
 from typing import TYPE_CHECKING
 
+from .durations import Duration
+
 if TYPE_CHECKING:
-    from .problem import Problem
+    pass
 
 
-def parse_datetime(_dt: str | dt.datetime | dt.date) -> dt.datetime:
-    if isinstance(_dt, str):
-        _dt = dt.datetime.fromisoformat(_dt)
+def parse_datetime(dt_: str | dt.datetime | dt.date) -> dt.datetime:
+    """Convert a datetime-like object into a defined datetime
 
-    if not isinstance(_dt, (dt.datetime, dt.date)):
+    This is an internal method to suit the purposes of pro_machina and is not
+    intended for use outside of this package.
+
+    If given a string, it must be in ISO 8601 format and will return a
+    datetime. If given a date object it will return a datetime of midnight at
+    the very start of the day. Actual datetime objects fall through unchanged.
+
+    Parameters
+    ----------
+    dt_ : str | dt.datetime | dt.date
+        A datetime-like object
+
+    Returns
+    -------
+    dt.datetime
+        An actual datetime
+
+    Raises
+    ------
+    TypeError
+        A datetime couldn't be parsed from the input
+    """
+    if isinstance(dt_, str):
+        dt_ = dt.datetime.fromisoformat(dt_)
+
+    if not isinstance(dt_, (dt.datetime, dt.date)):
         raise TypeError("Not a valid datetime")
 
     # Has to be done this way around because dt.datetime is a subclass of
     # dt.date. Do not change this around as it breaks *everything*.
-    if not isinstance(_dt, dt.datetime):
-        _dt = dt.datetime.combine(_dt, dt.datetime.min.time())
+    if not isinstance(dt_, dt.datetime):
+        dt_ = dt.datetime.combine(dt_, dt.datetime.min.time())
 
-    return _dt
+    return dt_
 
 
-def to_str_date(_dt: str | dt.date | dt.datetime) -> str:
+def to_str_date(dt_: str | dt.date | dt.datetime) -> str:
     """Return the ISO 8601 representation of a date
+
+    This is an internal method to suit the purposes of pro_machina and is not
+    intended for use outside of this package.
 
     Parameters
     ----------
@@ -36,15 +65,18 @@ def to_str_date(_dt: str | dt.date | dt.datetime) -> str:
     str
         ISO 8601 date
     """
-    if isinstance(_dt, str):
-        rtn = dt.datetime.fromisoformat(_dt).strftime("%Y-%m-%d")
+    if isinstance(dt_, str):
+        rtn = dt.datetime.fromisoformat(dt_).strftime("%Y-%m-%d")
     else:
-        rtn = _dt.strftime("%Y-%m-%d")
+        rtn = dt_.strftime("%Y-%m-%d")
     return rtn
 
 
 def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
-    """Convert a date object to a datetime object.
+    """Convert a date object to a datetime object
+
+    This is an internal method to suit the purposes of pro_machina and is not
+    intended for use outside of this package.
 
     Parameters
     ----------
@@ -62,7 +94,10 @@ def as_day_start(date: dt.date | dt.datetime | str) -> dt.datetime:
 
 
 def as_day_end(date: dt.date | dt.datetime | str) -> dt.datetime:
-    """Bump the datetime to the start of the next day.
+    """Bump the datetime to the start of the next day
+
+    This is an internal method to suit the purposes of pro_machina and is not
+    intended for use outside of this package.
 
     This method will automatically add 1 day onto any datetime and then knock
     it back to the very start of the day, to close off anything that requires
@@ -86,7 +121,9 @@ def as_day_end(date: dt.date | dt.datetime | str) -> dt.datetime:
 
 
 @cache
-def get_problem_buckets(problem: Problem) -> int:
+def get_problem_buckets(
+    problem_start: dt.datetime, problem_end: dt.datetime, timebucket: Duration
+) -> int:
     """Return the total number of time buckets in the problem
 
     Takes the full duration of the problem and divides it by the duration of
@@ -94,8 +131,12 @@ def get_problem_buckets(problem: Problem) -> int:
 
     Parameters
     ----------
-    problem : Problem
-        The main problem instance
+    problem_start : dt.datetime
+        The start datetime of the problem span
+    problem_end : dt.datetime
+        The end datetime of the problem span
+    timebucket : Duration
+        The duration that the problem span is divided into
 
     Returns
     -------
@@ -103,13 +144,15 @@ def get_problem_buckets(problem: Problem) -> int:
         Total number of time buckets for the problem, each representing a
         segement of the specified duration
     """
-    timebucket_secs = int(problem.config._timebucket.to_seconds())
-    tot_problem_secs = (problem._end - problem._start).total_seconds()
+    timebucket_secs = int(timebucket.to_seconds())
+    tot_problem_secs = (problem_end - problem_start).total_seconds()
     return int(tot_problem_secs / timebucket_secs)
 
 
 def get_bucket_index(
-    problem: Problem,
+    problem_start: dt.datetime,
+    problem_end: dt.datetime,
+    timebucket: Duration,
     timestamp: dt.datetime,
 ) -> int:
     """Return the closest bucket index for a datetime
@@ -120,10 +163,15 @@ def get_bucket_index(
 
     Parameters
     ----------
-    problem : Problem
-        The main problem instance
-    timestamp : dt.datetime
+    problem_start : dt.datetime
+        The start datetime of the problem span
+    problem_end : dt.datetime
+        The end datetime of the problem span
+    timebucket : Duration
+        The duration that the problem span is divided into
         A datetime stamp within the span of the problem duration
+    timestamp : dt.datetime
+        The datetime to be given an array index into the problem span
 
     Returns
     -------
@@ -135,9 +183,9 @@ def get_bucket_index(
     ValueError
         The timestamp is outside of the bounds of the problem duration
     """
-    num_buckets = get_problem_buckets(problem)
-    frac = (timestamp - problem._start).total_seconds() / (
-        problem._duration_secs
+    num_buckets = get_problem_buckets(problem_start, problem_end, timebucket)
+    frac = (timestamp - problem_start).total_seconds() / (
+        (problem_end - problem_start).total_seconds()
     )
     if not 0 <= frac <= 1:
         raise ValueError("Timestamp outside of problem range")

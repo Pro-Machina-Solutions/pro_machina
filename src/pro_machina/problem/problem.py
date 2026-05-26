@@ -19,6 +19,7 @@ from ..util import (
 )
 from .constraints import (
     Constraint,
+    ConstraintArbiter,
     HardConstraint,
     SoftConstraint,
 )
@@ -80,6 +81,9 @@ class Problem:
         self._start = as_day_start(self._user_start_time)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
+        self._constraint_arbiter = ConstraintArbiter(
+            self._start, self._end, self.config
+        )
 
         # Flags
         self._is_built = False
@@ -364,8 +368,10 @@ class Problem:
 
         payload = {
             "start_date": to_str_date(self._start),
-            "bucket_duration_secs": self.config._timebucket.to_seconds(),
-            "num_buckets": get_problem_buckets(self),
+            "bucket_duration_secs": self.config.timebucket.to_seconds(),
+            "num_buckets": get_problem_buckets(
+                self._start, self._end, self.config.timebucket
+            ),
             "problem_id": uuid.uuid4().hex,
         }
 

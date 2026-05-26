@@ -278,7 +278,9 @@ class DemandForecast:
 
     def _build(self, problem: Problem):
 
-        num_buckets = get_problem_buckets(problem)
+        num_buckets = get_problem_buckets(
+            problem._start, problem._end, problem.config.timebucket
+        )
         timebucket_secs = int(problem.config.timebucket.to_seconds())
 
         horizon_secs = int(problem.config.demand_horizon.to_seconds())

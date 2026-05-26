@@ -112,7 +112,9 @@ class _Machine:
         self, problem: Problem
     ) -> npt.NDArray[np.float64]:
         # Track total number of buckets in the problem.
-        problem_num_buckets = get_problem_buckets(problem)
+        problem_num_buckets = get_problem_buckets(
+            problem._start, problem._end, problem.config.timebucket
+        )
 
         # Default all buckets to zero productivity unless no shifts are
         # specified, in which case the machine is assumed to always be on
@@ -138,7 +140,12 @@ class _Machine:
                 pattern = shift["shift"]._yield_day(
                     date, problem.config.timebucket
                 )
-                start_bucket = get_bucket_index(problem, date)
+                start_bucket = get_bucket_index(
+                    problem._start,
+                    problem._end,
+                    problem.config.timebucket,
+                    date,
+                )
                 end_bucket = start_bucket + len(pattern)
                 base_productivity[start_bucket:end_bucket] = pattern
 
