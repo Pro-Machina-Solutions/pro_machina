@@ -75,8 +75,9 @@ class ConstraintArbiter(metaclass=Singleton):
             raise TypeError(
                 "Attempted to add something other than a HardConstraint"
             )
-        start_index = 0
+
         for constraint in constraints:
+            start_index = 0
             try:
                 start = constraint.start_date
                 assert start is not None
@@ -110,8 +111,9 @@ class ConstraintArbiter(metaclass=Singleton):
             raise TypeError(
                 "Attempted to add something other than a SoftConstraint"
             )
-        start_index = 0
+
         for constraint in constraints:
+            start_index = 0
             try:
                 start = constraint.start_date
                 assert start is not None
