@@ -17,7 +17,11 @@ from ..measures import (
     UnsizedDimension,
     _UnitRegistry,
 )
-from .constraints import HardConstraint, SoftConstraint
+from .constraints import (
+    ConstraintLevel,
+    HardConstraint,
+    SoftConstraint,
+)
 from .consumables import Consumable
 
 
@@ -163,6 +167,8 @@ class _Product:
     def add_hard_constraint(
         self, constraints: HardConstraint | list[HardConstraint]
     ) -> None:
+        constraint_level = ConstraintLevel(1)
+
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]
 

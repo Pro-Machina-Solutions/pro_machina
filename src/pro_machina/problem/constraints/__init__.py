@@ -57,7 +57,7 @@ class SoftConstraint(Constraint):
     pass
 
 
-from ._arbiter import ConstraintArbiter
+from ._arbiter import ConstraintArbiter, ConstraintLevel
 from .constraint_groupings import (
     MutuallyExclusiveMachines,
     PairedMachines,
