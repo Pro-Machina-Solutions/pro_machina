@@ -30,8 +30,14 @@ class MinProductionTime(HardConstraint):
 
     Parameters
     ----------
-    min_time : Duration
+    value : Duration
         The minimum continuous duration that this product can be produced
+    start_date : str | dt.datetime | dt.date | None, optional
+        The start date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
+    end_date : str | dt.datetime | dt.date | None, optional
+        The end date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
@@ -40,12 +46,6 @@ class MinProductionTime(HardConstraint):
         Specify a particular machine that this applies to, by default None. If
         left as None, it will be determined by the context in which the
         constraint is specified (on the product-level or machine-level)
-    start_date : str | dt.datetime | dt.date | None, optional
-        The start date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
-    end_date : str | dt.datetime | dt.date | None, optional
-        The end date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
 
     Raises
     ------
@@ -56,18 +56,18 @@ class MinProductionTime(HardConstraint):
 
     def __init__(
         self,
-        min_time: Duration,
-        product: ContinuousProduct | None = None,
-        machine: ContinuousMachine | None = None,
+        value: Duration,
         start_date: str | dt.datetime | dt.date | None = None,
         end_date: str | dt.datetime | dt.date | None = None,
+        product: ContinuousProduct | None = None,
+        machine: ContinuousMachine | None = None,
     ) -> None:
 
         if product is not None:
             check_continuous_prod_only(self, product)
         if machine is not None:
             check_continuous_machine_only(self, machine)
-        self.min_time = min_time
+        self.value = value
         self.product = product
         self.machine = machine
 
@@ -88,22 +88,12 @@ class MinProductionTime(HardConstraint):
         check_continuous_machine_only(self, machine)
         self.machine = machine
 
-    def _for_payload(self):
-        return {
-            "product_id": self.product._id,
-            "machine_id": self.machine._id,
-            "name": "MAX_PRODUCTION_TIME",
-            "time": self.min_time.to_seconds(),
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-        }
-
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
         mach = self.machine.name if self.machine is not None else "All"
         return (
             f"<{self.__class__.__name__}. Product: {prod}, Machine: {mach},"
-            f" Run time: {self.min_time}, Start date: {self.start_date},"
+            f" Run time: {self.value}, Start date: {self.start_date},"
             f" End date: {self.end_date}>"
         )
 
@@ -126,8 +116,14 @@ class MaxProductionTime(HardConstraint):
 
     Parameters
     ----------
-    max_time : Duration
+    value : Duration
         The maximum continuous duration that this product can be produced
+    start_date : str | dt.datetime | dt.date | None, optional
+        The start date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
+    end_date : str | dt.datetime | dt.date | None, optional
+        The end date of the constraint consideration, by default None. If
+        left as None, it will apply across the entire problem
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
@@ -136,12 +132,6 @@ class MaxProductionTime(HardConstraint):
         Specify a particular machine that this applies to, by default None. If
         left as None, it will be determined by the context in which the
         constraint is specified (on the product-level or machine-level)
-    start_date : str | dt.datetime | dt.date | None, optional
-        The start date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
-    end_date : str | dt.datetime | dt.date | None, optional
-        The end date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
 
     Raises
     ------
@@ -152,17 +142,17 @@ class MaxProductionTime(HardConstraint):
 
     def __init__(
         self,
-        max_time: Duration,
-        product: ContinuousProduct | None = None,
-        machine: ContinuousMachine | None = None,
+        value: Duration,
         start_date: str | dt.datetime | dt.date | None = None,
         end_date: str | dt.datetime | dt.date | None = None,
+        product: ContinuousProduct | None = None,
+        machine: ContinuousMachine | None = None,
     ) -> None:
         if product is not None:
             check_continuous_prod_only(self, product)
         if machine is not None:
             check_continuous_machine_only(self, machine)
-        self.max_time = max_time
+        self.value = value
         self.product = product
         self.machine = machine
 
@@ -183,22 +173,12 @@ class MaxProductionTime(HardConstraint):
         check_continuous_machine_only(self, machine)
         self.machine = machine
 
-    def _for_payload(self):
-        return {
-            "product_id": self.product._id,
-            "machine_id": self.machine._id,
-            "name": "MAX_PRODUCTION_TIME",
-            "time": self.max_time.to_seconds(),
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-        }
-
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
         mach = self.machine.name if self.machine is not None else "All"
         return (
             f"<{self.__class__.__name__}. Product: {prod}, Machine: {mach},"
-            f" Run time: {self.max_time}, Start date: {self.start_date},"
+            f" Run time: {self.value}, Start date: {self.start_date},"
             f" End date: {self.end_date}>"
         )
 
@@ -250,21 +230,13 @@ class SeasonalProduction(HardConstraint):
         self.end_date = parse_datetime(end_date)
         self.product = product
         self.machine = machine
+        self.value = 1
 
     def _set_product(self, product: _Product) -> None:
         self.product = product
 
     def _set_machine(self, machine: _Machine) -> None:
         self.machine = machine
-
-    def _for_payload(self):
-        return {
-            "product_id": self.product._id,
-            "machine_id": self.machine._id,
-            "name": "SEASONAL_PRODUCTION",
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-        }
 
 
 class ReducedProductionPeriod(HardConstraint):
@@ -281,15 +253,15 @@ class ReducedProductionPeriod(HardConstraint):
 
     Parameters
     ----------
-    start_date : str | dt.datetime | dt.date
-        The start date of the reduced run rate
-    end_date : str | dt.datetime | dt.date
-        The end date of the reduced run rate
-    percentage_of_normal : int
+    value : int
         A percentage of the normal run rate that applies during this period.
         For example, if a machine normally produces 100 products per minute,
         setting this as 80 would mean that the machine only produces 80
         products per minute during this period
+    start_date : str | dt.datetime | dt.date
+        The start date of the reduced run rate
+    end_date : str | dt.datetime | dt.date
+        The end date of the reduced run rate
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
@@ -302,9 +274,9 @@ class ReducedProductionPeriod(HardConstraint):
 
     def __init__(
         self,
+        value: int,
         start_date: str | dt.datetime | dt.date,
         end_date: str | dt.datetime | dt.date,
-        percentage_of_normal: int,
         product: ContinuousProduct | None = None,
         machine: ContinuousMachine | None = None,
     ):
@@ -312,7 +284,7 @@ class ReducedProductionPeriod(HardConstraint):
         self.end_date = parse_datetime(end_date)
         self.product = product
         self.machine = machine
-        self.percentage_of_normal = percentage_of_normal
+        self.value = value
 
     def _set_product(self, product: ContinuousProduct) -> None:
         check_continuous_prod_only(self, product)
@@ -321,15 +293,6 @@ class ReducedProductionPeriod(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:
         check_continuous_machine_only(self, machine)
         self.machine = machine
-
-    def _for_payload(self):
-        return {
-            "product_id": self.product._id,
-            "machine_id": self.machine._id,
-            "name": "SLOWED_PRODUCTION",
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-        }
 
 
 class MaxStorageCapacity(HardConstraint):
