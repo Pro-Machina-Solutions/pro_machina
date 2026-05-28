@@ -24,29 +24,29 @@ class Constraint(metaclass=ABCMeta):
     def _set_machine(self, _Machine) -> None: ...
 
     @abstractmethod
-    def _for_payload(self) -> dict[str, str | float]: ...
+    def _get_values(self) -> dict[str, float]: ...
 
     def __hash__(self):
         return hash(type(self).__name__)
 
-    def __eq__(self, other: object):
-        if not isinstance(other, Constraint):
-            raise NotImplementedError
+    # def __eq__(self, other: object):
+    #     if not isinstance(other, Constraint):
+    #         raise NotImplementedError
 
-        try:
-            start = self.start_date
-        except AttributeError:
-            start = None
+    #     try:
+    #         start = self.start_date
+    #     except AttributeError:
+    #         start = None
 
-        try:
-            other_start = other.start_date
-        except AttributeError:
-            other_start = None
+    #     try:
+    #         other_start = other.start_date
+    #     except AttributeError:
+    #         other_start = None
 
-        return (
-            hash(type(self).__name__) == hash(type(other).__name__)
-            and start == other_start
-        )
+    #     return (
+    #         hash(type(self).__name__) == hash(type(other).__name__)
+    #         and start == other_start
+    #     )
 
 
 class HardConstraint(Constraint):

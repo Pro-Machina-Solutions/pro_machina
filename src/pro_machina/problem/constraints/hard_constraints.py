@@ -67,7 +67,7 @@ class MinProductionTime(HardConstraint):
             check_continuous_prod_only(self, product)
         if machine is not None:
             check_continuous_machine_only(self, machine)
-        self.value = value
+        self.value = value.to_seconds()
         self.product = product
         self.machine = machine
 
@@ -87,6 +87,9 @@ class MinProductionTime(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:
         check_continuous_machine_only(self, machine)
         self.machine = machine
+
+    def _get_values(self) -> dict[str, float]:
+        return {"value": self.value}
 
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
@@ -152,7 +155,7 @@ class MaxProductionTime(HardConstraint):
             check_continuous_prod_only(self, product)
         if machine is not None:
             check_continuous_machine_only(self, machine)
-        self.value = value
+        self.value = value.to_seconds()
         self.product = product
         self.machine = machine
 
@@ -172,6 +175,9 @@ class MaxProductionTime(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:
         check_continuous_machine_only(self, machine)
         self.machine = machine
+
+    def _get_values(self) -> dict[str, float]:
+        return {"value": self.value}
 
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
@@ -238,6 +244,9 @@ class SeasonalProduction(HardConstraint):
     def _set_machine(self, machine: _Machine) -> None:
         self.machine = machine
 
+    def _get_values(self) -> dict[str, float]:
+        return {"value": self.value}
+
 
 class ReducedProductionPeriod(HardConstraint):
     """Define a period in which the production rate is lower than normal
@@ -294,15 +303,16 @@ class ReducedProductionPeriod(HardConstraint):
         check_continuous_machine_only(self, machine)
         self.machine = machine
 
+    def _get_values(self) -> dict[str, float]:
+        return {"value": self.value}
+
 
 class MaxStorageCapacity(HardConstraint):
-    def __init__(self):
-        pass
+    pass
 
 
 class MaxProductLifetime(HardConstraint):
-    def __init__(self):
-        pass
+    pass
 
 
 __all__ = ["MinProductionTime", "MaxProductionTime", "SeasonalProduction"]

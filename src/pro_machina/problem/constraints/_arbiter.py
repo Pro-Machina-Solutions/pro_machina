@@ -66,7 +66,7 @@ class ConstraintArbiter(metaclass=Singleton):
             eager=True,
         )
 
-        assert len(self.date_range) == self.num_buckets
+        assert len(self.datetime_range) == self.num_buckets
 
     def initialise_product_dataframe(self) -> pl.DataFrame:
         return pl.DataFrame(

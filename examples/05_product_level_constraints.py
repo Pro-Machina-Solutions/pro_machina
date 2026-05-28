@@ -72,7 +72,7 @@ problem = Problem(
 
 # So, let's say that we're happy for production runs of no less than 4 hours
 # for all products by default, but we want to change it for one product:
-product_1.add_hard_constraint(MinProductionTime(min_time=Hours(2)))
+product_1.add_hard_constraint(MinProductionTime(value=Hours(2)))
 
 # Now let's say that we also don't want unbounded runs on a single product. We
 # already know that the maximum product swap under consideration is 12 hours,
@@ -80,7 +80,7 @@ product_1.add_hard_constraint(MinProductionTime(min_time=Hours(2)))
 # product run? This will ensure that, at most, no more than 24 hours of
 # consecutive production of our product can be done before either switching to
 # another product or going offline.
-product_1.add_hard_constraint(MaxProductionTime(max_time=Hours(24)))
+product_1.add_hard_constraint(MaxProductionTime(value=Hours(24)))
 
 # Now we can create two machines and add this product to each of them
 machine_1 = ContinuousMachine("Machine 1")
