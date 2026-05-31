@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import Enum
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from ...config import Config
 from ...util import Singleton, get_bucket_index, get_problem_buckets
 from . import HardConstraint, SoftConstraint
+
+if TYPE_CHECKING:
+    from ..machines import MachID
+    from ..products import ProdID
 
 
 class ConstraintLevel(Enum):
@@ -53,8 +58,13 @@ class ConstraintArbiter(metaclass=Singleton):
         self.start = problem_start
         self.end = problem_end
         self.min_swap_block_size = config.min_default_swap_block
-        self.hard_constraints: dict[int, pl.DataFrame] = {}
-        self.soft_constraints: dict[int, pl.DataFrame] = {}
+
+        self.hard_constraints: dict[
+            tuple[ProdID | None, MachID | None], pl.DataFrame
+        ] = {}
+        self.soft_constraints: dict[
+            tuple[ProdID | None, MachID | None], pl.DataFrame
+        ] = {}
 
         # Create a template datetime range for all products
         self.datetime_range = pl.datetime_range(
@@ -97,19 +107,28 @@ class ConstraintArbiter(metaclass=Singleton):
             )
 
         for constraint in constraints:
-            cons_start_date = None
-            try:
-                cons_start_date = constraint.start_date
-            except AttributeError:
-                pass
+            cons_start_date = (
+                self.start
+                if constraint.start_date is None
+                else constraint.start_date
+            )
 
-            cons_end_date = None
-            try:
-                cons_end_date = constraint.end_date
-            except AttributeError:
-                pass
+            cons_end_date = (
+                self.end
+                if constraint.end_date is None
+                else constraint.end_date
+            )
 
-            product_id = constraint.product._id
+            try:
+                product_id = constraint.product._id
+            except AttributeError:
+                product_id = None
+
+            try:
+                machine_id = constraint.machine._id
+            except Exception:
+                machine_id = None
+
             cons_name = type(constraint).__name__
 
             # First check if we know this product, or initialise
@@ -147,7 +166,7 @@ class ConstraintArbiter(metaclass=Singleton):
                 start = constraint.start_date
                 assert start is not None
                 start_index = get_bucket_index(
-                    self._start, self._end, self.config.timebucket, start
+                    self.start, self.end, self.config.timebucket, start
                 )
             except AttributeError:
                 pass
@@ -157,7 +176,7 @@ class ConstraintArbiter(metaclass=Singleton):
                 end = constraint.end_date
                 assert end is not None
                 end_index = get_bucket_index(
-                    self._start, self._end, self.config.timebucket, end
+                    self.start, self.end, self.config.timebucket, end
                 )
             except AttributeError:
                 pass

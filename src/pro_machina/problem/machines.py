@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Sequence
 from itertools import count
-from typing import TYPE_CHECKING, NotRequired, TypedDict
+from typing import TYPE_CHECKING, NewType, NotRequired, TypedDict
 
 import numpy.typing as npt
 import pandas as pd
@@ -45,11 +45,14 @@ class _MachineShift(TypedDict):
     shift: ShiftPattern
 
 
+MachID = NewType("MachID", int)
+
+
 class _Machine:
     _ids = count()
 
     def __init__(self, name: str) -> None:
-        self._id = next(self._ids)
+        self._id = MachID(next(self._ids))
         self.name = name
 
         self._products: dict[int, _MachineProduct] = {}
@@ -351,7 +354,7 @@ class ContinuousMachineGroup(ContinuousMachine):
     def __init__(
         self, name: str, machines: list[_Machine] | None = None
     ) -> None:
-        self._id = next(self._ids)
+        self._id = MachID(next(self._ids))
         self.name = name
         self.machines: list[_Machine] = (
             machines if machines is not None else []

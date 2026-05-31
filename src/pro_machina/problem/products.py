@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
-from typing import TypedDict
+from typing import NewType, TypedDict
 from warnings import warn
 
 import pro_machina
@@ -31,12 +31,15 @@ class _ComponentQty(TypedDict):
     unit: str
 
 
+ProdID = NewType("ProdID", int)
+
+
 class _Product:
     _ids = count(0)
 
     def __init__(self, name: str, base_dimension: UnsizedDimension):
 
-        self._id: int = next(self._ids)
+        self._id = ProdID(next(self._ids))
         self.name = name
         self.base_dimension = base_dimension
 
