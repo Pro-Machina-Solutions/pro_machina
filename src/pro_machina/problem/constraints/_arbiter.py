@@ -58,6 +58,7 @@ class ConstraintArbiter(metaclass=Singleton):
         self.start = problem_start
         self.end = problem_end
         self.min_swap_block_size = config.min_default_swap_block
+        self.timebucket = config.timebucket
 
         self.hard_constraints: dict[
             tuple[ProdID | None, MachID | None], pl.DataFrame
@@ -71,9 +72,10 @@ class ConstraintArbiter(metaclass=Singleton):
             self.start,
             self.end,
             interval=dt.timedelta(
-                seconds=self.min_swap_block_size.to_seconds(),
+                seconds=self.timebucket.to_seconds(),
             ),
             eager=True,
+            closed="left",
         )
 
         assert len(self.datetime_range) == self.num_buckets
