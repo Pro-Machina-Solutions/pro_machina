@@ -1,4 +1,5 @@
 import datetime as dt
+from uuid import uuid4
 
 from pro_machina.durations import Duration
 
@@ -63,6 +64,8 @@ class MinProductionTime(HardConstraint):
         machine: ContinuousMachine | None = None,
     ) -> None:
 
+        self._id = uuid4().hex
+
         if product is not None:
             check_continuous_prod_only(self, product)
         if machine is not None:
@@ -87,9 +90,6 @@ class MinProductionTime(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:
         check_continuous_machine_only(self, machine)
         self.machine = machine
-
-    def _get_values(self) -> dict[str, float]:
-        return {"value": self.value}
 
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
@@ -159,6 +159,8 @@ class MaxProductionTime(HardConstraint):
         self.product = product
         self.machine = machine
 
+        self._id = uuid4().hex
+
         if start_date is not None:
             self.start_date = parse_datetime(start_date)
         else:
@@ -175,9 +177,6 @@ class MaxProductionTime(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:
         check_continuous_machine_only(self, machine)
         self.machine = machine
-
-    def _get_values(self) -> dict[str, float]:
-        return {"value": self.value}
 
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
@@ -232,6 +231,7 @@ class SeasonalProduction(HardConstraint):
         product: _Product | None = None,
         machine: _Machine | None = None,
     ) -> None:
+        self._id = uuid4().hex
         self.start_date = parse_datetime(start_date)
         self.end_date = parse_datetime(end_date)
         self.product = product
@@ -243,9 +243,6 @@ class SeasonalProduction(HardConstraint):
 
     def _set_machine(self, machine: _Machine) -> None:
         self.machine = machine
-
-    def _get_values(self) -> dict[str, float]:
-        return {"value": self.value}
 
 
 class ReducedProductionPeriod(HardConstraint):
@@ -289,6 +286,7 @@ class ReducedProductionPeriod(HardConstraint):
         product: ContinuousProduct | None = None,
         machine: ContinuousMachine | None = None,
     ):
+        self._id = uuid4().hex
         self.start_date = parse_datetime(start_date)
         self.end_date = parse_datetime(end_date)
         self.product = product
@@ -302,9 +300,6 @@ class ReducedProductionPeriod(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:
         check_continuous_machine_only(self, machine)
         self.machine = machine
-
-    def _get_values(self) -> dict[str, float]:
-        return {"value": self.value}
 
 
 class MaxStorageCapacity(HardConstraint):

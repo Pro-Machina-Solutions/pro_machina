@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ...exceptions import ConstraintError
 
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 
 class Constraint(metaclass=ABCMeta):
+    _id: str
     start_date: dt.datetime | None
     end_date: dt.datetime | None
     product: _Product | None
@@ -23,30 +24,20 @@ class Constraint(metaclass=ABCMeta):
     @abstractmethod
     def _set_machine(self, _Machine) -> None: ...
 
-    @abstractmethod
-    def _get_values(self) -> dict[str, float]: ...
+    def _serialise(self) -> dict[str, Any]:
+        fields = self.__dict__
+        fields["name"] = type(self).__name__
 
-    def __hash__(self):
-        return hash(type(self).__name__)
+        if self.product is not None:
+            fields["product"] = self.product._id
+        else:
+            fields["product"] = None
 
-    # def __eq__(self, other: object):
-    #     if not isinstance(other, Constraint):
-    #         raise NotImplementedError
-
-    #     try:
-    #         start = self.start_date
-    #     except AttributeError:
-    #         start = None
-
-    #     try:
-    #         other_start = other.start_date
-    #     except AttributeError:
-    #         other_start = None
-
-    #     return (
-    #         hash(type(self).__name__) == hash(type(other).__name__)
-    #         and start == other_start
-    #     )
+        if self.machine is not None:
+            fields["machine"] = self.product._id
+        else:
+            fields["machine"] = None
+        return fields
 
 
 class HardConstraint(Constraint):

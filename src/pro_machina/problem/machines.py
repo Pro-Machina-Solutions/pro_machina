@@ -235,6 +235,11 @@ class ContinuousMachine(_Machine):
             run_rate_per=per,
         )
 
+    def add_machine_constraint(
+        self, constraint: HardConstraint | SoftConstraint
+    ):
+        pass
+
     def add_product_constraint(
         self,
         product: ContinuousProduct,
