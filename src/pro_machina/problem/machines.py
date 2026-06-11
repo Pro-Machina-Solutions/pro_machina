@@ -26,7 +26,11 @@ from ..util import (
     get_problem_buckets,
     parse_datetime,
 )
-from .constraints import Constraint, HardConstraint, SoftConstraint
+from .constraints import (
+    Constraint,
+    HardConstraint,
+    SoftConstraint,
+)
 from .products import BatchProduct, ContinuousProduct, _Product
 from .shifts import ShiftPattern
 
@@ -235,8 +239,10 @@ class ContinuousMachine(_Machine):
             run_rate_per=per,
         )
 
-    def add_machine_constraint(
-        self, constraint: HardConstraint | SoftConstraint
+    def add_hard_constraint(
+        self,
+        constraint: HardConstraint | SoftConstraint,
+        _level: int | None = 3,
     ):
         pass
 

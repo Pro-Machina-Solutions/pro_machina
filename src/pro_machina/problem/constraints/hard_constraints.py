@@ -64,15 +64,10 @@ class MinProductionTime(HardConstraint):
         machine: ContinuousMachine | None = None,
     ) -> None:
 
-        self._id = uuid4().hex
+        self._set_product(product)
+        self._set_machine(machine)
 
-        if product is not None:
-            check_continuous_prod_only(self, product)
-        if machine is not None:
-            check_continuous_machine_only(self, machine)
         self.value = value.to_seconds()
-        self.product = product
-        self.machine = machine
 
         if start_date is not None:
             self.start_date = parse_datetime(start_date)
@@ -83,12 +78,14 @@ class MinProductionTime(HardConstraint):
         else:
             self.end_date = None
 
-    def _set_product(self, product: ContinuousProduct) -> None:
-        check_continuous_prod_only(self, product)
+    def _set_product(self, product: ContinuousProduct | None) -> None:
+        if product is not None:
+            check_continuous_prod_only(self, product)
         self.product = product
 
-    def _set_machine(self, machine: ContinuousMachine) -> None:
-        check_continuous_machine_only(self, machine)
+    def _set_machine(self, machine: ContinuousMachine | None) -> None:
+        if machine is not None:
+            check_continuous_machine_only(self, machine)
         self.machine = machine
 
     def __repr__(self) -> str:
@@ -151,15 +148,11 @@ class MaxProductionTime(HardConstraint):
         product: ContinuousProduct | None = None,
         machine: ContinuousMachine | None = None,
     ) -> None:
-        if product is not None:
-            check_continuous_prod_only(self, product)
-        if machine is not None:
-            check_continuous_machine_only(self, machine)
-        self.value = value.to_seconds()
-        self.product = product
-        self.machine = machine
 
-        self._id = uuid4().hex
+        self._set_product(product)
+        self._set_machine(machine)
+
+        self.value = value.to_seconds()
 
         if start_date is not None:
             self.start_date = parse_datetime(start_date)
@@ -170,12 +163,14 @@ class MaxProductionTime(HardConstraint):
         else:
             self.end_date = None
 
-    def _set_product(self, product: ContinuousProduct) -> None:
-        check_continuous_prod_only(self, product)
+    def _set_product(self, product: ContinuousProduct | None) -> None:
+        if product is not None:
+            check_continuous_prod_only(self, product)
         self.product = product
 
-    def _set_machine(self, machine: ContinuousMachine) -> None:
-        check_continuous_machine_only(self, machine)
+    def _set_machine(self, machine: ContinuousMachine | None) -> None:
+        if machine is not None:
+            check_continuous_machine_only(self, machine)
         self.machine = machine
 
     def __repr__(self) -> str:

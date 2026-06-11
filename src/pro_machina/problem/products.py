@@ -168,7 +168,9 @@ class _Product:
                 ) + (amt * cons_qty)
 
     def add_hard_constraint(
-        self, constraints: HardConstraint | list[HardConstraint]
+        self,
+        constraints: HardConstraint | list[HardConstraint],
+        _level: int = 1,
     ) -> None:
         constraint_level = ConstraintLevel(1)
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime as dt
-from enum import Enum
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -13,15 +12,6 @@ from . import HardConstraint, SoftConstraint
 if TYPE_CHECKING:
     from ..machines import MachID
     from ..products import ProdID
-
-
-class ConstraintLevel(Enum):
-    DEFAULT = 1
-    PRODUCT = 2
-    PRODUCT_GROUP = 3
-    MACHINE = 4
-    MACHINE_GROUP = 5
-    PROBLEM = 6
 
 
 class ConstraintArbiter(metaclass=Singleton):

@@ -2,27 +2,35 @@ from __future__ import annotations
 
 import datetime as dt
 from abc import ABCMeta, abstractmethod
+from enum import Enum
 from typing import TYPE_CHECKING, Any
-
-from ...exceptions import ConstraintError
 
 if TYPE_CHECKING:
     from ..machines import _Machine
     from ..products import _Product
 
 
+class ConstraintLevel(Enum):
+    DEFAULT = 1
+    PRODUCT = 2
+    PRODUCT_GROUP = 3
+    MACHINE = 4
+    MACHINE_GROUP = 5
+    PROBLEM = 6
+
+
 class Constraint(metaclass=ABCMeta):
-    _id: str
     start_date: dt.datetime | None
     end_date: dt.datetime | None
     product: _Product | None
     machine: _Machine | None
+    _level: ConstraintLevel | None
 
     @abstractmethod
-    def _set_product(self, _Product) -> None: ...
+    def _set_product(self, product: _Product | None) -> None: ...
 
     @abstractmethod
-    def _set_machine(self, _Machine) -> None: ...
+    def _set_machine(self, machine: _Machine | None) -> None: ...
 
     def _serialise(self) -> dict[str, Any]:
         fields = self.__dict__
@@ -37,6 +45,7 @@ class Constraint(metaclass=ABCMeta):
             fields["machine"] = self.product._id
         else:
             fields["machine"] = None
+
         return fields
 
 
@@ -48,7 +57,7 @@ class SoftConstraint(Constraint):
     pass
 
 
-from ._arbiter import ConstraintArbiter, ConstraintLevel
+from ._arbiter import ConstraintArbiter
 from .constraint_groupings import (
     MutuallyExclusiveMachines,
     PairedMachines,
