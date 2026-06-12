@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Sequence
 from copy import deepcopy
 from itertools import count
 from typing import TYPE_CHECKING, NewType, NotRequired, TypedDict
@@ -28,19 +27,21 @@ from ..util import (
     parse_datetime,
 )
 from .constraints import (
-    Constraint,
     ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
-from .products import BatchProduct, ContinuousProduct, _Product
+from .products import (
+    BatchProduct,
+    ContinuousProduct,
+    ContinuousProductGroup,
+    _Product,
+)
 from .shifts import ShiftPattern
 
 
 class _MachineProduct(TypedDict):
     product: _Product
-    hard_constraints: list[HardConstraint]
-    soft_constraints: list[SoftConstraint]
     run_rate: NotRequired[SizedDimension]
     run_rate_per: NotRequired[Duration]
 
@@ -190,14 +191,21 @@ class ContinuousMachine(_Machine):
         The name of the machine. It does not have to be unique.
     """
 
-    def __init__(self, name) -> None:
+    def __init__(
+        self,
+        name,
+        default_run_rate: SizedDimension | None = None,
+        default_per: Duration | None = None,
+    ) -> None:
         super().__init__(name)
+        self.default_run_rate = default_run_rate
+        self.default_per = default_per
 
     def add_product(
         self,
         product: ContinuousProduct,
-        run_rate: SizedDimension,
-        per: Duration,
+        run_rate: SizedDimension | None,
+        per: Duration | None,
     ) -> None:
         """Define a ContinuousProduct and its associated run rate.
 
@@ -242,16 +250,29 @@ class ContinuousMachine(_Machine):
         self._hard_constraints.extend(deepcopy(product._hard_constraints))
         self._soft_constraints.extend(deepcopy(product._soft_constraints))
 
+        if run_rate is None and self.default_run_rate is None:
+            raise MachineError(
+                (
+                    f"Unknown run rate for product: {product.name}. If this is"
+                    " Are you trying to add a ProductGroup? In that case, a"
+                    " default on the machine must be specified and it will"
+                    " apply to all prodcts in the group."
+                ).lstrip()
+            )
+
         self._products[product._id] = _MachineProduct(
             product=product,
             run_rate=run_rate,
             run_rate_per=per,
         )
 
+    def add_product_group(self, group: ContinuousProductGroup):
+        pass
+
     def add_hard_constraint(
         self,
         constraints: HardConstraint | list[HardConstraint],
-        _level: int = 1,
+        _level: int = 3,
     ) -> None:
 
         constraint_level = ConstraintLevel(_level)
@@ -263,123 +284,13 @@ class ContinuousMachine(_Machine):
             raise TypeError("Constraints must all be of type HardConstraint")
 
         for constraint in constraints:
+            print("CONS")
+            print(constraint.machine)
             if constraint.machine is None:
                 constraint._set_machine(self)
             constraint._level = constraint_level
 
         self._hard_constraints.extend(constraints)
-
-    def add_product_constraint(
-        self,
-        product: ContinuousProduct,
-        constraint: HardConstraint | SoftConstraint,
-    ) -> None:
-        """Define a constraint on the **machine** level for this product.
-
-        The method takes both Hard and Soft-constraints along with the specific
-        product that it applies to for this specific machine. The machine-level
-        constraint will automatically supersede any duplicate constraint that
-        had been defined on the **product** level.
-
-        For example, one could set a `MaxProductionTime` hard constraint on the
-        **product** level that will apply to all machines by default:
-
-        ```
-        from pro_machina import ContinuousMachine, ContinuousProduct
-        from pro_machina.durations import Hours
-        from pro_machina.problem.constraint import MaxProductionTime
-
-        product = ContinuousProduct("Prod A")
-        product.add_hard_constraint(MaxProductionTime(Hours(8)))
-
-        machine = ContinuousMachine("Machine 1")
-        # The product-level constraint is automatically carried over
-        machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-        ```
-
-        That is useful if all machines run under the same circumstances, but
-        you can override that for a specific machine by re-defining it using
-        this method:
-
-        ```
-        from pro_machina import ContinuousMachine, ContinuousProduct
-        from pro_machina.durations import Hours, Mins
-        from pro_machina.measures import BaseUnit, Unit
-        from pro_machina.problem.constraints import MaxProductionTime
-
-        product = ContinuousProduct("Prod A", BaseUnit)
-        # Set the default constraint on the product level for all machines
-        product.add_hard_constraint(MaxProductionTime(Hours(8)))
-
-        for x in range(10):
-            if x == 5:
-                # Special-case the constraint for this product-machine combo
-                machine = ContinuousMachine(f"Machine {x}")
-                machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-                machine.add_product_constraint(
-                    product,
-                    MaxProductionTime(Hours(4))
-                )
-            else:
-                # Get the default MaxProductionTime: 8hrs
-                machine = ContinuousMachine(f"Machine {x}")
-                machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-        ```
-
-        The code will issue a warning for every constraint overwritten in this
-        way. To stop these warnings, you can set `config.silence_warnings =
-        True`
-
-        Parameters
-        ----------
-        product : ContinuousProduct
-            Specify the product that this constraint applies to for this
-            specific machine.
-        constraint : HardConstraint | SoftConstraint
-            Constraint to be added. If the constraint already exists on the
-            product level, it will be overwritten for this specific machine.
-
-        Raises
-        ------
-        MachineError
-            Raised if this product has not already been specified as something
-            this machine can produce.
-        """
-        if product._id not in self._products:
-            raise MachineError(
-                f"Product: {product.name} has not been added to {self.name}"
-            )
-
-        _product = self._products[product._id]
-
-        existing_cons: Sequence[Constraint]
-
-        if isinstance(constraint, HardConstraint):
-            existing_cons = _product["hard_constraints"]
-        else:
-            existing_cons = _product["soft_constraints"]
-
-        if constraint in existing_cons:
-            if not pro_machina.options["silence_constraint_overrides"]:
-                warn(
-                    "\n"
-                    + (
-                        f"{constraint.__class__.__name__} has already"
-                        f" been defined for {product.name} and is being"
-                        f" overwritten by {constraint} for Machine:"
-                        f" {self.name}\n"
-                    ),
-                    stacklevel=3,
-                )
-            existing_cons = [con for con in existing_cons if con != constraint]
-            existing_cons.append(constraint)  # type: ignore
-        else:
-            existing_cons.append(constraint)  # type: ignore
-
-        if isinstance(constraint, HardConstraint):
-            _product["hard_constraints"] = existing_cons  # type: ignore
-        else:
-            _product["soft_constraints"] = existing_cons  # type: ignore
 
 
 class ContinuousMachineGroup(ContinuousMachine):
