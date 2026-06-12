@@ -81,9 +81,7 @@ class Problem:
         self._start = as_day_start(self._user_start_time)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
-        self._constraint_arbiter = ConstraintArbiter(
-            self._start, self._end, self.config
-        )
+        self._arbiter = ConstraintArbiter(self._start, self._end, self.config)
 
         # Flags
         self._is_built = False

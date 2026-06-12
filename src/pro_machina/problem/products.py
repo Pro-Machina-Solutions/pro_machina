@@ -172,7 +172,8 @@ class _Product:
         constraints: HardConstraint | list[HardConstraint],
         _level: int = 1,
     ) -> None:
-        constraint_level = ConstraintLevel(1)
+
+        constraint_level = ConstraintLevel(_level)
 
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]
@@ -180,27 +181,12 @@ class _Product:
         if not all(isinstance(item, HardConstraint) for item in constraints):
             raise TypeError("Constraints must all be of type HardConstraint")
 
-        to_remove = set()
-        for cons in constraints:
-            if cons in self._hard_constraints:
-                if not pro_machina.options["silence_constraint_overrides"]:
-                    warn(
-                        "\n"
-                        + (
-                            f"{constraints.__class__.__name__} has already"
-                            f" been defined for {self.name} and is being"
-                            f" overwritten by {constraints}\n"
-                        ),
-                        stacklevel=3,
-                    )
-                to_remove.add(cons)
-            cons._set_product(self)
+        for constraint in constraints:
+            if constraint.product is None:
+                constraint._set_product(self)
+            constraint._level = constraint_level
 
-        new_cons = [
-            item for item in self._hard_constraints if item not in to_remove
-        ]
-        new_cons.extend(constraints)
-        self._hard_constraints = new_cons
+        self._hard_constraints.extend(constraints)
 
     def add_soft_constraint(
         self, constraints: SoftConstraint | list[SoftConstraint]

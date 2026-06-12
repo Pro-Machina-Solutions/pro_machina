@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING
 import polars as pl
 
 from ...config import Config
-from ...util import Singleton, get_bucket_index, get_problem_buckets
-from . import HardConstraint, SoftConstraint
+from ...util import get_bucket_index, get_problem_buckets
+from . import ConstraintLevel, HardConstraint, SoftConstraint
 
 if TYPE_CHECKING:
     from ..machines import MachID
     from ..products import ProdID
 
 
-class ConstraintArbiter(metaclass=Singleton):
+class ConstraintArbiter:
     """A centralised controller of all constraints within a problem
 
     The Arbiter stores constraints as columns in a dataframe. The rows of the
@@ -51,10 +51,10 @@ class ConstraintArbiter(metaclass=Singleton):
         self.timebucket = config.timebucket
 
         self.hard_constraints: dict[
-            tuple[ProdID | None, MachID | None], pl.DataFrame
+            tuple[ProdID | None, MachID | None], list[HardConstraint]
         ] = {}
         self.soft_constraints: dict[
-            tuple[ProdID | None, MachID | None], pl.DataFrame
+            tuple[ProdID | None, MachID | None], list[SoftConstraint]
         ] = {}
 
         # Create a template datetime range for all products

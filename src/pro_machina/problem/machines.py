@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Sequence
+from copy import deepcopy
 from itertools import count
 from typing import TYPE_CHECKING, NewType, NotRequired, TypedDict
 
@@ -28,6 +29,7 @@ from ..util import (
 )
 from .constraints import (
     Constraint,
+    ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
@@ -61,6 +63,9 @@ class _Machine:
 
         self._products: dict[int, _MachineProduct] = {}
         self._shifts: list[_MachineShift] = []
+
+        self._hard_constraints: list[HardConstraint] = []
+        self._soft_constraints: list[SoftConstraint] = []
 
     def add_shift(
         self,
@@ -104,7 +109,7 @@ class _Machine:
             end_date = parse_datetime(end_date)
 
         if end_date is not None and start_date is not None:
-            if end_date < start_date:
+            if end_date <= start_date:
                 raise ValueError("End date cannot be before start date")
 
         self._shifts.append(
@@ -228,23 +233,41 @@ class ContinuousMachine(_Machine):
                 f"Can only add ContinuousProduct to machine: {self.name}"
             )
 
-        # Copy over the constraints at this point. They may get overwritten
-        # using `add_product_constraint` and we don't want that to affect the
-        # product itself for other machines
+        # When adding a product, we want to first "inherit" its own list of
+        # constraints as a basis to ours. Make a copy where such that any new
+        # product changes after being added to a machine are definitely fixed.
+        # At this point, no arbiter has been able to run until the machine is
+        # actually added to the problem, but it will resolve product-only,
+        # machine-only and machine-product pairing constraints
+        self._hard_constraints.extend(deepcopy(product._hard_constraints))
+        self._soft_constraints.extend(deepcopy(product._soft_constraints))
+
         self._products[product._id] = _MachineProduct(
             product=product,
-            hard_constraints=product._hard_constraints[:],
-            soft_constraints=product._soft_constraints[:],
             run_rate=run_rate,
             run_rate_per=per,
         )
 
     def add_hard_constraint(
         self,
-        constraint: HardConstraint | SoftConstraint,
-        _level: int | None = 3,
-    ):
-        pass
+        constraints: HardConstraint | list[HardConstraint],
+        _level: int = 1,
+    ) -> None:
+
+        constraint_level = ConstraintLevel(_level)
+
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
+
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
+
+        for constraint in constraints:
+            if constraint.machine is None:
+                constraint._set_machine(self)
+            constraint._level = constraint_level
+
+        self._hard_constraints.extend(constraints)
 
     def add_product_constraint(
         self,
