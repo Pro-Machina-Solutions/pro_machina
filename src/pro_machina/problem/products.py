@@ -325,6 +325,75 @@ class ContinuousProductGroup:
         if not all(isinstance(item, _Product) for item in self.products):
             raise TypeError("Incorrect type added to product group")
 
+    def add_component(
+        self,
+        component: BatchProduct | ContinuousProduct | Consumable,
+        qty: SizedDimension | CustomUnit,
+        per: SizedDimension,
+    ):
+        """Add either a consumable or a subproduct to the Bill of Materials.
+
+        In each case, the quantity of product must be specified for each
+        component being added. So, in the below example, we know that the
+        product will be created in FluidVolume measures. However, when adding
+        components, we can state their quantity in relation to a variable
+        amount to the product being made.
+
+        This is for convenience as not all consumables will be known on a
+        per-unit-measure basis but rather on some aggregate basis.
+
+        A simple example of usage:
+        ```
+        from pro_machina import ContinuousProduct
+        from pro_machina.measures import(FluidVolume, Kilo, Litre, Millilitre)
+
+        goop = ContinuousProduct("Goop (TM)", FluidVolume)
+        goop.add_component(sugar, qty=Kilo("0.5"), per=Litre(1))
+        goop.add_component(starch, qty=Kilo(20), per=Litre(250))
+        goop.add_component(rasp_flav, qty=Millilitre(19), per=Litre(2))
+        ```
+
+        Parameters
+        ----------
+        component : BatchProduct | ContinuousProduct | Consumable
+            An instance of a pre-defined product or consumable.
+        qty : SizedDimension | CustomUnit
+            The quantity and dimension of component.
+        per : SizedDimension
+            The units specified for this product.
+
+        Raises
+        ------
+        UnitError
+            Raised when either trying to add a component more than once or when
+            specifying components in units that are not compatible with either
+            this product or their own measurement unit.
+        """
+        for product in self.products:
+            product.add_component(component, qty, per)
+
+    def add_hard_constraint(
+        self,
+        constraints: HardConstraint | list[HardConstraint],
+    ) -> None:
+
+        constraint_level = ConstraintLevel(2)
+
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
+
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
+
+        for product in self.products:
+            for constraint in constraints:
+                if constraint.product is None:
+                    constraint._set_product(product)
+
+                product.add_hard_constraint(
+                    constraint, _level=constraint_level
+                )
+
 
 @dataclass
 class ProductBatch:
