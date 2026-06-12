@@ -89,11 +89,11 @@ machine_2 = ContinuousMachine("Machine 2")
 machine_1.add_product(product_1, run_rate=Unit(50), per=Mins(1))
 machine_2.add_product(product_1, run_rate=Unit(60), per=Mins(1))
 
-# machine_1.add_hard_constraint()
+machine_1.add_hard_constraint(
+    MinProductionTime(value=Hours(3), product=product_1)
+)
 
-# Internally, we can see that the hard constraint of the product has been
-# propagated over to both machines. Don't worry about the syntax here as we're
-# looking at the internals just to demonstrate; this isn't part of the API.
+
 print()
 print("Machine 1 constraints")
 print(machine_1._hard_constraints, "\n")

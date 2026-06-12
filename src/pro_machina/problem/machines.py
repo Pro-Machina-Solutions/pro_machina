@@ -242,7 +242,7 @@ class ContinuousMachine(_Machine):
             )
 
         # When adding a product, we want to first "inherit" its own list of
-        # constraints as a basis to ours. Make a copy where such that any new
+        # constraints as a basis to ours. Make a copy such that any new
         # product changes after being added to a machine are definitely fixed.
         # At this point, no arbiter has been able to run until the machine is
         # actually added to the problem, but it will resolve product-only,
@@ -253,7 +253,7 @@ class ContinuousMachine(_Machine):
         if run_rate is None and self.default_run_rate is None:
             raise MachineError(
                 (
-                    f"Unknown run rate for product: {product.name}. If this is"
+                    f"Unknown run rate for product: {product.name}."
                     " Are you trying to add a ProductGroup? In that case, a"
                     " default on the machine must be specified and it will"
                     " apply to all prodcts in the group."
@@ -284,8 +284,6 @@ class ContinuousMachine(_Machine):
             raise TypeError("Constraints must all be of type HardConstraint")
 
         for constraint in constraints:
-            print("CONS")
-            print(constraint.machine)
             if constraint.machine is None:
                 constraint._set_machine(self)
             constraint._level = constraint_level

@@ -14,6 +14,7 @@ from .type_checkers import (
 
 
 class MinProductionTime(HardConstraint):
+    # TODO needs to take a ProductGroup and MachineGroup
     """Specify the minimum continuous run time of a product or a machine
 
     **Only applies to Continous Products/Machines**
@@ -99,6 +100,7 @@ class MinProductionTime(HardConstraint):
 
 
 class MaxProductionTime(HardConstraint):
+    # TODO needs to take a ProductGroup and MachineGroup
     """Specify the maximum continuous run time of a product or a machine
 
     **Only applies to Continous Products/Machines**
@@ -184,6 +186,7 @@ class MaxProductionTime(HardConstraint):
 
 
 class SeasonalProduction(HardConstraint):
+    # TODO needs to take ProductGroup
     """Specify a date range in which a product can be produced
 
     This is useful for promos or events e.g. products that are only produced
@@ -241,6 +244,7 @@ class SeasonalProduction(HardConstraint):
 
 
 class ReducedProductionPeriod(HardConstraint):
+    # TODO needs to take a ProductGroup and MachineGroup
     """Define a period in which the production rate is lower than normal
 
     **Only applies to Continous Products/Machines**
@@ -297,11 +301,32 @@ class ReducedProductionPeriod(HardConstraint):
         self.machine = machine
 
 
+class ProductSwitchoverTime(HardConstraint):
+    # TODO needs to take a ProductGroup and MachineGroup and some Duration
+    pass
+
+
+class ProductCannotFollowProduct(HardConstraint):
+    # TODO
+    # Needs to take a Product or ProductGroup and MachineGroup. If there's only
+    # two product groups defined, which have coverage of all products then it
+    # will deadlock the machine to one group
+    pass
+
+
 class MaxStorageCapacity(HardConstraint):
+    # TODO
+    # Needs to take a Product or a ProductGroup and some unit of storage. This
+    # could be in terms of cumulative units up through to pallets of products.
+    # We will need to check that custom units have been defined if it doesn't
+    # involve base units of items, and they will need to be compatible
     pass
 
 
 class MaxProductLifetime(HardConstraint):
+    # TODO
+    # Takes a Product or ProductGroup and some duration. We will have to assume
+    # that the site does correct stock rotation
     pass
 
 
