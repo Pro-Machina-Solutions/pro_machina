@@ -7,6 +7,7 @@ import polars as pl
 
 from ...config import Config
 from ...util import get_problem_buckets
+from ..products import ProdID
 from . import ConstraintLevel, HardConstraint
 
 if TYPE_CHECKING:
@@ -80,4 +81,16 @@ class ConstraintArbiter:
     def arbitrate_hard_constraints(
         self, constraints: list[HardConstraint]
     ) -> None:
-        pass
+        seen_products: set[ProdID] = set()
+        for con in constraints:
+            if (
+                con.product._id is not None
+                and con.product._id not in seen_products
+            ):
+                # Initialise the df for this
+                pass
+            print(
+                type(con).__name__,
+                con._level,
+                con.machine,
+            )

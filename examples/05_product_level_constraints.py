@@ -17,7 +17,13 @@ additional example files will show how this hierarchy hopefully builds into a
 coherent statement of the overall constraints within the problem.
 """
 
-from pro_machina import ContinuousMachine, ContinuousProduct, Problem
+import pro_machina
+from pro_machina import (
+    ContinuousMachine,
+    ContinuousProduct,
+    DemandForecast,
+    Problem,
+)
 from pro_machina.config import Config
 from pro_machina.durations import Hours, Mins, Weeks
 from pro_machina.measures import BaseUnit, Unit
@@ -25,6 +31,8 @@ from pro_machina.problem.constraints import (
     MaxProductionTime,
     MinProductionTime,
 )
+
+pro_machina.options["silence_warnings"] = True
 
 a = MinProductionTime
 b = MaxProductionTime
@@ -100,12 +108,14 @@ machine_1.add_hard_constraint(
 
 problem.add_machine(machine_1)
 problem.add_machine(machine_2)
-print()
-print("Machine 1 constraints")
-print(machine_1._hard_constraints, "\n")
-print("Machine 2 constraints")
-print(machine_2._hard_constraints)
-print("********************\n")
+problem.set_forecast(DemandForecast())
+problem.build()
+# print()
+# print("Machine 1 constraints")
+# print(machine_1._hard_constraints, "\n")
+# print("Machine 2 constraints")
+# print(machine_2._hard_constraints)
+# print("********************\n")
 
 # You might notice that the Start date and End date fields are None - that's
 # because, without specifying them in the constraint itself, they are assumed

@@ -34,6 +34,7 @@ from .constraints import (
 from .products import (
     ContinuousProduct,
     ContinuousProductGroup,
+    ProdID,
     _Product,
 )
 from .shifts import ShiftPattern
@@ -61,7 +62,7 @@ class _Machine:
         self._id = MachID(next(self._ids))
         self.name = name
 
-        self._products: dict[int, _MachineProduct] = {}
+        self._products: dict[ProdID, _MachineProduct] = {}
         self._shifts: list[_MachineShift] = []
 
         self._hard_constraints: list[HardConstraint] = []
@@ -123,6 +124,7 @@ class _Machine:
     def _build_shift_productivity(
         self, problem: Problem
     ) -> npt.NDArray[np.float64]:
+
         # Track total number of buckets in the problem.
         problem_num_buckets = get_problem_buckets(
             problem._start, problem._end, problem.config.timebucket
@@ -344,7 +346,7 @@ class BatchMachine(_Machine):
     def __init__(self, name) -> None:
         super().__init__(name)
 
-        self._products: dict[int, _MachineProduct] = {}
+        self._products: dict[ProdID, _MachineProduct] = {}
 
     # def add_product(self, product: BatchProduct):
 

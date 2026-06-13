@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import uuid
+from collections import defaultdict
 from copy import deepcopy
 from warnings import warn
 
@@ -25,13 +26,15 @@ from .constraints import (
     HardConstraint,
     SoftConstraint,
 )
+from .consumables import ConsID
 from .forecasts import DemandForecast
 from .machines import (
     BatchMachine,
     ContinuousMachine,
-    ContinuousMachineGroup,
+    MachID,
     _Machine,
 )
+from .products import ProdID
 from .stocks import InboundStock, StockHolding
 
 
@@ -84,29 +87,35 @@ class Problem:
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
 
-        self._arbiter = ConstraintArbiter(self._start, self._end, self.config)
-
         # Flags
         self._is_built = False
 
-        # Solver containers - things we'll pass to the solver
+        # Constraint arbiter
+        self._arbiter = ConstraintArbiter(self._start, self._end, self.config)
+
+        # Solver containers - other things we'll pass to the solver
         self._forecast: DemandForecast | None = None
-        self._machines: dict[int, _Machine] = {}
-        self._machine_groups: dict[int, dict[int, _Machine]] = {}
-        self._starting_stocks: dict[int, StockHolding] = {}
+        self._machines: dict[MachID, _Machine] = {}
+        # self._machine_groups: dict[int, dict[int, _Machine]] = {}
+        self._starting_stocks: dict[ConsID | ProdID, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
 
+        self._product_machine_mapping: dict[ProdID, list[MachID]] = (
+            defaultdict(list)
+        )
+        self._machine_product_mapping: dict[MachID, list[ProdID]] = {}
+
         self._machine_base_productivity: dict[
-            int, npt.NDArray[np.float64]
+            MachID, npt.NDArray[np.float64]
         ] = {}
 
         # Problem containers - things we need to make result human-readable
-        self._machine_names: dict[int, str] = {}
-        self._product_names: dict[int, str] = {}
-        self._consumable_names: dict[int, str] = {}
+        self._machine_names: dict[MachID, str] = {}
+        self._product_names: dict[ProdID, str] = {}
+        self._consumable_names: dict[ConsID, str] = {}
 
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
         """Add a machine to the problem
@@ -151,10 +160,14 @@ class Problem:
         self._hard_constraints.extend(deepcopy(machine._hard_constraints))
         self._soft_constraints.extend(deepcopy(machine._soft_constraints))
 
-        self._machines[machine._id] = machine
+        # Set the mappings
+        self._machine_product_mapping[machine._id] = list(
+            machine._products.keys()
+        )
+        for prod_id in machine._products.keys():
+            self._product_machine_mapping[prod_id].append(machine._id)
 
-    def add_machine_group(self, machine_group: ContinuousMachineGroup) -> None:
-        pass
+        self._machines[machine._id] = machine
 
     def add_stock(self, stock: StockHolding) -> None:
         """Add units of stock available at the problem start date
@@ -359,6 +372,7 @@ class Problem:
         self._product_names = (
             self._product_names | self._forecast._product_names
         )
+        self._arbiter.arbitrate_hard_constraints(self._hard_constraints)
         self._is_built = True
 
     def solve(self) -> None:

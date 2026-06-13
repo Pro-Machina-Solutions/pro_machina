@@ -6,8 +6,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..machines import _Machine
-    from ..products import _Product
+    from ..machines import MachID, _Machine
+    from ..products import ProdID, _Product
 
 
 class ConstraintLevel(Enum):
