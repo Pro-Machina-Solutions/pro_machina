@@ -170,7 +170,7 @@ class _Product:
     def add_hard_constraint(
         self,
         constraints: HardConstraint | list[HardConstraint],
-        _level: ConstraintLevel = ConstraintLevel.PRODUCT.value,
+        _level: int = ConstraintLevel.PRODUCT.value,
     ) -> None:
 
         if isinstance(constraints, HardConstraint):
@@ -206,7 +206,7 @@ class _Product:
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}\n"
                         ),
-                        stacklevel=3,
+                        stacklevel=1,
                     )
                 to_remove.add(cons)
             cons._set_product(self)
@@ -316,8 +316,8 @@ class ContinuousProductGroup:
             and not pro_machina.options["silence_warnings"]
         ):
             warn(
-                f"\n Duplicate products were added to group: {self.name}\n",
-                stacklevel=3,
+                f"\n Duplicate products were added to group: {self.name}",
+                stacklevel=1,
             )
 
         if not all(isinstance(item, _Product) for item in self.products):
@@ -336,8 +336,6 @@ class ContinuousProductGroup:
         self,
         constraints: HardConstraint | list[HardConstraint],
     ) -> None:
-
-        constraint_level = ConstraintLevel(2)
 
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]

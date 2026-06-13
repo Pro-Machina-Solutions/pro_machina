@@ -7,7 +7,7 @@ import polars as pl
 
 from ...config import Config
 from ...util import get_problem_buckets
-from . import ConstraintLevel
+from . import ConstraintLevel, HardConstraint
 
 if TYPE_CHECKING:
     pass
@@ -76,3 +76,8 @@ class ConstraintArbiter:
                 "MaxProductionTime_level": ConstraintLevel.DEFAULT.value,
             }
         )
+
+    def arbitrate_hard_constraints(
+        self, constraints: list[HardConstraint]
+    ) -> None:
+        pass

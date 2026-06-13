@@ -78,12 +78,12 @@ class MinProductionTime(HardConstraint):
         else:
             self.end_date = None
 
-    def _set_product(self, product: ContinuousProduct | None) -> None:
+    def _set_product(self, product: _Product | None) -> None:
         if product is not None:
             check_continuous_prod_only(self, product)
         self.product = product
 
-    def _set_machine(self, machine: ContinuousMachine | None) -> None:
+    def _set_machine(self, machine: _Machine | None) -> None:
         if machine is not None:
             check_continuous_machine_only(self, machine)
         self.machine = machine
@@ -163,12 +163,12 @@ class MaxProductionTime(HardConstraint):
         else:
             self.end_date = None
 
-    def _set_product(self, product: ContinuousProduct | None) -> None:
+    def _set_product(self, product: _Product | None) -> None:
         if product is not None:
             check_continuous_prod_only(self, product)
         self.product = product
 
-    def _set_machine(self, machine: ContinuousMachine | None) -> None:
+    def _set_machine(self, machine: _Machine | None) -> None:
         if machine is not None:
             check_continuous_machine_only(self, machine)
         self.machine = machine
@@ -233,10 +233,10 @@ class SeasonalProduction(HardConstraint):
         self.machine = machine
         self.value = 1
 
-    def _set_product(self, product: _Product) -> None:
+    def _set_product(self, product: _Product | None) -> None:
         self.product = product
 
-    def _set_machine(self, machine: _Machine) -> None:
+    def _set_machine(self, machine: _Machine | None) -> None:
         self.machine = machine
 
 
@@ -288,11 +288,11 @@ class ReducedProductionPeriod(HardConstraint):
         self.machine = machine
         self.value = value
 
-    def _set_product(self, product: ContinuousProduct) -> None:
+    def _set_product(self, product: ContinuousProduct) -> None:  # type: ignore[override]
         check_continuous_prod_only(self, product)
         self.product = product
 
-    def _set_machine(self, machine: ContinuousMachine) -> None:
+    def _set_machine(self, machine: ContinuousMachine) -> None:  # type: ignore[override]
         check_continuous_machine_only(self, machine)
         self.machine = machine
 

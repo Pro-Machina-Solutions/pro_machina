@@ -32,7 +32,6 @@ from .constraints import (
     SoftConstraint,
 )
 from .products import (
-    BatchProduct,
     ContinuousProduct,
     ContinuousProductGroup,
     _Product,
@@ -42,8 +41,8 @@ from .shifts import ShiftPattern
 
 class _MachineProduct(TypedDict):
     product: _Product
-    run_rate: NotRequired[SizedDimension]
-    run_rate_per: NotRequired[Duration]
+    run_rate: NotRequired[SizedDimension | None]
+    run_rate_per: NotRequired[Duration | None]
 
 
 class _MachineShift(TypedDict):
@@ -272,7 +271,7 @@ class ContinuousMachine(_Machine):
     def add_hard_constraint(
         self,
         constraints: HardConstraint | list[HardConstraint],
-        _level: ConstraintLevel = ConstraintLevel.MACHINE.value,
+        _level: int = ConstraintLevel.MACHINE.value,
     ) -> None:
 
         if isinstance(constraints, HardConstraint):
@@ -333,8 +332,8 @@ class ContinuousMachineGroup(ContinuousMachine):
             and not pro_machina.options["silence_warnings"]
         ):
             warn(
-                f"\n Duplicate machines were added to group: {self.name}\n",
-                stacklevel=3,
+                f"\n Duplicate machines were added to group: {self.name}",
+                stacklevel=1,
             )
 
         if not all(isinstance(item, _Machine) for item in self.machines):
@@ -347,13 +346,13 @@ class BatchMachine(_Machine):
 
         self._products: dict[int, _MachineProduct] = {}
 
-    def add_product(self, product: BatchProduct):
+    # def add_product(self, product: BatchProduct):
 
-        if not isinstance(product, BatchProduct):
-            raise MachineError("Can only add BatchProduct to this machine")
+    #     if not isinstance(product, BatchProduct):
+    #         raise MachineError("Can only add BatchProduct to this machine")
 
-        self._products[product._id] = _MachineProduct(
-            product=product,
-            hard_constraints=product._hard_constraints,
-            soft_constraints=product._soft_constraints,
-        )
+    #     self._products[product._id] = _MachineProduct(
+    #         product=product,
+    #         hard_constraints=product._hard_constraints,
+    #         soft_constraints=product._soft_constraints,
+    #     )

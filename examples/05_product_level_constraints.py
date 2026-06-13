@@ -90,10 +90,16 @@ machine_1.add_product(product_1, run_rate=Unit(50), per=Mins(1))
 machine_2.add_product(product_1, run_rate=Unit(60), per=Mins(1))
 
 machine_1.add_hard_constraint(
-    MinProductionTime(value=Hours(3), product=product_1)
+    MinProductionTime(
+        value=Hours(3),
+        product=product_1,
+        start_date="2026-03-03 00:00:00",
+        end_date="2026-03-04 00:00:00",
+    )
 )
 
-
+problem.add_machine(machine_1)
+problem.add_machine(machine_2)
 print()
 print("Machine 1 constraints")
 print(machine_1._hard_constraints, "\n")

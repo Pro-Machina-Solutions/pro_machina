@@ -24,7 +24,7 @@ class Constraint(metaclass=ABCMeta):
     end_date: dt.datetime | None
     product: _Product | None
     machine: _Machine | None
-    _level: ConstraintLevel | None
+    _level: int
 
     @abstractmethod
     def _set_product(self, product: _Product | None) -> None: ...
@@ -42,7 +42,7 @@ class Constraint(metaclass=ABCMeta):
             fields["product"] = None
 
         if self.machine is not None:
-            fields["machine"] = self.product._id
+            fields["machine"] = self.machine._id
         else:
             fields["machine"] = None
 

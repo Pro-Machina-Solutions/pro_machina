@@ -37,16 +37,15 @@ from .stocks import InboundStock, StockHolding
 
 def _check_constraint_is_fully_specified(constraint: Constraint) -> None:
 
-    if constraint.product is None or (
+    if (hasattr(constraint, "product") and constraint.product is None) or (
         hasattr(constraint, "machine") and constraint.machine is None
     ):
         raise ConstraintError(
             (
                 "Constraints on the Problem level must be fully specified"
                 " and that's not the case for"
-                f" {type(constraint).__name__}. If the constraint"
-                " takes a product and a machine, then both must be"
-                " specified."
+                f" {type(constraint).__name__}. If the constraint takes a "
+                " product and a machine, then both must be specified."
             ).lstrip()
         )
 
@@ -78,17 +77,19 @@ class Problem:
     ):
         self.config = config if config is not None else Config()
 
+        # Params
         self._user_start_time: dt.datetime | dt.date
         self._user_start_time = parse_datetime(start_time)
         self._start = as_day_start(self._user_start_time)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
+
         self._arbiter = ConstraintArbiter(self._start, self._end, self.config)
 
         # Flags
         self._is_built = False
 
-        # Containers
+        # Solver containers - things we'll pass to the solver
         self._forecast: DemandForecast | None = None
         self._machines: dict[int, _Machine] = {}
         self._machine_groups: dict[int, dict[int, _Machine]] = {}
@@ -102,6 +103,7 @@ class Problem:
             int, npt.NDArray[np.float64]
         ] = {}
 
+        # Problem containers - things we need to make result human-readable
         self._machine_names: dict[int, str] = {}
         self._product_names: dict[int, str] = {}
         self._consumable_names: dict[int, str] = {}
@@ -139,7 +141,7 @@ class Problem:
                 "\n"
                 + f"No shift pattern added for {machine.name}. It's assumed to"
                 " always be running",
-                stacklevel=3,
+                stacklevel=1,
             )
 
         # Copy over the machine constraints at this point. Once a machine is
@@ -185,7 +187,7 @@ class Problem:
         ):
             warn(
                 "\n" + f"{stock.item.name} starting stock being overwritten",
-                stacklevel=3,
+                stacklevel=1,
             )
         self._starting_stocks[stock._id] = stock
 
@@ -320,9 +322,9 @@ class Problem:
                 f" product: {constraint.product} and machine:"
                 f" {constraint.machine} already and is being set at the"
                 " problem level",
-                stacklevel=3,
+                stacklevel=1,
             )
-        self._soft_constraints.add(constraint)
+        # self._soft_constraints.add(constraint)
 
     def build(self) -> None:
         """Finalise the problem to be passed to the solver
