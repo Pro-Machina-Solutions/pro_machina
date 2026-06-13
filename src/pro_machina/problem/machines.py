@@ -272,10 +272,8 @@ class ContinuousMachine(_Machine):
     def add_hard_constraint(
         self,
         constraints: HardConstraint | list[HardConstraint],
-        _level: int = 3,
+        _level: ConstraintLevel = ConstraintLevel.MACHINE.value,
     ) -> None:
-
-        constraint_level = ConstraintLevel(_level)
 
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]
@@ -286,7 +284,7 @@ class ContinuousMachine(_Machine):
         for constraint in constraints:
             if constraint.machine is None:
                 constraint._set_machine(self)
-            constraint._level = constraint_level
+            constraint._level = _level
 
         self._hard_constraints.extend(constraints)
 

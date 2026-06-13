@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import uuid
+from copy import deepcopy
 from warnings import warn
 
 import numpy as np
@@ -20,6 +21,7 @@ from ..util import (
 from .constraints import (
     Constraint,
     ConstraintArbiter,
+    ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
@@ -42,7 +44,7 @@ def _check_constraint_is_fully_specified(constraint: Constraint) -> None:
             (
                 "Constraints on the Problem level must be fully specified"
                 " and that's not the case for"
-                f" {constraint.__class__.__name__}. If the constraint"
+                f" {type(constraint).__name__}. If the constraint"
                 " takes a product and a machine, then both must be"
                 " specified."
             ).lstrip()
@@ -93,8 +95,8 @@ class Problem:
         self._starting_stocks: dict[int, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
 
-        self._hard_constraints: set[HardConstraint] = set()
-        self._soft_constraints: set[SoftConstraint] = set()
+        self._hard_constraints: list[HardConstraint] = []
+        self._soft_constraints: list[SoftConstraint] = []
 
         self._machine_base_productivity: dict[
             int, npt.NDArray[np.float64]
@@ -129,11 +131,6 @@ class Problem:
         if self._is_built:
             raise ProblemError("Cannot alter a built problem")
 
-        if not isinstance(machine, _Machine):
-            raise TypeError(
-                "Can only add types: ContinuousMachine or BatchMachine"
-            )
-
         if machine._id in self._machines:
             raise ProblemError("Cannot add the same machine twice")
 
@@ -144,6 +141,14 @@ class Problem:
                 " always be running",
                 stacklevel=3,
             )
+
+        # Copy over the machine constraints at this point. Once a machine is
+        # added to the problem, no more changes can be made to that machine.
+        # Any product constraints, whether or not they are directly tied to
+        # that machine, will be carried over too.
+        self._hard_constraints.extend(deepcopy(machine._hard_constraints))
+        self._soft_constraints.extend(deepcopy(machine._soft_constraints))
+
         self._machines[machine._id] = machine
 
     def add_machine_group(self, machine_group: ContinuousMachineGroup) -> None:
@@ -231,7 +236,9 @@ class Problem:
 
         self._forecast = forecast
 
-    def add_hard_constraint(self, constraint: HardConstraint) -> None:
+    def add_hard_constraint(
+        self, constraints: HardConstraint | list[HardConstraint]
+    ) -> None:
         """Add a hard constraint at the problem level
 
         In this case, a hard constraint can be added directly to the problem,
@@ -258,25 +265,17 @@ class Problem:
         if self._is_built:
             raise ProblemError("Cannot alter a built problem")
 
-        if not isinstance(constraint, HardConstraint):
-            raise TypeError(
-                f"{constraint.__class__.__name__} is not a hard constraint"
-            )
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
 
-        _check_constraint_is_fully_specified(constraint)
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
 
-        if (
-            constraint in self._hard_constraints
-            and not pro_machina.options["silence_constraint_overrides"]
-        ):
-            warn(
-                f"\n{constraint.__class__.__name__} has been specified for"
-                f" product: {constraint.product} and machine:"
-                f" {constraint.machine} already and is being set at the"
-                " problem level",
-                stacklevel=3,
-            )
-        self._hard_constraints.add(constraint)
+        for constraint in constraints:
+            _check_constraint_is_fully_specified(constraint)
+            constraint._level = ConstraintLevel.PROBLEM.value
+
+        self._hard_constraints.extend(constraints)
 
     def add_soft_constraint(self, constraint: SoftConstraint) -> None:
         """Add a soft constraint at the problem level

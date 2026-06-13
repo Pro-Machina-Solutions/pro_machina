@@ -170,10 +170,8 @@ class _Product:
     def add_hard_constraint(
         self,
         constraints: HardConstraint | list[HardConstraint],
-        _level: int = 1,
+        _level: ConstraintLevel = ConstraintLevel.PRODUCT.value,
     ) -> None:
-
-        constraint_level = ConstraintLevel(_level)
 
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]
@@ -184,7 +182,7 @@ class _Product:
         for constraint in constraints:
             if constraint.product is None:
                 constraint._set_product(self)
-            constraint._level = constraint_level
+            constraint._level = _level
 
         self._hard_constraints.extend(constraints)
 
@@ -331,7 +329,6 @@ class ContinuousProductGroup:
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
     ):
-        f"""{_Product.add_hard_constraint.__doc__}"""
         for product in self.products:
             product.add_component(component, qty, per)
 
@@ -354,7 +351,7 @@ class ContinuousProductGroup:
                     constraint._set_product(product)
 
                 product.add_hard_constraint(
-                    constraint, _level=constraint_level
+                    constraint, _level=ConstraintLevel.PRODUCT_GROUP.value
                 )
 
 
