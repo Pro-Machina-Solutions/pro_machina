@@ -103,10 +103,10 @@ class Problem:
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
 
-        self._product_machine_mapping: dict[ProdID, list[MachID]] = (
-            defaultdict(list)
+        self._prod_machine_mapping: dict[ProdID, list[MachID]] = defaultdict(
+            list
         )
-        self._machine_product_mapping: dict[MachID, list[ProdID]] = {}
+        self._machine_prod_mapping: dict[MachID, list[ProdID]] = {}
 
         self._machine_base_productivity: dict[
             MachID, npt.NDArray[np.float64]
@@ -161,11 +161,11 @@ class Problem:
         self._soft_constraints.extend(deepcopy(machine._soft_constraints))
 
         # Set the mappings
-        self._machine_product_mapping[machine._id] = list(
+        self._machine_prod_mapping[machine._id] = list(
             machine._products.keys()
         )
         for prod_id in machine._products.keys():
-            self._product_machine_mapping[prod_id].append(machine._id)
+            self._prod_machine_mapping[prod_id].append(machine._id)
 
         self._machines[machine._id] = machine
 
@@ -372,7 +372,11 @@ class Problem:
         self._product_names = (
             self._product_names | self._forecast._product_names
         )
-        self._arbiter.arbitrate_hard_constraints(self._hard_constraints)
+        self._arbiter.arbitrate_hard_constraints(
+            self._hard_constraints,
+            self._prod_machine_mapping,
+            self._machine_prod_mapping,
+        )
         self._is_built = True
 
     def solve(self) -> None:
@@ -397,8 +401,8 @@ class Problem:
             prod_demands[k] = v.tolist()
 
         cons_demands = self._forecast._cons_demands
-        for k, v in cons_demands.items():  # type: ignore
-            cons_demands[k] = v.tolist()  # type: ignore
+        for k, v in cons_demands.items():
+            cons_demands[k] = v.tolist()
 
         payload["product_forecast"] = prod_demands
         payload["consumable_forecast"] = cons_demands

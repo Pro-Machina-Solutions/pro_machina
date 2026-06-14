@@ -7,8 +7,10 @@ import polars as pl
 
 from ...config import Config
 from ...util import get_problem_buckets
+from ..machines import MachID
 from ..products import ProdID
 from . import ConstraintLevel, HardConstraint
+from .hard_constraints import MinProductionTime
 
 if TYPE_CHECKING:
     pass
@@ -50,6 +52,19 @@ class ConstraintArbiter:
         self.min_swap_block_size = config.min_default_swap_block
         self.timebucket = config.timebucket
 
+        # When serialising a constraint, these keys represent identifiers of
+        # for the application of the constraint. Any other keys that aren't in
+        # this list must be field values.
+        self.non_field_values = set(
+            [
+                "name",
+                "product",
+                "machine",
+                "start_date",
+                "end_date",
+            ]
+        )
+
         # Create a template datetime range for all products
         self.datetime_range = pl.datetime_range(
             self.start,
@@ -63,32 +78,67 @@ class ConstraintArbiter:
 
         assert len(self.datetime_range) == self.num_buckets
 
-    def initialise_product_dataframe(self) -> pl.DataFrame:
-        return pl.DataFrame(
-            {
-                "datetime": self.datetime_range,
-                "MinProductionTime": (
-                    self.config.min_default_swap_block.to_seconds()
-                ),
-                "MinProductionTime_level": ConstraintLevel.DEFAULT.value,
-                "MaxProductionTime": (
-                    self.config.max_default_swap_block.to_seconds()
-                ),
-                "MaxProductionTime_level": ConstraintLevel.DEFAULT.value,
-            }
-        )
+    def initialise_product_dataframe(
+        self, machines: list[MachID]
+    ) -> pl.DataFrame:
+        # The format we want here is {constraint_name}_{machine_id}_{field}
+        # for the actual values that apply
+        # We also need {constraint_name}_{machine_id}_level_{level}
+
+        default_constraints = ["MinProductionTime", "MaxProductionTime"]
+        default_min_value = self.config.min_default_swap_block.to_seconds()
+        default_max_value = self.config.max_default_swap_block.to_seconds()
+        default_level = ConstraintLevel.DEFAULT.value
+
+        # Now grab the field name from the constraint. To keep in sync with the
+        # actual field names, just make a dummy constraint
+        x = MinProductionTime(self.config.min_default_swap_block)
+        ser = x._serialise()
+        field_names = [k for k in ser.keys() if k not in self.non_field_values]
+
+        # Make the "spine" of the df
+        df = pl.DataFrame({"datetime": self.datetime_range})
+        for con in default_constraints:
+            for machine_id in machines:
+                for field_name in field_names:
+                    if field_name.startswith("Min"):
+                        val = default_min_value
+                    else:
+                        val = default_max_value
+                    col_name = f"{con}_{machine_id}_{field_name}"
+                    df = df.with_columns(pl.lit(val).alias(col_name))
+
+                level_field_name = f"{con}_{machine_id}_level"
+                df = df.with_columns(
+                    pl.lit(default_level).alias(level_field_name)
+                )
+        return df
 
     def arbitrate_hard_constraints(
-        self, constraints: list[HardConstraint]
+        self,
+        constraints: list[HardConstraint],
+        prod_machine_mapping: dict[ProdID, list[MachID]],
+        machine_prod_mapping: dict[MachID, list[ProdID]],
     ) -> None:
+
         seen_products: set[ProdID] = set()
+
         for con in constraints:
-            if (
-                con.product._id is not None
-                and con.product._id not in seen_products
-            ):
-                # Initialise the df for this
-                pass
+            if con.product is not None:
+                if con.product._id not in seen_products:
+                    self.initialise_product_dataframe(
+                        prod_machine_mapping[con.product._id]
+                    )
+                    break
+
+                fields = con._serialise()
+                if con.machine is None:
+                    # This means it should apply to every machine that makes
+                    # the product
+                    machines = prod_machine_mapping[con.product._id]
+                    level = fields["level"]
+                    con_name = fields["name"]
+
             print(
                 type(con).__name__,
                 con._level,

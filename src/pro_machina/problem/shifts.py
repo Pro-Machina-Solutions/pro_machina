@@ -836,19 +836,18 @@ class ShiftPattern:
             buckets, any overflow seconds into the next bucket and the
             associated overflow productivity percentage
         """
-        # Don't rebind to avoid stupid mypy issues throughout function
-        _start = start.to_seconds()
-        _end = end.to_seconds()
-        _timestep = timestep.to_seconds()
+        start = start.to_seconds()
+        end = end.to_seconds()
+        timestep = timestep.to_seconds()
 
-        start_bucket = int(_start // _timestep)
+        start_bucket = int(start // timestep)
         num_buckets = 0
-        while _start + _timestep <= _end:
+        while start + timestep <= end:
             num_buckets += 1
-            _start += _timestep
+            start += timestep
 
-        if (_end % _timestep) != 0:
-            overflow_secs = _end - (_start + (num_buckets * _timestep))
+        if (end % timestep) != 0:
+            overflow_secs = end - (start + (num_buckets * timestep))
             if overflow_secs < 0:
                 num_buckets += 1
                 overflow_secs = 0
