@@ -10,7 +10,6 @@ from ...util import get_problem_buckets
 from ..machines import MachID
 from ..products import ProdID
 from . import ConstraintLevel, HardConstraint
-from .hard_constraints import MinProductionTime
 
 if TYPE_CHECKING:
     pass
@@ -81,6 +80,9 @@ class ConstraintArbiter:
     def initialise_product_dataframe(
         self, machines: list[MachID]
     ) -> pl.DataFrame:
+        # TODO revisit this to make it less brittle if we need to have more
+        # defauls in future. For now it works.
+
         # The format we want here is {constraint_name}_{machine_id}_{field}
         # for the actual values that apply
         # We also need {constraint_name}_{machine_id}_level_{level}
@@ -90,28 +92,22 @@ class ConstraintArbiter:
         default_max_value = self.config.max_default_swap_block.to_seconds()
         default_level = ConstraintLevel.DEFAULT.value
 
-        # Now grab the field name from the constraint. To keep in sync with the
-        # actual field names, just make a dummy constraint
-        x = MinProductionTime(self.config.min_default_swap_block)
-        ser = x._serialise()
-        field_names = [k for k in ser.keys() if k not in self.non_field_values]
-
         # Make the "spine" of the df
         df = pl.DataFrame({"datetime": self.datetime_range})
         for con in default_constraints:
             for machine_id in machines:
-                for field_name in field_names:
-                    if field_name.startswith("Min"):
-                        val = default_min_value
-                    else:
-                        val = default_max_value
-                    col_name = f"{con}_{machine_id}_{field_name}"
-                    df = df.with_columns(pl.lit(val).alias(col_name))
+                if con.startswith("Min"):
+                    val = default_min_value
+                else:
+                    val = default_max_value
+                col_name = f"{con}_{machine_id}_value"
+                df = df.with_columns(pl.lit(val).alias(col_name))
 
                 level_field_name = f"{con}_{machine_id}_level"
                 df = df.with_columns(
                     pl.lit(default_level).alias(level_field_name)
                 )
+        df.write_csv("check_me.csv")
         return df
 
     def arbitrate_hard_constraints(
