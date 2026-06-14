@@ -245,7 +245,7 @@ class DemandForecast:
             self._sum_demand(
                 aggregator=self._prod_demands,
                 order=order,
-                _id=ProdID(order.product._id),
+                _id=order.product._id,
                 num_buckets=num_buckets,
                 start_date=start_date,
                 horizon_secs=horizon_secs,
@@ -257,7 +257,7 @@ class DemandForecast:
                 self._sum_demand(
                     aggregator=self._prod_demands,
                     order=order,
-                    _id=ProdID(subproduct_id),
+                    _id=subproduct_id,
                     num_buckets=num_buckets,
                     start_date=start_date,
                     horizon_secs=horizon_secs,
@@ -270,7 +270,7 @@ class DemandForecast:
                 self._sum_demand(
                     aggregator=self._cons_demands,
                     order=order,
-                    _id=ConsID(consumable_id),
+                    _id=consumable_id,
                     num_buckets=num_buckets,
                     start_date=start_date,
                     horizon_secs=horizon_secs,

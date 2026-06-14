@@ -397,8 +397,8 @@ class Problem:
             prod_demands[k] = v.tolist()
 
         cons_demands = self._forecast._cons_demands
-        for k, v in cons_demands.items():
-            cons_demands[k] = v.tolist()
+        for k, v in cons_demands.items():  # type: ignore
+            cons_demands[k] = v.tolist()  # type: ignore
 
         payload["product_forecast"] = prod_demands
         payload["consumable_forecast"] = cons_demands
