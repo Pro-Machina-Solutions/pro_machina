@@ -43,6 +43,8 @@ class ConstraintArbiter:
         config: Config,
     ) -> None:
         self.config = config
+
+        # Params
         self.num_buckets = get_problem_buckets(
             problem_start, problem_end, config.timebucket
         )
@@ -74,8 +76,10 @@ class ConstraintArbiter:
             eager=True,
             closed="left",
         )
-
         assert len(self.datetime_range) == self.num_buckets
+
+        # Containers
+        self.product_hard_constraints: dict[ProdID, pl.DataFrame] = {}
 
     def initialise_product_dataframe(
         self, machines: list[MachID]
@@ -107,7 +111,7 @@ class ConstraintArbiter:
                 df = df.with_columns(
                     pl.lit(default_level).alias(level_field_name)
                 )
-        df.write_csv("check_me.csv")
+
         return df
 
     def arbitrate_hard_constraints(
@@ -117,23 +121,29 @@ class ConstraintArbiter:
         machine_prod_mapping: dict[MachID, list[ProdID]],
     ) -> None:
 
-        seen_products: set[ProdID] = set()
-
         for con in constraints:
             if con.product is not None:
-                if con.product._id not in seen_products:
-                    self.initialise_product_dataframe(
+                if con.product._id not in self.product_hard_constraints:
+                    df = self.initialise_product_dataframe(
                         prod_machine_mapping[con.product._id]
                     )
-                    break
+                    self.product_hard_constraints[con.product._id] = df
+                else:
+                    df = self.product_hard_constraints[con.product._id]
 
                 fields = con._serialise()
-                if con.machine is None:
+                # TODO cherry-picking here for basic testing. Figure out how to
+                # handle each case gracefully
+
+                if con.machine is not None:
                     # This means it should apply to every machine that makes
                     # the product
                     machines = prod_machine_mapping[con.product._id]
                     level = fields["level"]
                     con_name = fields["name"]
+
+                    # Now need to check whether this constraint has been seen
+                    # before for this product
 
             print(
                 type(con).__name__,
