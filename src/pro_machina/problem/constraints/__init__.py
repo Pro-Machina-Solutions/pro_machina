@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from abc import ABCMeta, abstractmethod
+from copy import deepcopy
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -33,8 +34,8 @@ class Constraint(metaclass=ABCMeta):
     def _set_machine(self, machine: _Machine | None) -> None: ...
 
     def _serialise(self) -> dict[str, Any]:
-        fields = self.__dict__
-        fields["name"] = type(self).__name__
+        fields = deepcopy(self.__dict__)
+        fields["name"] = self.__class__.__name__
 
         if self.product is not None:
             fields["product"] = self.product._id
