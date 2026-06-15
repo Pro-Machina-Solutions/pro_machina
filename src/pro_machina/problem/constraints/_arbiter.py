@@ -57,13 +57,7 @@ class ConstraintArbiter:
         # for the application of the constraint. Any other keys that aren't in
         # this list must be field values.
         self.non_field_values = set(
-            [
-                "name",
-                "product",
-                "machine",
-                "start_date",
-                "end_date",
-            ]
+            ["name", "product", "machine", "start_date", "end_date", "_level"]
         )
 
         # Create a template datetime range for all products
@@ -114,6 +108,51 @@ class ConstraintArbiter:
 
         return df
 
+    def handle_existing_constraint(
+        self,
+        df: pl.DataFrame,
+        constraint: HardConstraint,
+        machines: list[MachID],
+    ) -> pl.DataFrame:
+        params = constraint._serialise()
+        params["start_date"] = (
+            params["start_date"]
+            if params["start_date"] is not None
+            else self.start
+        )
+        params["end_date"] = (
+            params["end_date"] if params["end_date"] is not None else self.end
+        )
+
+        con_name = type(constraint).__name__
+        fields = [
+            item for item in params.keys() if item not in self.non_field_values
+        ]
+
+        for machine in machines:
+            level_col = f"{con_name}_{machine}_level"
+            for field in fields:
+                named_col = f"{con_name}_{machine}_{field}"
+                df = df.with_columns(
+                    pl.when(
+                        (pl.col(level_col) <= params["_level"])
+                        & (pl.col("datetime") >= params["start_date"])
+                        & (pl.col("datetime") <= params["end_date"])
+                    )
+                    .then(params[field])
+                    .otherwise(named_col)
+                    .alias(named_col),
+                    pl.when(
+                        (pl.col(level_col) <= params["_level"])
+                        & (pl.col("datetime") >= params["start_date"])
+                        & (pl.col("datetime") < params["end_date"])
+                    )
+                    .then(params["_level"])
+                    .otherwise(pl.col(level_col))
+                    .alias(level_col),
+                )
+        return df
+
     def arbitrate_hard_constraints(
         self,
         constraints: list[HardConstraint],
@@ -131,22 +170,20 @@ class ConstraintArbiter:
                 else:
                     df = self.product_hard_constraints[con.product._id]
 
-                fields = con._serialise()
-                # TODO cherry-picking here for basic testing. Figure out how to
-                # handle each case gracefully
+                # First need to check whether the constraint has been seen
+                # before
+                existing_cons = [item.split("_")[0] for item in df.columns]
+                already_seen = type(con).__name__ in existing_cons
 
-                if con.machine is not None:
-                    # This means it should apply to every machine that makes
-                    # the product
-                    machines = prod_machine_mapping[con.product._id]
-                    level = fields["level"]
-                    con_name = fields["name"]
+                if already_seen:
+                    if con.machine is None:
+                        df = self.handle_existing_constraint(
+                            df, con, prod_machine_mapping[con.product._id]
+                        )
+                    else:
+                        df = self.handle_existing_constraint(
+                            df, con, [con.machine._id]
+                        )
+                    existing_cons.append(type(con).__name__)
 
-                    # Now need to check whether this constraint has been seen
-                    # before for this product
-
-            print(
-                type(con).__name__,
-                con._level,
-                con.machine,
-            )
+                self.product_hard_constraints[con.product._id] = df

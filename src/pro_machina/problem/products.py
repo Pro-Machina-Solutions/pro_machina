@@ -180,8 +180,7 @@ class _Product:
             raise TypeError("Constraints must all be of type HardConstraint")
 
         for constraint in constraints:
-            if constraint.product is None:
-                constraint._set_product(self)
+            constraint._set_product(self)
             constraint._level = _level
 
         self._hard_constraints.extend(constraints)
