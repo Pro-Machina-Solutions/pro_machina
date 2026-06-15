@@ -1,30 +1,21 @@
 from __future__ import annotations
 
 import datetime as dt
-from enum import Enum
 from typing import TYPE_CHECKING
 
 import polars as pl
 
-from ...util import Singleton, get_bucket_index, get_problem_buckets
-from ..machines import _Machine
-from ..products import _Product
-from . import HardConstraint, SoftConstraint
+from ...config import Config
+from ...util import get_problem_buckets
+from ..machines import MachID
+from ..products import ProdID
+from . import ConstraintLevel, HardConstraint
 
 if TYPE_CHECKING:
-    from ...config import Config
+    pass
 
 
-class ConstraintLevel(Enum):
-    DEFAULT = 1
-    PRODUCT = 2
-    PRODUCT_GROUP = 3
-    MACHINE = 4
-    MACHINE_GROUP = 5
-    PROBLEM = 6
-
-
-class ConstraintArbiter(metaclass=Singleton):
+class ConstraintArbiter:
     """A centralised controller of all constraints within a problem
 
     The Arbiter stores constraints as columns in a dataframe. The rows of the
@@ -52,83 +43,147 @@ class ConstraintArbiter(metaclass=Singleton):
         config: Config,
     ) -> None:
         self.config = config
+
+        # Params
         self.num_buckets = get_problem_buckets(
             problem_start, problem_end, config.timebucket
         )
-        self._start = problem_start
-        self._end = problem_end
+        self.start = problem_start
+        self.end = problem_end
         self.min_swap_block_size = config.min_default_swap_block
-        self.hard_constraints: dict[int, pl.DataFrame] = {}
-        self.soft_constraints: dict[int, pl.DataFrame] = {}
+        self.timebucket = config.timebucket
 
-    def set_hard_constraint(
+        # When serialising a constraint, these keys represent identifiers of
+        # for the application of the constraint. Any other keys that aren't in
+        # this list must be field values.
+        self.non_field_values = set(
+            ["name", "product", "machine", "start_date", "end_date", "_level"]
+        )
+
+        # Create a template datetime range for all products
+        self.datetime_range = pl.datetime_range(
+            self.start,
+            self.end,
+            interval=dt.timedelta(
+                seconds=self.timebucket.to_seconds(),
+            ),
+            eager=True,
+            closed="left",
+        )
+        assert len(self.datetime_range) == self.num_buckets
+
+        # Containers
+        self.product_hard_constraints: dict[ProdID, pl.DataFrame] = {}
+
+    def initialise_product_dataframe(
+        self, machines: list[MachID]
+    ) -> pl.DataFrame:
+        # TODO revisit this to make it less brittle if we need to have more
+        # defauls in future. For now it works.
+
+        # The format we want here is {constraint_name}_{machine_id}_{field}
+        # for the actual values that apply
+        # We also need {constraint_name}_{machine_id}_level_{level}
+
+        default_constraints = ["MinProductionTime", "MaxProductionTime"]
+        default_min_value = self.config.min_default_swap_block.to_seconds()
+        default_max_value = self.config.max_default_swap_block.to_seconds()
+        default_level = ConstraintLevel.DEFAULT.value
+
+        # Make the "spine" of the df
+        df = pl.DataFrame({"datetime": self.datetime_range})
+        for con in default_constraints:
+            for machine_id in machines:
+                if con.startswith("Min"):
+                    val = default_min_value
+                else:
+                    val = default_max_value
+                col_name = f"{con}_{machine_id}_value"
+                df = df.with_columns(pl.lit(val).alias(col_name))
+
+                level_field_name = f"{con}_{machine_id}_level"
+                df = df.with_columns(
+                    pl.lit(default_level).alias(level_field_name)
+                )
+
+        return df
+
+    def handle_existing_constraint(
         self,
-        product: _Product,
-        constraints: HardConstraint | list[HardConstraint],
-        level: ConstraintLevel,
-        machine: _Machine | None = None,
-    ) -> None:
-        if isinstance(constraints, HardConstraint):
-            constraints = [constraints]
+        df: pl.DataFrame,
+        constraint: HardConstraint,
+        machines: list[MachID],
+    ) -> pl.DataFrame:
+        params = constraint._serialise()
+        params["start_date"] = (
+            params["start_date"]
+            if params["start_date"] is not None
+            else self.start
+        )
+        params["end_date"] = (
+            params["end_date"] if params["end_date"] is not None else self.end
+        )
 
-        if not all(isinstance(con, HardConstraint) for con in constraints):
-            raise TypeError(
-                "Attempted to add something other than a HardConstraint"
-            )
+        con_name = type(constraint).__name__
+        fields = [
+            item for item in params.keys() if item not in self.non_field_values
+        ]
 
-        for constraint in constraints:
-            start_index = 0
-            try:
-                start = constraint.start_date
-                assert start is not None
-                start_index = get_bucket_index(
-                    self._start, self._end, self.config.timebucket, start
+        for machine in machines:
+            level_col = f"{con_name}_{machine}_level"
+            for field in fields:
+                named_col = f"{con_name}_{machine}_{field}"
+                df = df.with_columns(
+                    pl.when(
+                        (pl.col(level_col) <= params["_level"])
+                        & (pl.col("datetime") >= params["start_date"])
+                        & (pl.col("datetime") <= params["end_date"])
+                    )
+                    .then(params[field])
+                    .otherwise(named_col)
+                    .alias(named_col),
+                    pl.when(
+                        (pl.col(level_col) <= params["_level"])
+                        & (pl.col("datetime") >= params["start_date"])
+                        & (pl.col("datetime") < params["end_date"])
+                    )
+                    .then(params["_level"])
+                    .otherwise(pl.col(level_col))
+                    .alias(level_col),
                 )
-            except AttributeError:
-                pass
+        return df
 
-            end_index = self.num_buckets
-            try:
-                end = constraint.end_date
-                assert end is not None
-                end_index = get_bucket_index(
-                    self._start, self._end, self.config.timebucket, end
-                )
-            except AttributeError:
-                pass
-
-    def set_soft_constraint(
+    def arbitrate_hard_constraints(
         self,
-        product: _Product,
-        constraints: SoftConstraint | list[SoftConstraint],
-        level: ConstraintLevel,
-        machine: _Machine | None = None,
+        constraints: list[HardConstraint],
+        prod_machine_mapping: dict[ProdID, list[MachID]],
+        machine_prod_mapping: dict[MachID, list[ProdID]],
     ) -> None:
-        if isinstance(constraints, SoftConstraint):
-            constraints = [constraints]
 
-        if not all(isinstance(con, SoftConstraint) for con in constraints):
-            raise TypeError(
-                "Attempted to add something other than a SoftConstraint"
-            )
+        for con in constraints:
+            if con.product is not None:
+                if con.product._id not in self.product_hard_constraints:
+                    df = self.initialise_product_dataframe(
+                        prod_machine_mapping[con.product._id]
+                    )
+                    self.product_hard_constraints[con.product._id] = df
+                else:
+                    df = self.product_hard_constraints[con.product._id]
 
-        for constraint in constraints:
-            start_index = 0
-            try:
-                start = constraint.start_date
-                assert start is not None
-                start_index = get_bucket_index(
-                    self._start, self._end, self.config.timebucket, start
-                )
-            except AttributeError:
-                pass
+                # First need to check whether the constraint has been seen
+                # before
+                existing_cons = [item.split("_")[0] for item in df.columns]
+                already_seen = type(con).__name__ in existing_cons
 
-            end_index = self.num_buckets
-            try:
-                end = constraint.end_date
-                assert end is not None
-                end_index = get_bucket_index(
-                    self._start, self._end, self.config.timebucket, end
-                )
-            except AttributeError:
-                pass
+                if already_seen:
+                    if con.machine is None:
+                        df = self.handle_existing_constraint(
+                            df, con, prod_machine_mapping[con.product._id]
+                        )
+                    else:
+                        df = self.handle_existing_constraint(
+                            df, con, [con.machine._id]
+                        )
+                    existing_cons.append(type(con).__name__)
+
+                self.product_hard_constraints[con.product._id] = df

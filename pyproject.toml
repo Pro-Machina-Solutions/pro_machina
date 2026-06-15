@@ -21,6 +21,7 @@ dependencies = [
     "pytest<=9.0.2",
     "mypy<=1.20.1",
     "pandas-stubs<=3.0.0.260204",
+    "pandera[polars]",
 ]
 license-files = ["LICENSE.txt"]
 readme = "README.md"
@@ -69,3 +70,6 @@ select = [
 [tool.ruff.lint.isort]
 force-single-line = false
 order-by-type = true
+
+[tool.mypy]
+allow_redefinition = true

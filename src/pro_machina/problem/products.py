@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
-from typing import TypedDict
+from typing import NewType, TypedDict
 from warnings import warn
 
 import pro_machina
@@ -17,7 +17,11 @@ from ..measures import (
     UnsizedDimension,
     _UnitRegistry,
 )
-from .constraints import HardConstraint, SoftConstraint
+from .constraints import (
+    ConstraintLevel,
+    HardConstraint,
+    SoftConstraint,
+)
 from .consumables import Consumable
 
 
@@ -27,12 +31,15 @@ class _ComponentQty(TypedDict):
     unit: str
 
 
+ProdID = NewType("ProdID", int)
+
+
 class _Product:
     _ids = count(0)
 
     def __init__(self, name: str, base_dimension: UnsizedDimension):
 
-        self._id: int = next(self._ids)
+        self._id = ProdID(next(self._ids))
         self.name = name
         self.base_dimension = base_dimension
 
@@ -161,35 +168,22 @@ class _Product:
                 ) + (amt * cons_qty)
 
     def add_hard_constraint(
-        self, constraints: HardConstraint | list[HardConstraint]
+        self,
+        constraints: HardConstraint | list[HardConstraint],
+        _level: int = ConstraintLevel.PRODUCT.value,
     ) -> None:
+
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]
 
         if not all(isinstance(item, HardConstraint) for item in constraints):
             raise TypeError("Constraints must all be of type HardConstraint")
 
-        to_remove = set()
-        for cons in constraints:
-            if cons in self._hard_constraints:
-                if not pro_machina.options["silence_constraint_overrides"]:
-                    warn(
-                        "\n"
-                        + (
-                            f"{constraints.__class__.__name__} has already"
-                            f" been defined for {self.name} and is being"
-                            f" overwritten by {constraints}\n"
-                        ),
-                        stacklevel=3,
-                    )
-                to_remove.add(cons)
-            cons._set_product(self)
+        for constraint in constraints:
+            constraint._set_product(self)
+            constraint._level = _level
 
-        new_cons = [
-            item for item in self._hard_constraints if item not in to_remove
-        ]
-        new_cons.extend(constraints)
-        self._hard_constraints = new_cons
+        self._hard_constraints.extend(constraints)
 
     def add_soft_constraint(
         self, constraints: SoftConstraint | list[SoftConstraint]
@@ -211,7 +205,7 @@ class _Product:
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}\n"
                         ),
-                        stacklevel=3,
+                        stacklevel=1,
                     )
                 to_remove.add(cons)
             cons._set_product(self)
@@ -321,12 +315,41 @@ class ContinuousProductGroup:
             and not pro_machina.options["silence_warnings"]
         ):
             warn(
-                f"\n Duplicate products were added to group: {self.name}\n",
-                stacklevel=3,
+                f"\n Duplicate products were added to group: {self.name}",
+                stacklevel=1,
             )
 
         if not all(isinstance(item, _Product) for item in self.products):
             raise TypeError("Incorrect type added to product group")
+
+    def add_component(
+        self,
+        component: BatchProduct | ContinuousProduct | Consumable,
+        qty: SizedDimension | CustomUnit,
+        per: SizedDimension,
+    ):
+        for product in self.products:
+            product.add_component(component, qty, per)
+
+    def add_hard_constraint(
+        self,
+        constraints: HardConstraint | list[HardConstraint],
+    ) -> None:
+
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
+
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
+
+        for product in self.products:
+            for constraint in constraints:
+                if constraint.product is None:
+                    constraint._set_product(product)
+
+                product.add_hard_constraint(
+                    constraint, _level=ConstraintLevel.PRODUCT_GROUP.value
+                )
 
 
 @dataclass

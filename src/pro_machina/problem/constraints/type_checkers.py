@@ -1,12 +1,10 @@
 from ...exceptions import ConstraintError
-from ..machines import ContinuousMachine
-from ..products import ContinuousProduct
+from ..machines import ContinuousMachine, _Machine
+from ..products import ContinuousProduct, _Product
 from . import Constraint
 
 
-def check_continuous_prod_only(
-    constraint: Constraint, product: ContinuousProduct
-):
+def check_continuous_prod_only(constraint: Constraint, product: _Product):
     if not isinstance(product, ContinuousProduct):
         raise ConstraintError(
             (
@@ -16,9 +14,7 @@ def check_continuous_prod_only(
         )
 
 
-def check_continuous_machine_only(
-    constraint: Constraint, machine: ContinuousMachine
-):
+def check_continuous_machine_only(constraint: Constraint, machine: _Machine):
     if not isinstance(machine, ContinuousMachine):
         raise ConstraintError(
             (

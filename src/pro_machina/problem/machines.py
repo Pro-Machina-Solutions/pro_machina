@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Sequence
+from copy import deepcopy
 from itertools import count
-from typing import TYPE_CHECKING, NotRequired, TypedDict
+from typing import TYPE_CHECKING, NewType, NotRequired, TypedDict
 
 import numpy.typing as npt
 import pandas as pd
@@ -26,17 +26,24 @@ from ..util import (
     get_problem_buckets,
     parse_datetime,
 )
-from .constraints import Constraint, HardConstraint, SoftConstraint
-from .products import BatchProduct, ContinuousProduct, _Product
+from .constraints import (
+    ConstraintLevel,
+    HardConstraint,
+    SoftConstraint,
+)
+from .products import (
+    ContinuousProduct,
+    ContinuousProductGroup,
+    ProdID,
+    _Product,
+)
 from .shifts import ShiftPattern
 
 
 class _MachineProduct(TypedDict):
     product: _Product
-    hard_constraints: list[HardConstraint]
-    soft_constraints: list[SoftConstraint]
-    run_rate: NotRequired[SizedDimension]
-    run_rate_per: NotRequired[Duration]
+    run_rate: NotRequired[SizedDimension | None]
+    run_rate_per: NotRequired[Duration | None]
 
 
 class _MachineShift(TypedDict):
@@ -45,15 +52,21 @@ class _MachineShift(TypedDict):
     shift: ShiftPattern
 
 
+MachID = NewType("MachID", int)
+
+
 class _Machine:
     _ids = count()
 
     def __init__(self, name: str) -> None:
-        self._id = next(self._ids)
+        self._id = MachID(next(self._ids))
         self.name = name
 
-        self._products: dict[int, _MachineProduct] = {}
+        self._products: dict[ProdID, _MachineProduct] = {}
         self._shifts: list[_MachineShift] = []
+
+        self._hard_constraints: list[HardConstraint] = []
+        self._soft_constraints: list[SoftConstraint] = []
 
     def add_shift(
         self,
@@ -97,7 +110,7 @@ class _Machine:
             end_date = parse_datetime(end_date)
 
         if end_date is not None and start_date is not None:
-            if end_date < start_date:
+            if end_date <= start_date:
                 raise ValueError("End date cannot be before start date")
 
         self._shifts.append(
@@ -111,6 +124,7 @@ class _Machine:
     def _build_shift_productivity(
         self, problem: Problem
     ) -> npt.NDArray[np.float64]:
+
         # Track total number of buckets in the problem.
         problem_num_buckets = get_problem_buckets(
             problem._start, problem._end, problem.config.timebucket
@@ -178,14 +192,21 @@ class ContinuousMachine(_Machine):
         The name of the machine. It does not have to be unique.
     """
 
-    def __init__(self, name) -> None:
+    def __init__(
+        self,
+        name,
+        default_run_rate: SizedDimension | None = None,
+        default_per: Duration | None = None,
+    ) -> None:
         super().__init__(name)
+        self.default_run_rate = default_run_rate
+        self.default_per = default_per
 
     def add_product(
         self,
         product: ContinuousProduct,
-        run_rate: SizedDimension,
-        per: Duration,
+        run_rate: SizedDimension | None,
+        per: Duration | None,
     ) -> None:
         """Define a ContinuousProduct and its associated run rate.
 
@@ -221,128 +242,52 @@ class ContinuousMachine(_Machine):
                 f"Can only add ContinuousProduct to machine: {self.name}"
             )
 
-        # Copy over the constraints at this point. They may get overwritten
-        # using `add_product_constraint` and we don't want that to affect the
-        # product itself for other machines
+        # When adding a product, we want to first "inherit" its own list of
+        # constraints as a basis to ours. Make a copy such that any new
+        # product changes after being added to a machine are definitely fixed.
+        # At this point, no arbiter has been able to run until the machine is
+        # actually added to the problem, but it will resolve product-only,
+        # machine-only and machine-product pairing constraints
+        self._hard_constraints.extend(deepcopy(product._hard_constraints))
+        self._soft_constraints.extend(deepcopy(product._soft_constraints))
+
+        if run_rate is None and self.default_run_rate is None:
+            raise MachineError(
+                (
+                    f"Unknown run rate for product: {product.name}."
+                    " Are you trying to add a ProductGroup? In that case, a"
+                    " default on the machine must be specified and it will"
+                    " apply to all prodcts in the group."
+                ).lstrip()
+            )
+
         self._products[product._id] = _MachineProduct(
             product=product,
-            hard_constraints=product._hard_constraints[:],
-            soft_constraints=product._soft_constraints[:],
             run_rate=run_rate,
             run_rate_per=per,
         )
 
-    def add_product_constraint(
+    def add_product_group(self, group: ContinuousProductGroup):
+        pass
+
+    def add_hard_constraint(
         self,
-        product: ContinuousProduct,
-        constraint: HardConstraint | SoftConstraint,
+        constraints: HardConstraint | list[HardConstraint],
+        _level: int = ConstraintLevel.MACHINE.value,
     ) -> None:
-        """Define a constraint on the **machine** level for this product.
 
-        The method takes both Hard and Soft-constraints along with the specific
-        product that it applies to for this specific machine. The machine-level
-        constraint will automatically supersede any duplicate constraint that
-        had been defined on the **product** level.
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
 
-        For example, one could set a `MaxProductionTime` hard constraint on the
-        **product** level that will apply to all machines by default:
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
 
-        ```
-        from pro_machina import ContinuousMachine, ContinuousProduct
-        from pro_machina.durations import Hours
-        from pro_machina.problem.constraint import MaxProductionTime
+        for constraint in constraints:
+            if constraint.machine is None:
+                constraint._set_machine(self)
+            constraint._level = _level
 
-        product = ContinuousProduct("Prod A")
-        product.add_hard_constraint(MaxProductionTime(Hours(8)))
-
-        machine = ContinuousMachine("Machine 1")
-        # The product-level constraint is automatically carried over
-        machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-        ```
-
-        That is useful if all machines run under the same circumstances, but
-        you can override that for a specific machine by re-defining it using
-        this method:
-
-        ```
-        from pro_machina import ContinuousMachine, ContinuousProduct
-        from pro_machina.durations import Hours, Mins
-        from pro_machina.measures import BaseUnit, Unit
-        from pro_machina.problem.constraints import MaxProductionTime
-
-        product = ContinuousProduct("Prod A", BaseUnit)
-        # Set the default constraint on the product level for all machines
-        product.add_hard_constraint(MaxProductionTime(Hours(8)))
-
-        for x in range(10):
-            if x == 5:
-                # Special-case the constraint for this product-machine combo
-                machine = ContinuousMachine(f"Machine {x}")
-                machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-                machine.add_product_constraint(
-                    product,
-                    MaxProductionTime(Hours(4))
-                )
-            else:
-                # Get the default MaxProductionTime: 8hrs
-                machine = ContinuousMachine(f"Machine {x}")
-                machine.add_product(product, run_rate=Unit(80), per=Mins(1))
-        ```
-
-        The code will issue a warning for every constraint overwritten in this
-        way. To stop these warnings, you can set `config.silence_warnings =
-        True`
-
-        Parameters
-        ----------
-        product : ContinuousProduct
-            Specify the product that this constraint applies to for this
-            specific machine.
-        constraint : HardConstraint | SoftConstraint
-            Constraint to be added. If the constraint already exists on the
-            product level, it will be overwritten for this specific machine.
-
-        Raises
-        ------
-        MachineError
-            Raised if this product has not already been specified as something
-            this machine can produce.
-        """
-        if product._id not in self._products:
-            raise MachineError(
-                f"Product: {product.name} has not been added to {self.name}"
-            )
-
-        _product = self._products[product._id]
-
-        existing_cons: Sequence[Constraint]
-
-        if isinstance(constraint, HardConstraint):
-            existing_cons = _product["hard_constraints"]
-        else:
-            existing_cons = _product["soft_constraints"]
-
-        if constraint in existing_cons:
-            if not pro_machina.options["silence_constraint_overrides"]:
-                warn(
-                    "\n"
-                    + (
-                        f"{constraint.__class__.__name__} has already"
-                        f" been defined for {product.name} and is being"
-                        f" overwritten by {constraint} for Machine:"
-                        f" {self.name}\n"
-                    ),
-                    stacklevel=3,
-                )
-            existing_cons = [con for con in existing_cons if con != constraint]
-            existing_cons.append(constraint)  # type: ignore
-        else:
-            existing_cons.append(constraint)  # type: ignore
-
-        if isinstance(constraint, HardConstraint):
-            _product["hard_constraints"] = existing_cons  # type: ignore
-        else:
-            _product["soft_constraints"] = existing_cons  # type: ignore
+        self._hard_constraints.extend(constraints)
 
 
 class ContinuousMachineGroup(ContinuousMachine):
@@ -351,7 +296,7 @@ class ContinuousMachineGroup(ContinuousMachine):
     def __init__(
         self, name: str, machines: list[_Machine] | None = None
     ) -> None:
-        self._id = next(self._ids)
+        self._id = MachID(next(self._ids))
         self.name = name
         self.machines: list[_Machine] = (
             machines if machines is not None else []
@@ -389,8 +334,8 @@ class ContinuousMachineGroup(ContinuousMachine):
             and not pro_machina.options["silence_warnings"]
         ):
             warn(
-                f"\n Duplicate machines were added to group: {self.name}\n",
-                stacklevel=3,
+                f"\n Duplicate machines were added to group: {self.name}",
+                stacklevel=1,
             )
 
         if not all(isinstance(item, _Machine) for item in self.machines):
@@ -401,15 +346,15 @@ class BatchMachine(_Machine):
     def __init__(self, name) -> None:
         super().__init__(name)
 
-        self._products: dict[int, _MachineProduct] = {}
+        self._products: dict[ProdID, _MachineProduct] = {}
 
-    def add_product(self, product: BatchProduct):
+    # def add_product(self, product: BatchProduct):
 
-        if not isinstance(product, BatchProduct):
-            raise MachineError("Can only add BatchProduct to this machine")
+    #     if not isinstance(product, BatchProduct):
+    #         raise MachineError("Can only add BatchProduct to this machine")
 
-        self._products[product._id] = _MachineProduct(
-            product=product,
-            hard_constraints=product._hard_constraints,
-            soft_constraints=product._soft_constraints,
-        )
+    #     self._products[product._id] = _MachineProduct(
+    #         product=product,
+    #         hard_constraints=product._hard_constraints,
+    #         soft_constraints=product._soft_constraints,
+    #     )

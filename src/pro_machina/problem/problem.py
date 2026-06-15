@@ -1,6 +1,8 @@
 import datetime as dt
 import json
 import uuid
+from collections import defaultdict
+from copy import deepcopy
 from warnings import warn
 
 import numpy as np
@@ -20,31 +22,33 @@ from ..util import (
 from .constraints import (
     Constraint,
     ConstraintArbiter,
+    ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
+from .consumables import ConsID
 from .forecasts import DemandForecast
 from .machines import (
     BatchMachine,
     ContinuousMachine,
-    ContinuousMachineGroup,
+    MachID,
     _Machine,
 )
+from .products import ProdID
 from .stocks import InboundStock, StockHolding
 
 
 def _check_constraint_is_fully_specified(constraint: Constraint) -> None:
 
-    if constraint.product is None or (
+    if (hasattr(constraint, "product") and constraint.product is None) or (
         hasattr(constraint, "machine") and constraint.machine is None
     ):
         raise ConstraintError(
             (
                 "Constraints on the Problem level must be fully specified"
                 " and that's not the case for"
-                f" {constraint.__class__.__name__}. If the constraint"
-                " takes a product and a machine, then both must be"
-                " specified."
+                f" {type(constraint).__name__}. If the constraint takes a "
+                " product and a machine, then both must be specified."
             ).lstrip()
         )
 
@@ -76,35 +80,42 @@ class Problem:
     ):
         self.config = config if config is not None else Config()
 
+        # Params
         self._user_start_time: dt.datetime | dt.date
         self._user_start_time = parse_datetime(start_time)
         self._start = as_day_start(self._user_start_time)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
-        self._constraint_arbiter = ConstraintArbiter(
-            self._start, self._end, self.config
-        )
 
         # Flags
         self._is_built = False
 
-        # Containers
+        # Constraint arbiter
+        self._arbiter = ConstraintArbiter(self._start, self._end, self.config)
+
+        # Solver containers - other things we'll pass to the solver
         self._forecast: DemandForecast | None = None
-        self._machines: dict[int, _Machine] = {}
-        self._machine_groups: dict[int, dict[int, _Machine]] = {}
-        self._starting_stocks: dict[int, StockHolding] = {}
+        self._machines: dict[MachID, _Machine] = {}
+        # self._machine_groups: dict[int, dict[int, _Machine]] = {}
+        self._starting_stocks: dict[ConsID | ProdID, StockHolding] = {}
         self._inbound_stock: dict[int, InboundStock] = {}
 
-        self._hard_constraints: set[HardConstraint] = set()
-        self._soft_constraints: set[SoftConstraint] = set()
+        self._hard_constraints: list[HardConstraint] = []
+        self._soft_constraints: list[SoftConstraint] = []
+
+        self._prod_machine_mapping: dict[ProdID, list[MachID]] = defaultdict(
+            list
+        )
+        self._machine_prod_mapping: dict[MachID, list[ProdID]] = {}
 
         self._machine_base_productivity: dict[
-            int, npt.NDArray[np.float64]
+            MachID, npt.NDArray[np.float64]
         ] = {}
 
-        self._machine_names: dict[int, str] = {}
-        self._product_names: dict[int, str] = {}
-        self._consumable_names: dict[int, str] = {}
+        # Problem containers - things we need to make result human-readable
+        self._machine_names: dict[MachID, str] = {}
+        self._product_names: dict[ProdID, str] = {}
+        self._consumable_names: dict[ConsID, str] = {}
 
     def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
         """Add a machine to the problem
@@ -131,11 +142,6 @@ class Problem:
         if self._is_built:
             raise ProblemError("Cannot alter a built problem")
 
-        if not isinstance(machine, _Machine):
-            raise TypeError(
-                "Can only add types: ContinuousMachine or BatchMachine"
-            )
-
         if machine._id in self._machines:
             raise ProblemError("Cannot add the same machine twice")
 
@@ -144,12 +150,24 @@ class Problem:
                 "\n"
                 + f"No shift pattern added for {machine.name}. It's assumed to"
                 " always be running",
-                stacklevel=3,
+                stacklevel=1,
             )
-        self._machines[machine._id] = machine
 
-    def add_machine_group(self, machine_group: ContinuousMachineGroup) -> None:
-        pass
+        # Copy over the machine constraints at this point. Once a machine is
+        # added to the problem, no more changes can be made to that machine.
+        # Any product constraints, whether or not they are directly tied to
+        # that machine, will be carried over too.
+        self._hard_constraints.extend(deepcopy(machine._hard_constraints))
+        self._soft_constraints.extend(deepcopy(machine._soft_constraints))
+
+        # Set the mappings
+        self._machine_prod_mapping[machine._id] = list(
+            machine._products.keys()
+        )
+        for prod_id in machine._products.keys():
+            self._prod_machine_mapping[prod_id].append(machine._id)
+
+        self._machines[machine._id] = machine
 
     def add_stock(self, stock: StockHolding) -> None:
         """Add units of stock available at the problem start date
@@ -182,7 +200,7 @@ class Problem:
         ):
             warn(
                 "\n" + f"{stock.item.name} starting stock being overwritten",
-                stacklevel=3,
+                stacklevel=1,
             )
         self._starting_stocks[stock._id] = stock
 
@@ -233,7 +251,9 @@ class Problem:
 
         self._forecast = forecast
 
-    def add_hard_constraint(self, constraint: HardConstraint) -> None:
+    def add_hard_constraint(
+        self, constraints: HardConstraint | list[HardConstraint]
+    ) -> None:
         """Add a hard constraint at the problem level
 
         In this case, a hard constraint can be added directly to the problem,
@@ -260,25 +280,17 @@ class Problem:
         if self._is_built:
             raise ProblemError("Cannot alter a built problem")
 
-        if not isinstance(constraint, HardConstraint):
-            raise TypeError(
-                f"{constraint.__class__.__name__} is not a hard constraint"
-            )
+        if isinstance(constraints, HardConstraint):
+            constraints = [constraints]
 
-        _check_constraint_is_fully_specified(constraint)
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
 
-        if (
-            constraint in self._hard_constraints
-            and not pro_machina.options["silence_constraint_overrides"]
-        ):
-            warn(
-                f"\n{constraint.__class__.__name__} has been specified for"
-                f" product: {constraint.product} and machine:"
-                f" {constraint.machine} already and is being set at the"
-                " problem level",
-                stacklevel=3,
-            )
-        self._hard_constraints.add(constraint)
+        for constraint in constraints:
+            _check_constraint_is_fully_specified(constraint)
+            constraint._level = ConstraintLevel.PROBLEM.value
+
+        self._hard_constraints.extend(constraints)
 
     def add_soft_constraint(self, constraint: SoftConstraint) -> None:
         """Add a soft constraint at the problem level
@@ -323,9 +335,9 @@ class Problem:
                 f" product: {constraint.product} and machine:"
                 f" {constraint.machine} already and is being set at the"
                 " problem level",
-                stacklevel=3,
+                stacklevel=1,
             )
-        self._soft_constraints.add(constraint)
+        # self._soft_constraints.add(constraint)
 
     def build(self) -> None:
         """Finalise the problem to be passed to the solver
@@ -359,6 +371,11 @@ class Problem:
         self._forecast._build(self)
         self._product_names = (
             self._product_names | self._forecast._product_names
+        )
+        self._arbiter.arbitrate_hard_constraints(
+            self._hard_constraints,
+            self._prod_machine_mapping,
+            self._machine_prod_mapping,
         )
         self._is_built = True
 

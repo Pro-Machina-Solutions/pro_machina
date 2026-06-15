@@ -17,7 +17,13 @@ additional example files will show how this hierarchy hopefully builds into a
 coherent statement of the overall constraints within the problem.
 """
 
-from pro_machina import ContinuousMachine, ContinuousProduct, Problem
+import pro_machina
+from pro_machina import (
+    ContinuousMachine,
+    ContinuousProduct,
+    DemandForecast,
+    Problem,
+)
 from pro_machina.config import Config
 from pro_machina.durations import Hours, Mins, Weeks
 from pro_machina.measures import BaseUnit, Unit
@@ -25,6 +31,8 @@ from pro_machina.problem.constraints import (
     MaxProductionTime,
     MinProductionTime,
 )
+
+pro_machina.options["silence_warnings"] = True
 
 a = MinProductionTime
 b = MaxProductionTime
@@ -72,7 +80,7 @@ problem = Problem(
 
 # So, let's say that we're happy for production runs of no less than 4 hours
 # for all products by default, but we want to change it for one product:
-product_1.add_hard_constraint(MinProductionTime(min_time=Hours(2)))
+product_1.add_hard_constraint(MinProductionTime(value=Hours(2)))
 
 # Now let's say that we also don't want unbounded runs on a single product. We
 # already know that the maximum product swap under consideration is 12 hours,
@@ -80,7 +88,7 @@ product_1.add_hard_constraint(MinProductionTime(min_time=Hours(2)))
 # product run? This will ensure that, at most, no more than 24 hours of
 # consecutive production of our product can be done before either switching to
 # another product or going offline.
-product_1.add_hard_constraint(MaxProductionTime(max_time=Hours(24)))
+product_1.add_hard_constraint(MaxProductionTime(value=Hours(24)))
 
 # Now we can create two machines and add this product to each of them
 machine_1 = ContinuousMachine("Machine 1")
@@ -89,15 +97,25 @@ machine_2 = ContinuousMachine("Machine 2")
 machine_1.add_product(product_1, run_rate=Unit(50), per=Mins(1))
 machine_2.add_product(product_1, run_rate=Unit(60), per=Mins(1))
 
-# Internally, we can see that the hard constraint of the product has been
-# propagated over to both machines. Don't worry about the syntax here as we're
-# looking at the internals just to demonstrate; this isn't part of the API.
-print()
-print("Machine 1 constraints")
-print(machine_1._products[0]["hard_constraints"], "\n")
-print("Machine 2 constraints")
-print(machine_2._products[0]["hard_constraints"])
-print("********************\n")
+machine_1.add_hard_constraint(
+    MinProductionTime(
+        value=Hours(3),
+        product=product_1,
+        start_date="2026-03-03 00:00:00",
+        end_date="2026-03-04 00:00:00",
+    )
+)
+
+problem.add_machine(machine_1)
+problem.add_machine(machine_2)
+problem.set_forecast(DemandForecast())
+problem.build()
+# print()
+# print("Machine 1 constraints")
+# print(machine_1._hard_constraints, "\n")
+# print("Machine 2 constraints")
+# print(machine_2._hard_constraints)
+# print("********************\n")
 
 # You might notice that the Start date and End date fields are None - that's
 # because, without specifying them in the constraint itself, they are assumed

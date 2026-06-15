@@ -216,3 +216,6 @@ __marimo__/
 scratch.py
 delete_me.py
 payload.json
+
+# Test outputs
+*.csv

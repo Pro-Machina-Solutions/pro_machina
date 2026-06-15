@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import count
-from typing import Any, TypedDict
+from typing import Any, NewType, TypedDict
 
 from ..measures import UnsizedDimension
 from ..util import Singleton
@@ -15,14 +15,17 @@ class _MetaConsumable(TypedDict):
     meta: dict[Any, Any]
 
 
+ConsID = NewType("ConsID", int)
+
+
 class _ConsumableRegistry(metaclass=Singleton):
     def __init__(self) -> None:
         self._by_name: dict[str, _MetaConsumable] = {}
-        self._by_id: dict[int, _MetaConsumable] = {}
+        self._by_id: dict[ConsID, _MetaConsumable] = {}
 
     def add(self, cons: _MetaConsumable) -> None:
         self._by_name[cons["name"]] = cons
-        self._by_id[cons["_id"]] = cons
+        self._by_id[ConsID(cons["_id"])] = cons
 
 
 class Consumable:
@@ -61,9 +64,9 @@ class Consumable:
         _id: int | None = None,
     ) -> None:
         if _id is None:
-            self._id = next(self._ids)
+            self._id = ConsID(next(self._ids))
         else:
-            self._id = _id
+            self._id = ConsID(_id)
         self.name: str = name
         self.base_dimension = base_dimension
         self.rate_limiting = rate_limiting

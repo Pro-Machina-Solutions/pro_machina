@@ -14,7 +14,8 @@ from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import CustomUnit, SizedDimension, _UnitRegistry
 from ..util import as_day_start, get_problem_buckets, parse_datetime
-from .products import BatchProduct, ContinuousProduct
+from .consumables import ConsID
+from .products import BatchProduct, ContinuousProduct, ProdID
 
 
 class Order:
@@ -158,10 +159,10 @@ class DemandForecast:
         self._orders: list[Order] = []
         self._made_to_stock: list[MadeToStock] = []
 
-        self._prod_demands: dict[int, npt.NDArray[np.float64]] = {}
-        self._cons_demands: dict[int, npt.NDArray[np.float64]] = {}
+        self._prod_demands: dict[ProdID, npt.NDArray[np.float64]] = {}
+        self._cons_demands: dict[ConsID, npt.NDArray[np.float64]] = {}
 
-        self._product_names: dict[int, str] = {}
+        self._product_names: dict[ProdID, str] = {}
 
     def add_demand(self, order: Order | MadeToStock) -> None:
         """Add product demand to the forecast
@@ -180,9 +181,9 @@ class DemandForecast:
 
     def _sum_demand(
         self,
-        aggregator: dict[int, npt.NDArray[np.float64]],
+        aggregator,
         order: Order,
-        _id: int,
+        _id,
         num_buckets: int,
         start_date: dt.datetime,
         horizon_secs: int,
@@ -240,6 +241,7 @@ class DemandForecast:
                 # We don't even need to consider this because it's completely
                 # outside of the problem scope
                 continue
+
             self._sum_demand(
                 aggregator=self._prod_demands,
                 order=order,
@@ -263,6 +265,7 @@ class DemandForecast:
                     deflt_num_horizon_buckets=deflt_num_horizon_buckets,
                     multiplier=qty,
                 )
+
             for consumable_id, qty in order.product._bom_consumables.items():
                 self._sum_demand(
                     aggregator=self._cons_demands,
@@ -417,8 +420,10 @@ class DemandForecast:
         for k, v in self._prod_demands.items():
             self._prod_demands[k] = v.cumsum()
 
-        for k, v in self._cons_demands.items():
-            self._cons_demands[k] = v.cumsum()
+        # Typing is just getting stupid at this point. Why can't it see that
+        # k and v from before are temporary values? Give up.
+        for key, value in self._cons_demands.items():
+            self._cons_demands[key] = value.cumsum()
 
 
 __all__ = ["Order", "MadeToStock", "DemandForecast"]
