@@ -4,7 +4,7 @@ from uuid import uuid4
 from pro_machina.durations import Duration
 
 from ...util import parse_datetime
-from ..constraints import HardConstraint
+from ..constraints import HardConstraint, ProductOnly
 from ..machines import ContinuousMachine, _Machine
 from ..products import ContinuousProduct, _Product
 from .type_checkers import (
@@ -310,7 +310,7 @@ class ProductCannotFollowProduct(HardConstraint):
     pass
 
 
-class MaxStorageCapacity(HardConstraint):
+class MaxStorageCapacity(HardConstraint, ProductOnly):
     # TODO
     # Needs to take a Product or a ProductGroup and some unit of storage. This
     # could be in terms of cumulative units up through to pallets of products.
@@ -319,7 +319,7 @@ class MaxStorageCapacity(HardConstraint):
     pass
 
 
-class MaxProductLifetime(HardConstraint):
+class MaxProductLifetime(HardConstraint, ProductOnly):
     # TODO
     # Takes a Product or ProductGroup and some duration. We will have to assume
     # that the site does correct stock rotation

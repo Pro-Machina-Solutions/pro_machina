@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import itertools
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -9,7 +10,7 @@ from ...config import Config
 from ...util import get_problem_buckets
 from ..machines import MachID
 from ..products import ProdID
-from . import ConstraintLevel, HardConstraint
+from . import ConstraintLevel, HardConstraint, ProductOnly
 
 if TYPE_CHECKING:
     pass
@@ -57,7 +58,15 @@ class ConstraintArbiter:
         # for the application of the constraint. Any other keys that aren't in
         # this list must be field values.
         self.non_field_values = set(
-            ["name", "product", "machine", "start_date", "end_date", "_level"]
+            [
+                "_id",
+                "name",
+                "product",
+                "machine",
+                "start_date",
+                "end_date",
+                "_level",
+            ]
         )
 
         # Create a template datetime range for all products
@@ -135,15 +144,25 @@ class ConstraintArbiter:
                     pl.lit(val).alias(col_name),
                     pl.lit(default_level).alias(level_field_name),
                 )
-
         return df
 
-    def handle_existing_constraint(
+    def _handle_for_machine_or_product(self):
+        pass
+
+    def handle_biway_hard_constraint(
         self,
         df: pl.DataFrame,
         constraint: HardConstraint,
-        machines: list[MachID],
+        prod_machine_mapping: dict[ProdID, list[MachID]],
+        machine_prod_mapping: dict[MachID, list[ProdID]],
     ) -> pl.DataFrame:
+        """
+        Handle constraints that apply in product/machine pairings
+
+        Assumes that the constraint is not a subclass of ProductOnly or
+        MachineOnly.
+        """
+
         params = constraint._serialise()
         params["start_date"] = (
             params["start_date"]
@@ -154,15 +173,40 @@ class ConstraintArbiter:
             params["end_date"] if params["end_date"] is not None else self.end
         )
 
-        con_name = constraint.__class__.__name__
+        con_name = type(constraint).__name__
         fields = [
             item for item in params.keys() if item not in self.non_field_values
         ]
 
-        for machine in machines:
-            level_col = f"{con_name}_{machine}_level"
+        # Now work out our combinations of product/machines to apply the
+        # constraint to
+        if constraint.machine is not None:
+            list_machs = [constraint.machine._id]
+            list_prods = machine_prod_mapping[constraint.machine._id]
+        elif constraint.product is not None:
+            list_machs = prod_machine_mapping[constraint.product._id]
+            list_prods = [constraint.product._id]
+        else:
+            raise RuntimeError("Incorrectly handling constraints internally")
+
+        combos = itertools.product(list_prods, list_machs)
+
+        for _, mach_id in combos:
+            level_col = f"{con_name}_{mach_id}_level"
+
+            if level_col not in df.columns:
+                df = df.with_columns(
+                    pl.lit(ConstraintLevel.UNSET.value).alias(level_col)
+                )
+
             for field in fields:
-                named_col = f"{con_name}_{machine}_{field}"
+                if field in self.non_field_values:
+                    continue
+                named_col = f"{con_name}_{mach_id}_{field}"
+                if named_col not in df.columns:
+                    # Not seen this constraint before so add the defaults
+                    df = df.with_columns(pl.lit(None).alias(named_col))
+
                 df = df.with_columns(
                     pl.when(
                         (pl.col(level_col) <= params["_level"])
@@ -177,10 +221,11 @@ class ConstraintArbiter:
                         & (pl.col("datetime") >= params["start_date"])
                         & (pl.col("datetime") < params["end_date"])
                     )
-                    .then(params["_level"])
+                    .then(constraint._level)
                     .otherwise(pl.col(level_col))
                     .alias(level_col),
                 )
+
         return df
 
     def arbitrate_hard_constraints(
@@ -191,30 +236,38 @@ class ConstraintArbiter:
     ) -> None:
 
         for con in constraints:
+            if isinstance(con, ProductOnly):
+                print("SKIPPING FOR NOW")
             if con.product is not None:
                 if con.product._id not in self.product_hard_constraints:
                     df = self.initialise_product_dataframe(
                         prod_machine_mapping[con.product._id]
                     )
                     self.product_hard_constraints[con.product._id] = df
-                else:
-                    df = self.product_hard_constraints[con.product._id]
+                self.product_hard_constraints[con.product._id] = (
+                    self.handle_biway_hard_constraint(
+                        df,
+                        con,
+                        prod_machine_mapping,
+                        machine_prod_mapping,
+                    )
+                )
 
-                # First need to check whether the constraint has been seen
-                # before
-                existing_cons = [item.split("_")[0] for item in df.columns]
-                already_seen = con.__class__.__name__ in existing_cons
-
-                if already_seen:
-                    if con.machine is None:
-                        df = self.handle_existing_constraint(
-                            df, con, prod_machine_mapping[con.product._id]
+            elif con.machine is not None:
+                mach_prods = machine_prod_mapping[con.machine._id]
+                for prod_id in mach_prods:
+                    if prod_id not in self.product_hard_constraints:
+                        df = self.initialise_product_dataframe(
+                            prod_machine_mapping[prod_id]
                         )
-                    else:
-                        df = self.handle_existing_constraint(
-                            df, con, [con.machine._id]
+                        self.product_hard_constraints[prod_id] = df
+                    self.product_hard_constraints[prod_id] = (
+                        self.handle_biway_hard_constraint(
+                            df,
+                            con,
+                            prod_machine_mapping,
+                            machine_prod_mapping,
                         )
+                    )
 
-                    existing_cons.append(con.__class__.__name__)
-
-            self.product_hard_constraints[con.product._id] = df
+        # df.write_csv("check_arbiter_12.csv")

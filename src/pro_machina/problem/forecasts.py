@@ -420,10 +420,8 @@ class DemandForecast:
         for k, v in self._prod_demands.items():
             self._prod_demands[k] = v.cumsum()
 
-        # Typing is just getting stupid at this point. Why can't it see that
-        # k and v from before are temporary values? Give up.
-        for key, value in self._cons_demands.items():
-            self._cons_demands[key] = value.cumsum()
+        for k, v in self._cons_demands.items():
+            self._cons_demands[k] = v.cumsum()
 
 
 __all__ = ["Order", "MadeToStock", "DemandForecast"]

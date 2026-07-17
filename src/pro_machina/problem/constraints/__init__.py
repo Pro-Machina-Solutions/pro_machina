@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 
 class ConstraintLevel(Enum):
+    UNSET = 0
     DEFAULT = 1
     PRODUCT = 2
     PRODUCT_GROUP = 3
@@ -55,6 +56,14 @@ class HardConstraint(Constraint):
 
 
 class SoftConstraint(Constraint):
+    pass
+
+
+class ProductOnly(Constraint):
+    pass
+
+
+class MachineOnly(Constraint):
     pass
 
 
