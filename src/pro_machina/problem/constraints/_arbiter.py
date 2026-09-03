@@ -236,13 +236,6 @@ class ConstraintArbiter:
     ) -> None:
 
         for con in constraints:
-            print("PRODUCT", con.product)
-            if con.product is not None:
-                print("PRODUCT ID", con.product._id)
-            else:
-                print("MACHINE", con.machine._id)
-                print(machine_prod_mapping[con.machine._id])
-            print("****************")
             if isinstance(con, ProductOnly):
                 print("SKIPPING FOR NOW")
             if con.product is not None:
@@ -261,7 +254,8 @@ class ConstraintArbiter:
                     )
                 )
 
-            elif con.machine is not None:
+            elif con.product is None and con.machine is not None:
+                # elif con.machine is not None:
                 mach_prods = machine_prod_mapping[con.machine._id]
                 for prod_id in mach_prods:
                     if prod_id not in self.product_hard_constraints:
@@ -280,8 +274,6 @@ class ConstraintArbiter:
                     )
             else:
                 print("Fell through")
+        now = dt.datetime.now().strftime("%Y%m%d%H%M")
         for k, v in self.product_hard_constraints.items():
-            # print(k, v)
-            # print("**********")
-            v.write_csv(f"check_arbiter_15_{k}.csv")
-        # df.write_csv("check_arbiter_12.csv")
+            v.write_csv(f"check_arbiter_{now}_{k}.csv")
