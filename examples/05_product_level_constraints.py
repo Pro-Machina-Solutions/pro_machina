@@ -107,7 +107,7 @@ product_1.add_hard_constraint(
 machine_1.add_product(product_1, run_rate=Unit(50), per=Mins(1))
 machine_1.add_product(product_2, run_rate=Unit(50), per=Mins(1))
 machine_2.add_product(product_1, run_rate=Unit(60), per=Mins(1))
-machine_1.add_product(product_2, run_rate=Unit(50), per=Mins(1))
+machine_2.add_product(product_2, run_rate=Unit(50), per=Mins(1))
 machine_2.add_hard_constraint(
     MinProductionTime(
         value=Hours(1), start_date="2026-03-03", end_date="2026-03-04"
@@ -117,16 +117,8 @@ machine_2.add_hard_constraint(
 problem.add_machine(machine_1)
 problem.add_machine(machine_2)
 problem.set_forecast(DemandForecast())
-# for item in problem._hard_constraints:
-#     print(item)
-#     print("**********")
+
 problem.build()
-# print()
-# print("Machine 1 constraints")
-# print(machine_1._hard_constraints, "\n")
-# print("Machine 2 constraints")
-# print(machine_2._hard_constraints)
-# print("********************\n")
 
 # You might notice that the Start date and End date fields are None - that's
 # because, without specifying them in the constraint itself, they are assumed

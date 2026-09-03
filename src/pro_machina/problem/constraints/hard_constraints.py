@@ -4,7 +4,7 @@ from uuid import uuid4
 from pro_machina.durations import Duration
 
 from ...util import parse_datetime
-from ..constraints import ConstraintLevel, HardConstraint, ProductOnly
+from ..constraints import HardConstraint, ProductOnly
 from ..machines import ContinuousMachine, _Machine
 from ..products import ContinuousProduct, _Product
 from .type_checkers import (
@@ -88,7 +88,7 @@ class MinProductionTime(HardConstraint):
             check_continuous_machine_only(self, machine)
         self.machine = machine
 
-    def _set_level(self, level: ConstraintLevel) -> None:
+    def _set_level(self, level: int) -> None:
         self._level = level
 
     def __repr__(self) -> str:
@@ -176,7 +176,7 @@ class MaxProductionTime(HardConstraint):
             check_continuous_machine_only(self, machine)
         self.machine = machine
 
-    def _set_level(self, level: ConstraintLevel) -> None:
+    def _set_level(self, level: int) -> None:
         self._level = level
 
     def __repr__(self) -> str:
@@ -245,7 +245,7 @@ class SeasonalProduction(HardConstraint):
     def _set_machine(self, machine: _Machine | None) -> None:
         self.machine = machine
 
-    def _set_level(self, level: ConstraintLevel) -> None:
+    def _set_level(self, level: int) -> None:
         self._level = level
 
 
@@ -305,7 +305,7 @@ class ReducedProductionPeriod(HardConstraint):
         check_continuous_machine_only(self, machine)
         self.machine = machine
 
-    def _set_level(self, level: ConstraintLevel) -> None:
+    def _set_level(self, level: int) -> None:
         self._level = level
 
 
