@@ -41,6 +41,8 @@ b = MaxProductionTime
 # The first thing to do is create an example product
 product_1 = ContinuousProduct(name="Product 1", base_dimension=BaseUnit)
 
+product_2 = ContinuousProduct(name="Product 2", base_dimension=BaseUnit)
+
 # Before touching the constraint modules themselves, we need to look at the
 # Config option which sets one default constraint, and another as a guide for
 # the solver.
@@ -103,7 +105,9 @@ product_1.add_hard_constraint(
 )
 
 machine_1.add_product(product_1, run_rate=Unit(50), per=Mins(1))
+machine_1.add_product(product_2, run_rate=Unit(50), per=Mins(1))
 machine_2.add_product(product_1, run_rate=Unit(60), per=Mins(1))
+machine_1.add_product(product_2, run_rate=Unit(50), per=Mins(1))
 machine_2.add_hard_constraint(
     MinProductionTime(
         value=Hours(1), start_date="2026-03-03", end_date="2026-03-04"

@@ -4,7 +4,7 @@ import datetime as dt
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 if TYPE_CHECKING:
     from ..machines import MachID, _Machine
@@ -33,6 +33,9 @@ class Constraint(metaclass=ABCMeta):
 
     @abstractmethod
     def _set_machine(self, machine: _Machine | None) -> None: ...
+
+    @abstractmethod
+    def _set_level(self, constraint: Self) -> None: ...
 
     def _serialise(self) -> dict[str, Any]:
         fields = deepcopy(self.__dict__)

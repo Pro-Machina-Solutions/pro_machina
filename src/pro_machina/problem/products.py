@@ -181,7 +181,7 @@ class _Product:
 
         for constraint in constraints:
             constraint._set_product(self)
-            constraint._level = _level
+            constraint._set_level(_level)
 
         self._hard_constraints.extend(constraints)
 

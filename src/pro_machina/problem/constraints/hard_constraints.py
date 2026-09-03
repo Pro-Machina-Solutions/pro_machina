@@ -4,7 +4,7 @@ from uuid import uuid4
 from pro_machina.durations import Duration
 
 from ...util import parse_datetime
-from ..constraints import HardConstraint, ProductOnly
+from ..constraints import ConstraintLevel, HardConstraint, ProductOnly
 from ..machines import ContinuousMachine, _Machine
 from ..products import ContinuousProduct, _Product
 from .type_checkers import (
@@ -87,6 +87,9 @@ class MinProductionTime(HardConstraint):
         if machine is not None:
             check_continuous_machine_only(self, machine)
         self.machine = machine
+
+    def _set_level(self, level: ConstraintLevel) -> None:
+        self._level = level
 
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
@@ -173,6 +176,9 @@ class MaxProductionTime(HardConstraint):
             check_continuous_machine_only(self, machine)
         self.machine = machine
 
+    def _set_level(self, level: ConstraintLevel) -> None:
+        self._level = level
+
     def __repr__(self) -> str:
         prod = self.product.name if self.product is not None else "All"
         mach = self.machine.name if self.machine is not None else "All"
@@ -239,6 +245,9 @@ class SeasonalProduction(HardConstraint):
     def _set_machine(self, machine: _Machine | None) -> None:
         self.machine = machine
 
+    def _set_level(self, level: ConstraintLevel) -> None:
+        self._level = level
+
 
 class ReducedProductionPeriod(HardConstraint):
     """Define a period in which the production rate is lower than normal
@@ -295,6 +304,9 @@ class ReducedProductionPeriod(HardConstraint):
     def _set_machine(self, machine: ContinuousMachine) -> None:  # type: ignore[override]
         check_continuous_machine_only(self, machine)
         self.machine = machine
+
+    def _set_level(self, level: ConstraintLevel) -> None:
+        self._level = level
 
 
 class ProductSwitchoverTime(HardConstraint):
