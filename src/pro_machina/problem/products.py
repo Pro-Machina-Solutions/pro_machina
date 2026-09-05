@@ -63,7 +63,7 @@ class _Product:
         component: BatchProduct | ContinuousProduct | Consumable,
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
-    ):
+    ) -> _Product:
         """Add either a consumable or a subproduct to the Bill of Materials.
 
         In each case, the quantity of product must be specified for each
@@ -166,6 +166,8 @@ class _Product:
                 self._bom_consumables[cons_id] = self._bom_consumables.get(
                     cons_id, 0
                 ) + (amt * cons_qty)
+
+        return self
 
     def add_hard_constraint(
         self,
@@ -298,16 +300,20 @@ class ContinuousProductGroup:
         self.products: list[ContinuousProduct] = (
             products if products is not None else []
         )
-        self._product_by_name: dict[str, _Product] = {}
+        print(self.products)
+        self._product_by_name: dict[str, ContinuousProduct] = {}
 
         if self.products:
-            if not all(isinstance(item, _Product) for item in self.products):
+            if not all(
+                isinstance(item, ContinuousProduct) for item in self.products
+            ):
                 raise TypeError("Incorrect type added to product group")
 
             for product in self.products:
                 # Catch here in case the grouping is instantiated will all
                 # products and `add_product()` is never called later
                 self._product_by_name[product.name] = product
+        print(self._product_by_name)
 
     def add_products(
         self, products: ContinuousProduct | list[ContinuousProduct]
@@ -410,6 +416,12 @@ class ContinuousProductGroup:
                 product.add_hard_constraint(
                     constraint, _level=ConstraintLevel.PRODUCT_GROUP.value
                 )
+
+    def get_by_name(self, product_name: str) -> ContinuousProduct:
+        prod = self._product_by_name.get(product_name)
+        if prod is None:
+            raise ValueError(f"Product name not recognised: {product_name}")
+        return prod
 
 
 @dataclass

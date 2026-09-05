@@ -12,6 +12,7 @@ from pro_machina import (
     Consumable,
     ContinuousMachine,
     ContinuousProduct,
+    ContinuousProductGroup,
     DemandForecast,
     Order,
     Problem,
@@ -135,3 +136,31 @@ problem.set_forecast(forecast)
 problem.build()
 
 problem.solve()
+
+# Now that we have done this all step-by-step, we might notice that there is
+# some unnecessary repetition in the product definitions. For example, we may
+# have a number of sweets that share exactly the same base components and
+# they only differ in the colouring and flavouring. We can make a shotcut for
+# for such cases by utilising a ContinousProductGroup for the common components
+
+raspberry = ContinuousProduct("raspberry sweet", base_dimension=BaseUnit)
+apple = ContinuousProduct("apple sweet", base_dimension=BaseUnit)
+strawberry = ContinuousProduct("strawberry sweet", base_dimension=BaseUnit)
+
+group = ContinuousProductGroup(
+    name="Flav sweets", products=[raspberry, apple, strawberry]
+)
+group.add_component(sugar, qty=Kilo("7.3"), per=Unit(1000))
+group.add_component(gelatine, qty=Kilo("0.45"), per=Unit(1000))
+
+# Now dfine the unique components
+raspberry = group.get_by_name("raspberry sweet").add_component(
+    straw_flav, qty=Bottle(2), per=Unit(10000)
+)
+apple = group.get_by_name("apple sweet").add_component(
+    apple_flav, qty=Bottle(2), per=Unit(10000)
+)
+strawberry = group.get_by_name("strawberry sweet").add_component(
+    straw_flav, qty=Bottle(2), per=Unit(10000)
+)
+
