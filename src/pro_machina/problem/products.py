@@ -172,6 +172,19 @@ class _Product:
         constraints: HardConstraint | list[HardConstraint],
         _level: int = ConstraintLevel.PRODUCT.value,
     ) -> None:
+        """Add a hard constraint on the product level
+
+        Parameters
+        ----------
+        constraints : HardConstraint | list[HardConstraint]
+            Either a single HardConstraint or a list of HardConstraints to be
+            applied
+
+        Raises
+        ------
+        TypeError
+            Something other than a HardConstraint was applied
+        """
 
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]
@@ -277,20 +290,28 @@ class ContinuousProductGroup:
     _ids = count(0)
 
     def __init__(
-        self, name: str, products: list[_Product] | None = None
+        self, name: str, products: list[ContinuousProduct] | None = None
     ) -> None:
 
         self._id = next(self._ids)
         self.name = name
-        self.products: list[_Product] = (
+        self.products: list[ContinuousProduct] = (
             products if products is not None else []
         )
+        self._product_by_name: dict[str, _Product] = {}
 
         if self.products:
             if not all(isinstance(item, _Product) for item in self.products):
                 raise TypeError("Incorrect type added to product group")
 
-    def add_products(self, products: _Product | list[_Product]) -> None:
+            for product in self.products:
+                # Catch here in case the grouping is instantiated will all
+                # products and `add_product()` is never called later
+                self._product_by_name[product.name] = product
+
+    def add_products(
+        self, products: ContinuousProduct | list[ContinuousProduct]
+    ) -> None:
         """Add a product to an existing grouping
 
         Parameters
@@ -303,7 +324,7 @@ class ContinuousProductGroup:
         TypeError
             Attempted to add something other than a Product to the grouping
         """
-        if isinstance(products, _Product):
+        if isinstance(products, ContinuousProduct):
             self.products.append(products)
         else:
             self.products.extend(products)
@@ -322,12 +343,37 @@ class ContinuousProductGroup:
         if not all(isinstance(item, _Product) for item in self.products):
             raise TypeError("Incorrect type added to product group")
 
+        for product in self.products:
+            self._product_by_name[product.name] = product
+
     def add_component(
         self,
         component: BatchProduct | ContinuousProduct | Consumable,
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
     ):
+        """Add either a consumable or a subproduct to the Bill of Materials for
+        each product within the group.
+
+        This is a convenience method to apply
+        `ContinuousProduct.add_component()` for each product in the group.
+
+        Parameters
+        ----------
+        component : BatchProduct | ContinuousProduct | Consumable
+            An instance of a pre-defined product or consumable.
+        qty : SizedDimension | CustomUnit
+            The quantity and dimension of component.
+        per : SizedDimension
+            The units specified for this product.
+
+        Raises
+        ------
+        UnitError
+            Raised when either trying to add a component more than once or when
+            specifying components in units that are not compatible with either
+            a product or their measurement unit.
+        """
         for product in self.products:
             product.add_component(component, qty, per)
 
@@ -335,6 +381,20 @@ class ContinuousProductGroup:
         self,
         constraints: HardConstraint | list[HardConstraint],
     ) -> None:
+        """Add a hard constraint on the product level to all products in the
+        group
+
+        Parameters
+        ----------
+        constraints : HardConstraint | list[HardConstraint]
+            Either a single HardConstraint or a list of HardConstraints to be
+            applied
+
+        Raises
+        ------
+        TypeError
+            Something other than a HardConstraint was applied
+        """
 
         if isinstance(constraints, HardConstraint):
             constraints = [constraints]

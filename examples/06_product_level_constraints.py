@@ -1,17 +1,4 @@
 """
-Constraints (both hard and soft) are broadly categorised into six levels.
-These are, from the most granular to the most broad:
-1. Default "constraints" (set by Config) that are somewhat pseudo-constraints
-2. Product-level constraints
-3. Product-group-level constraints
-4. Machine-level constraints
-5. Machine-group-level
-6. Problem-level constraints
-
-The hierarchy of constraints proceeds in that order, too. So, a machine-level
-constraint will supercede any product-level constraint, and a problem-level
-constraint will override any machine- or product-level constraint.
-
 In this example, we'll start with the product-level constraint and the
 additional example files will show how this hierarchy hopefully builds into a
 coherent statement of the overall constraints within the problem.
@@ -28,24 +15,23 @@ from pro_machina.config import Config
 from pro_machina.durations import Hours, Mins, Weeks
 from pro_machina.measures import BaseUnit, Unit
 from pro_machina.problem.constraints import (
-    MaxProductionTime,
     MinProductionTime,
     SeasonalProduction,
 )
 
 pro_machina.options["silence_warnings"] = True
 
-a = MinProductionTime
-b = MaxProductionTime
-
-# The first thing to do is create an example product
+# The first thing to do is create some example products.
 product_1 = ContinuousProduct(name="Product 1", base_dimension=BaseUnit)
-
 product_2 = ContinuousProduct(name="Product 2", base_dimension=BaseUnit)
-
-# Before touching the constraint modules themselves, we need to look at the
-# Config option which sets one default constraint, and another as a guide for
-# the solver.
+product_3 = ContinuousProduct(name="Product 3", base_dimension=BaseUnit)
+product_4 = ContinuousProduct(name="Product 4", base_dimension=BaseUnit)
+product_5 = ContinuousProduct(name="Product 5", base_dimension=BaseUnit)
+product_6 = ContinuousProduct(name="Product 6", base_dimension=BaseUnit)
+product_7 = ContinuousProduct(name="Product 7", base_dimension=BaseUnit)
+product_8 = ContinuousProduct(name="Product 8", base_dimension=BaseUnit)
+product_9 = ContinuousProduct(name="Product 9", base_dimension=BaseUnit)
+product_10 = ContinuousProduct(name="Product 10", base_dimension=BaseUnit)
 
 # The Pro Machina solver works by swapping blocks of production between
 # different products or downtime and evaluates the cost function of the new
@@ -57,7 +43,8 @@ product_2 = ContinuousProduct(name="Product 2", base_dimension=BaseUnit)
 # production into a schedule is a good/bad move in one single iteration.
 
 # The defaults are a lower bound of 4 hours and an upper bound of 12 hours. If
-# you wanted to change them (we don't here) then you can do so as follows:
+# you wanted to change them (we don't here, we're just resetting as the
+# defaults) then you can do so as follows:
 config = Config()
 config.min_default_swap_block = Hours(4)
 config.max_default_swap_block = Hours(12)
@@ -70,7 +57,8 @@ problem = Problem(
 # It's important to know what this means. Two things:
 
 # 1 - No run of a product will be for less than 4 hours (unless we use a
-#     constraint coming up) or unless it isn't a factor of the shift duration.
+#     constraint - coming up) or unless it isn't a factor of the shift
+#     duration.
 #     So, for example, it may be that a six hour shift will have four hours of
 #     Product A and two hours of Product B, simply because the four hour block
 #     of Product B happens to run into downtime.
