@@ -95,6 +95,15 @@ class _Machine:
             The start date of the particular shift rotation
         end_date : str | dt.datetime | None, optional
             The end date of the particular shift rotation
+
+        Raises
+        ------
+        ShiftDefinitionError
+            An end date is set without an explicit start date
+        TypeError
+            Not a valid ShiftPattern passed
+        ValueError
+            End date is before start date
         """
         if end_date is not None and start_date is None:
             raise ShiftDefinitionError(
@@ -190,6 +199,16 @@ class ContinuousMachine(_Machine):
     ----------
     name : str
         The name of the machine. It does not have to be unique.
+    default_run_rate : SizedDimension | None, optional
+        The number of units that can be produced within a certain time period.
+        If this is set then it will automatically apply to all products that
+        are added to the machine unless explicitly overwritten in
+        `add_product()`. If specified, then the `default_per` must also be
+        specified.
+    default_per : Duration | None, optional
+        The time frame over which the default_run_rate applies for all products
+        add to the machine, unless explicityl overwritten in `add_product().
+        If specified, the `default_run_rate` must also be specified.
     """
 
     def __init__(
@@ -233,13 +252,42 @@ class ContinuousMachine(_Machine):
 
         Raises
         ------
-        MachineError
+        TypeError
             Raised if something other than a ContinuousProduct is specified.
+        MachineError
+            Raised if neither the default nor the specific run rate for
+            products are specified.
         """
 
         if not isinstance(product, ContinuousProduct):
-            raise MachineError(
+            raise TypeError(
                 f"Can only add ContinuousProduct to machine: {self.name}"
+            )
+
+        _run_rate = None
+        if run_rate is not None:
+            _run_rate = run_rate
+        elif run_rate is None and self.default_run_rate is not None:
+            _run_rate = self.default_run_rate
+        else:
+            raise MachineError(
+                (
+                    "Neither a default run rate or a specific run rate of "
+                    f"product has been specified for {product.name}"
+                ).lstrip()
+            )
+
+        _per = None
+        if per is not None:
+            _per = per
+        elif per is None and self.default_per is not None:
+            _per = self.default_per
+        else:
+            raise MachineError(
+                (
+                    "Neither a default time period or a specific time period "
+                    f" for the run_rate has been specified for {product.name}"
+                ).lstrip()
             )
 
         # When adding a product, we want to first "inherit" its own list of
@@ -251,25 +299,120 @@ class ContinuousMachine(_Machine):
         self._hard_constraints.extend(deepcopy(product._hard_constraints))
         self._soft_constraints.extend(deepcopy(product._soft_constraints))
 
-        if run_rate is None and self.default_run_rate is None:
-            raise MachineError(
-                (
-                    f"Unknown run rate for product: {product.name}."
-                    " Are you trying to add a ProductGroup? In that case, a"
-                    " default on the machine must be specified and it will"
-                    " apply to all prodcts in the group."
-                ).lstrip()
-            )
-
         self._products[product._id] = _MachineProduct(
             product=product,
-            run_rate=run_rate,
-            run_rate_per=per,
+            run_rate=_run_rate,
+            run_rate_per=_per,
         )
 
-    def add_product_group(self, group: ContinuousProductGroup):
-        for prod in group.products:
-            self.add_product(prod)
+    def add_product_group(
+        self,
+        group: ContinuousProductGroup,
+        run_rates: list[tuple[(SizedDimension, Duration)]] | None = None,
+    ):
+        """Add all products within a ProductGroup to a machine.
+
+        If the default run rate for the machine is specified then it will be
+        applied to all products within the group. Additionally, all individual
+        constraints for each product (on the Product level) in the group will
+        be transferred over, similar to `add_product()`.
+
+        However, if you wish to add all of the products and their constraints,
+        but specify individual run rates for each of the products then these
+        must be specified seperately. For example:
+
+        ```python3
+        prod_1 = ContinuousProduct("Prod 1")
+
+        # Apply a constraint to just one of the products before adding to the
+        # group
+        prod_2 = ContinuousProduct("Prod 2")
+        prod_2.add_hard(MaxProductionTime(Hours(24)))
+
+        prod_3 = ContinuousProduct("Prod 3")
+
+        group = ContinuousProductGroup("Sweets", [prod_1, prod_2, prod_3])
+        # Add a constraint to all of the products in the group
+        group.add_hard_constraint(MinProductionTime(Hours(2)))
+
+        mach_1 = ContinuousMachine(
+            "Machine 1", default_run_rate=Unit(50), default_per=Mins(1)
+        )
+
+        # This will copy all of the products over to the machine with the
+        # default run rate of the machine. The group-level constraint will be
+        # copied over for all of the products, in addition to individual
+        # MaxProductionTime for prod_2 and the MinProductionTime for all
+        # products.
+        mach_1.add_product_group(group)
+
+        # However, if we want to specify the individual run rates, but keep the
+        # behaviour of the constraints the same, use:
+        ```
+        ```python3
+        mach_1.add_product_group(
+            group=group,
+            run_rates=[
+                (Unit(45, Mins(1)),
+                (Unit(52), Mins(1)),
+                (Unit(50), Mins(1))
+            ]
+        )
+        # Note that the run rate must be specified for all products, even
+        # though `prod_3` is actually running at the same rate as the machine
+        # default.
+        ```
+
+        Parameters
+        ----------
+        group : ContinuousProductGroup
+            _description_
+        run_rates : list[tuple[, optional
+            _description_, by default None
+
+        Raises
+        ------
+        TypeError
+            Something other than a ContinuousProductGroup was added
+        MachineError
+            _description_
+        MachineError
+            _description_
+        MachineError
+            _description_
+        """
+
+        if not isinstance(group, ContinuousProductGroup):
+            raise TypeError("Not a valid ContinuousProductGroup")
+
+        if run_rates is None and (
+            self.default_per is None or self.default_run_rate is None
+        ):
+            raise MachineError(
+                "Neither a default not specific run rate is specified for"
+                " the product group"
+            )
+
+        if run_rates is not None:
+            if len(run_rates) != len(group.products):
+                raise MachineError(
+                    "If providing custom run rates for each product in a"
+                    " ProductGroup, they either must all be specified or"
+                    " completely omitted to take the machine defaults"
+                )
+
+        for i, prod in enumerate(group.products):
+            if prod._id in self._products:
+                raise MachineError(
+                    f"Product: {prod.name} has already been assigned to"
+                    f" machine: {self.name}"
+                )
+            if run_rates is not None:
+                self.add_product(
+                    prod, run_rate=run_rates[i][0], per=run_rates[i][1]
+                )
+            else:
+                self.add_product(prod)
 
     def add_hard_constraint(
         self,

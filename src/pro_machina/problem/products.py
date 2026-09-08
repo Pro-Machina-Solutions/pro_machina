@@ -300,7 +300,6 @@ class ContinuousProductGroup:
         self.products: list[ContinuousProduct] = (
             products if products is not None else []
         )
-        print(self.products)
         self._product_by_name: dict[str, ContinuousProduct] = {}
 
         if self.products:
@@ -418,6 +417,23 @@ class ContinuousProductGroup:
                 )
 
     def get_prod_by_name(self, product_name: str) -> ContinuousProduct:
+        """Return an individual product from the group by its string name
+
+        Parameters
+        ----------
+        product_name : str
+            The string name of the product within the group
+
+        Returns
+        -------
+        ContinuousProduct
+            The requested product
+
+        Raises
+        ------
+        ValueError
+            Product name not found within the group
+        """
         prod = self._product_by_name.get(product_name)
         if prod is None:
             raise ValueError(f"Product name not recognised: {product_name}")
