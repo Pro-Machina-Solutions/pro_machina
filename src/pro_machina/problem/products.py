@@ -417,7 +417,7 @@ class ContinuousProductGroup:
                     constraint, _level=ConstraintLevel.PRODUCT_GROUP.value
                 )
 
-    def get_by_name(self, product_name: str) -> ContinuousProduct:
+    def get_prod_by_name(self, product_name: str) -> ContinuousProduct:
         prod = self._product_by_name.get(product_name)
         if prod is None:
             raise ValueError(f"Product name not recognised: {product_name}")

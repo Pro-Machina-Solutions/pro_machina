@@ -189,8 +189,8 @@ six_two.add_work_period(
     end_time="2000-02-11 14:00:00",
 )  # Friday
 
-six_two.add_downday(date="2000-02-12")
-six_two.add_downday(date="2000-02-13")
+six_two.add_downday(date="2000-02-12")  # Saturday
+six_two.add_downday(date="2000-02-13")  # Sunday
 
 six_two.build()
 
@@ -200,8 +200,8 @@ machine.add_shift(ShiftPattern(six_two))
 # We could combine the two shifts though to make our life easier. We can also
 # account for reduced production during shift handovers if we wanted to. This
 # is going to be LONG (hence why you might want to save pre-mades as JSON).
-# You could loop this but we'll do it piece-by-piece here though to
-# demonstrate.
+# You could loop this very easily but we'll do it piece-by-piece here though to
+# demonstrate without any ambiguity.
 combined = ShiftBuilder(ref_start_date="2000-02-06", name="Ten-Six, Six-Two")
 
 combined.add_work_period(

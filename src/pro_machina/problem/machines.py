@@ -268,7 +268,8 @@ class ContinuousMachine(_Machine):
         )
 
     def add_product_group(self, group: ContinuousProductGroup):
-        pass
+        for prod in group.products:
+            self.add_product(prod)
 
     def add_hard_constraint(
         self,
@@ -290,26 +291,30 @@ class ContinuousMachine(_Machine):
         self._hard_constraints.extend(constraints)
 
 
-class ContinuousMachineGroup(ContinuousMachine):
+class ContinuousMachineGroup:
     _ids = count(0)
 
     def __init__(
-        self, name: str, machines: list[_Machine] | None = None
+        self, name: str, machines: list[ContinuousMachine] | None = None
     ) -> None:
         self._id = MachID(next(self._ids))
         self.name = name
-        self.machines: list[_Machine] = (
+        self.machines: list[ContinuousMachine] = (
             machines if machines is not None else []
         )
 
         if self.machines:
-            if not all(isinstance(item, _Machine) for item in self.machines):
+            if not all(
+                isinstance(item, ContinuousMachine) for item in self.machines
+            ):
                 raise TypeError("Incorrect type added to machine group")
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
 
-    def add_machine(self, machines: _Machine | list[_Machine]) -> None:
+    def add_machine(
+        self, machines: ContinuousMachine | list[ContinuousMachine]
+    ) -> None:
         """Add a machine to an existing grouping
 
         Parameters

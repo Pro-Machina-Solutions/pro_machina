@@ -147,20 +147,20 @@ raspberry = ContinuousProduct("raspberry sweet", base_dimension=BaseUnit)
 apple = ContinuousProduct("apple sweet", base_dimension=BaseUnit)
 strawberry = ContinuousProduct("strawberry sweet", base_dimension=BaseUnit)
 
+# Add the common components across the group
 group = ContinuousProductGroup(
     name="Flav sweets", products=[raspberry, apple, strawberry]
 )
 group.add_component(sugar, qty=Kilo("7.3"), per=Unit(1000))
 group.add_component(gelatine, qty=Kilo("0.45"), per=Unit(1000))
 
-# Now dfine the unique components
-raspberry = group.get_by_name("raspberry sweet").add_component(
-    straw_flav, qty=Bottle(2), per=Unit(10000)
+# Now define the unique components
+raspberry = group.get_prod_by_name("raspberry sweet").add_component(
+    rasp_flav, qty=Bottle(2), per=Unit(10000)
 )
-apple = group.get_by_name("apple sweet").add_component(
+apple = group.get_prod_by_name("apple sweet").add_component(
     apple_flav, qty=Bottle(2), per=Unit(10000)
 )
-strawberry = group.get_by_name("strawberry sweet").add_component(
+strawberry = group.get_prod_by_name("strawberry sweet").add_component(
     straw_flav, qty=Bottle(2), per=Unit(10000)
 )
-
