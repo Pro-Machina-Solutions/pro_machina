@@ -19,16 +19,16 @@ from .products import BatchProduct, ContinuousProduct, ProdID
 
 
 class Order:
-    """Create a fixed quantity demand for a product on a fixed date
+    """Create a fixed quantity demand for a product on a fixed date.
 
     Parameters
     ----------
     product : BatchProduct | ContinuousProduct
-        The product the order relates to
+        The product the order relates to.
     date : dt.date | str
-        The date on which the demand must be met
+        The date on which the demand must be met.
     qty : SizedDimension
-        The due quantity of the order
+        The due quantity of the order.
     value : float | None
         The total financial value of the order. If set to None then it will
         default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
@@ -39,7 +39,7 @@ class Order:
     Raises
     ------
     UnitError
-        Raised if the order quantity is incompatible with the product units
+        Raised if the order quantity is incompatible with the product units.
     """
 
     def __init__(
@@ -77,25 +77,25 @@ class Order:
 
 
 class MadeToStock:
-    """Generate product demand that is not associated with a fixed order
+    """Generate product demand that is not associated with a fixed order.
 
     Parameters
     ----------
     product : BatchProduct | ContinuousProduct
-        The product the demand relates to
+        The product that the demand relates to.
     qty : SizedDimension
-        The target quantity to produce
+        The target quantity to produce.
     start_date : str | dt.datetime
         The theoretical date that this applies to. For example, on a problem
         that starts on a Monday, you might set the start date as the following
-        Friday, giving the plant five days to meet the demand
+        Friday, giving the plant five days to meet the demand.
     freq : Duration | None, optional
         The frequency with which this demand should repeat. For example,
         setting a qty of Unit(1000) and a freq of Weeks(1) will generate a
         repeating demand every seven days from the start date. Set as None for
-        a one-off demand
+        a one-off demand.
     end_date : str | dt.datetime | None, optional
-        An optional end date for which repeated demand should cease
+        An optional end date for which repeated demand should cease.
     value : float | None
         The total financial value of the stock. If set to None then it will
         default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
@@ -103,9 +103,9 @@ class MadeToStock:
     Raises
     ------
     UnitError
-        Raised if the stated quantity is incompatible with the product units
+        Raised if the stated quantity is incompatible with the product units.
     ValueError
-        Raised if an end_date is set but no freq has been specified
+        Raised if an end_date is set but no freq has been specified.
     """
 
     def __init__(
@@ -122,14 +122,14 @@ class MadeToStock:
         if end_date is not None and freq is None:
             raise ValueError(
                 "Cannot set an end date for MadeToStock without specifying a"
-                " frequency of restocking"
+                " frequency of restocking."
             )
 
         if not isinstance(
             qty, CustomUnit
         ) and not product.base_dimension.is_compatible(qty):
             raise UnitError(
-                f"{qty} is not a compatible quantity for {product}"
+                f"{qty} is not a compatible quantity for {product}."
             )
 
         if isinstance(qty, CustomUnit):
@@ -153,7 +153,7 @@ class MadeToStock:
 
 
 class DemandForecast:
-    """Container class to hold all Orders and MadeToStock quantities"""
+    """Container class to hold all Orders and MadeToStock quantities."""
 
     def __init__(self) -> None:
         self._orders: list[Order] = []
@@ -165,12 +165,12 @@ class DemandForecast:
         self._product_names: dict[ProdID, str] = {}
 
     def add_demand(self, order: Order | MadeToStock) -> None:
-        """Add product demand to the forecast
+        """Add product demand to the forecast.
 
         Parameters
         ----------
         order : Order | MadeToStock
-            Either a fixed-date Order or a variable MadeToStock target
+            Either a fixed-date Order or a variable MadeToStock target.
         """
         if isinstance(order, Order):
             self._orders.append(order)

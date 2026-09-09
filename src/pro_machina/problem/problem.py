@@ -21,11 +21,11 @@ from ..util import (
 )
 from .constraints import (
     Constraint,
-    ConstraintArbiter,
     ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
+from .constraints._arbiter import ConstraintArbiter
 from .consumables import ConsID
 from .forecasts import DemandForecast
 from .machines import (
@@ -321,7 +321,7 @@ class Problem:
 
         if not isinstance(constraint, SoftConstraint):
             raise TypeError(
-                f"{constraint.__class__.__name__} is not a soft constraint"
+                f"{type(constraint).__name__} is not a soft constraint"
             )
 
         _check_constraint_is_fully_specified(constraint)
@@ -331,7 +331,7 @@ class Problem:
             and not pro_machina.options["silence_constraint_overrides"]
         ):
             warn(
-                f"\n{constraint.__class__.__name__} has been specified for"
+                f"\n{type(constraint).__name__} has been specified for"
                 f" product: {constraint.product} and machine:"
                 f" {constraint.machine} already and is being set at the"
                 " problem level",

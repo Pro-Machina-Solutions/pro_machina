@@ -4,11 +4,11 @@ import datetime as dt
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..machines import MachID, _Machine
-    from ..products import ProdID, _Product
+    from ..machines import _Machine
+    from ..products import _Product
 
 
 class ConstraintLevel(Enum):
@@ -70,7 +70,6 @@ class MachineOnly(Constraint):
     pass
 
 
-from ._arbiter import ConstraintArbiter
 from .constraint_groupings import (
     MutuallyExclusiveMachines,
     PairedMachines,

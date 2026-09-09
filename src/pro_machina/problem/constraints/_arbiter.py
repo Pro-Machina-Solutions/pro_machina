@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime as dt
 import itertools
-from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -12,29 +11,26 @@ from ..machines import MachID
 from ..products import ProdID
 from . import ConstraintLevel, HardConstraint, ProductOnly
 
-if TYPE_CHECKING:
-    pass
-
 
 class ConstraintArbiter:
-    """A centralised controller of all constraints within a problem
+    """A centralised controller of all constraints within a problem.
 
     The Arbiter stores constraints as columns in a dataframe. The rows of the
     dataframe are the time buckets of the problem span, and the columns
     represent the constraint in multiple ways. Each constraint is broken down
     into {constraint.__name__}_{constraint_field}. Each product is given their
     own dataframe stored in a dictionary that details all of the values for
-    each constraint listed against that product as
+    each constraint listed against that product as.
     {constraint.__name__}_level.
 
     Parameters
     ----------
     problem_start : dt.datetime
-        The start datetime of the problem span
+        The start datetime of the problem span.
     problem_end : dt.datetime
-        The end datetime of the problem span
+        The end datetime of the problem span.
     config : Config
-        The problem config specifying the timebucket duration
+        The problem config specifying the timebucket duration.
     """
 
     def __init__(
@@ -157,7 +153,7 @@ class ConstraintArbiter:
         machine_prod_mapping: dict[MachID, list[ProdID]],
     ) -> pl.DataFrame:
         """
-        Handle constraints that apply in product/machine pairings
+        Handle constraints that apply in product/machine pairings.
 
         Assumes that the constraint is not a subclass of ProductOnly or
         MachineOnly.

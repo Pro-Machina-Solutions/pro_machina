@@ -14,6 +14,10 @@ class UnitError(ProblemError):
     """Inconsistency in unit measure types"""
 
 
+class ProductError(ProblemError):
+    """Incorrectly specified parameter for a product"""
+
+
 class MachineError(ProblemError):
     """Incorrectly specified parameter for a machine"""
 

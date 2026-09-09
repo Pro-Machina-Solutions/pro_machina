@@ -9,7 +9,7 @@ from warnings import warn
 import pro_machina
 
 from ..durations import Duration
-from ..exceptions import UnitError
+from ..exceptions import ProductError, UnitError
 from ..measures import (
     CustomUnit,
     Dimension,
@@ -80,7 +80,7 @@ class _Product:
         from pro_machina import ContinuousProduct
         from pro_machina.measures import(FluidVolume, Kilo, Litre, Millilitre)
 
-        goop = ContinuousProduct("Goop (TM)", FluidVolume)
+        goop = ContinuousProduct("Goop TM", FluidVolume)
         goop.add_component(sugar, qty=Kilo("0.5"), per=Litre(1))
         goop.add_component(starch, qty=Kilo(20), per=Litre(250))
         goop.add_component(rasp_flav, qty=Millilitre(19), per=Litre(2))
@@ -216,7 +216,7 @@ class _Product:
                     warn(
                         "\n"
                         + (
-                            f"{constraints.__class__.__name__} has already"
+                            f"{type(constraints).__name__} has already"
                             f" been defined for {self.name} and is being"
                             f" overwritten by {constraints}\n"
                         ),
@@ -236,7 +236,7 @@ class _Product:
 
 
 class ContinuousProduct(_Product):
-    """Defines a product that can be manufactured for variable periods of time
+    """Defines a product that can be manufactured for variable periods of time.
 
     Unlike a batch product, these products are produced in a continuous manner
     such that the quantity made is dependent on how long the model chooses to
@@ -245,7 +245,7 @@ class ContinuousProduct(_Product):
     Parameters
     ----------
     name : str
-        A string identifier for this product
+        A unique string identifier for this product.
     base_dimension : UnsizedDimension
         The dimension in which this product is sized e.g. FluidVolume or Weight
         etc.
@@ -256,7 +256,7 @@ class ContinuousProduct(_Product):
 
 
 class ContinuousProductGroup:
-    """Create a grouping of products that share some characteristic
+    """Create a grouping of products that share some characteristic.
 
     This can be useful for situations where products are competing for a
     resource. For example, you might only have a total storage capacity of 50
@@ -277,16 +277,18 @@ class ContinuousProductGroup:
     Parameters
     ----------
     name : str
-        A name for the grouping
+        A unique string identifier for this grouping.
     products : list[_Product] | None, optional
         Optionally instantiate the group with a list of pre-defined
         products. Otherwise, you can instantitate an empty group and add
-        products to it as and when they are defined in your code
+        products to it as and when they are defined in your code.
 
     Raises
     ------
     TypeError
-        Attempted to add something other than a Product to the grouping
+        Attempted to add something other than a Product to the grouping.
+    ProductError
+        The same product has been added to the group multiple times.
     """
 
     _ids = count(0)
@@ -297,59 +299,56 @@ class ContinuousProductGroup:
 
         self._id = next(self._ids)
         self.name = name
-        self.products: list[ContinuousProduct] = (
-            products if products is not None else []
-        )
+        self._products: dict[int, ContinuousProduct] = {}
         self._product_by_name: dict[str, ContinuousProduct] = {}
 
-        if self.products:
+        if products is not None:
             if not all(
-                isinstance(item, ContinuousProduct) for item in self.products
+                isinstance(prod, ContinuousProduct) for prod in products
             ):
-                raise TypeError("Incorrect type added to product group")
+                raise TypeError(
+                    "Only ContinuousProducts can be added to group"
+                )
 
-            for product in self.products:
-                # Catch here in case the grouping is instantiated will all
-                # products and `add_product()` is never called later
-                self._product_by_name[product.name] = product
-        print(self._product_by_name)
+            for prod in products:
+                if prod._id in self._products:
+                    raise ProductError("Duplicate product in grouping")
+                self._products[prod._id] = prod
+                self._product_by_name[prod.name] = prod
 
     def add_products(
         self, products: ContinuousProduct | list[ContinuousProduct]
     ) -> None:
-        """Add a product to an existing grouping
+        """Add a product to an existing grouping.
 
         Parameters
         ----------
         products : _Product | list[_Product]
-            The product(s) to be added
+            The product(s) to be added.
 
         Raises
         ------
-        TypeError
-            Attempted to add something other than a Product to the grouping
-        """
-        if isinstance(products, ContinuousProduct):
-            self.products.append(products)
-        else:
-            self.products.extend(products)
 
-        prev_len = len(self.products)
-        self.products = list(set(self.products))
-        if (
-            len(self.products) < prev_len
-            and not pro_machina.options["silence_warnings"]
-        ):
-            warn(
-                f"\n Duplicate products were added to group: {self.name}",
-                stacklevel=1,
+        TypeError
+            Attempted to add something other than a ContinuousProduct to the
+            grouping.
+        """
+
+        if isinstance(products, ContinuousProduct):
+            products = [products]
+
+        if any(prod._id in self._products for prod in products):
+            raise ProductError("Duplicate product added to grouping")
+
+        if not all(isinstance(item, ContinuousProduct) for item in products):
+            raise TypeError(
+                "Attempted to add something other than a ContinuousProduct to"
+                " grouping"
             )
 
-        if not all(isinstance(item, _Product) for item in self.products):
-            raise TypeError("Incorrect type added to product group")
-
-        for product in self.products:
-            self._product_by_name[product.name] = product
+        for prod in products:
+            self._products[prod._id] = prod
+            self._product_by_name[prod.name] = prod
 
     def add_component(
         self,
@@ -379,7 +378,7 @@ class ContinuousProductGroup:
             specifying components in units that are not compatible with either
             a product or their measurement unit.
         """
-        for product in self.products:
+        for product in self._products.values():
             product.add_component(component, qty, per)
 
     def add_hard_constraint(
@@ -387,18 +386,18 @@ class ContinuousProductGroup:
         constraints: HardConstraint | list[HardConstraint],
     ) -> None:
         """Add a hard constraint on the product level to all products in the
-        group
+        group.
 
         Parameters
         ----------
         constraints : HardConstraint | list[HardConstraint]
             Either a single HardConstraint or a list of HardConstraints to be
-            applied
+            applied.
 
         Raises
         ------
         TypeError
-            Something other than a HardConstraint was applied
+            Something other than a HardConstraint was applied.
         """
 
         if isinstance(constraints, HardConstraint):
@@ -407,7 +406,7 @@ class ContinuousProductGroup:
         if not all(isinstance(item, HardConstraint) for item in constraints):
             raise TypeError("Constraints must all be of type HardConstraint")
 
-        for product in self.products:
+        for product in self._products.values():
             for constraint in constraints:
                 if constraint.product is None:
                     constraint._set_product(product)
