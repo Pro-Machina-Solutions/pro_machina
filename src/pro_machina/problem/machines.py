@@ -17,8 +17,8 @@ import numpy as np
 import pro_machina
 
 from ..durations import Duration
-from ..exceptions import MachineError, ShiftDefinitionError
-from ..measures import SizedDimension
+from ..exceptions import MachineError, ShiftDefinitionError, UnitError
+from ..measures import CustomUnit, SizedDimension, _UnitRegistry
 from ..util import (
     as_day_end,
     as_day_start,
@@ -235,7 +235,7 @@ class ContinuousMachine(_Machine):
         machine.add_product(product, run_rate=Unit(80), per=Mins(1))
         ```
 
-        Or alternatively, 5 litres (averaged) in every 15 minute period:
+        Or alternatively, 5 litres in every 15 minute period (averaged):
         ```
         machine = ContinuousMachine(name="Machine A")
         machine.add_product(product, run_rate=Litre(5), per=Mins(15))
@@ -259,6 +259,10 @@ class ContinuousMachine(_Machine):
         MachineError
             Raised if neither the default nor the specific run rate for
             products are specified.
+        UnitError
+            The run rate specified for the machine is incompatible with the
+            units of the product it produces e.g. Unit/Min for a product
+            measured in Litres.
         """
 
         if not isinstance(product, ContinuousProduct):
@@ -279,11 +283,33 @@ class ContinuousMachine(_Machine):
             _run_rate = self.default_run_rate
         else:
             raise MachineError(
-                (
-                    "Neither a default run rate or a specific run rate of "
-                    f"product has been specified for {product.name}"
-                ).lstrip()
+
+                    "Neither a default run rate or a specific run rate of"
+                    f" product has been specified for {product.name} on"
+                    f" {self.name}"
+
             )
+
+        # Now need to check that the dimensions of the product and the run rate
+        # of the machine are compatible
+        if not isinstance(_run_rate, CustomUnit):
+            prod_dim = product.base_dimension
+            if not prod_dim.is_compatible(_run_rate):
+                raise UnitError(
+                    f"Production units of {type(_run_rate).__name__} for"
+                    f" {self.name} are incompatible with the product unit of"
+                    f" {prod_dim.__name__} for {product.name}"
+                )
+        else:
+            reg = _UnitRegistry()
+            custom_unit = reg.get_measure(_run_rate, product)
+            prod_dim = product.base_dimension
+            if not prod_dim.is_compatible(custom_unit):
+                raise UnitError(
+                    f"Production units of {_run_rate.name} for"
+                    f" {self.name} are incompatible with the product unit of"
+                    f" {prod_dim.__name__} for {product.name}"
+                )
 
         _per = None
         if per is not None:
@@ -292,10 +318,10 @@ class ContinuousMachine(_Machine):
             _per = self.default_per
         else:
             raise MachineError(
-                (
+
                     "Neither a default time period or a specific time period "
                     f" for the run_rate has been specified for {product.name}"
-                ).lstrip()
+
             )
 
         # When adding a product, we want to first "inherit" its own list of
@@ -330,14 +356,14 @@ class ContinuousMachine(_Machine):
         must be specified seperately. For example:
 
         ```python3
-        prod_1 = ContinuousProduct("Prod 1")
+        prod_1 = ContinuousProduct("Prod 1", base_dimension=BaseUnit)
 
         # Apply a constraint to just one of the products before adding to the
         # group
-        prod_2 = ContinuousProduct("Prod 2")
+        prod_2 = ContinuousProduct("Prod 2", base_dimension=BaseUnit)
         prod_2.add_hard(MaxProductionTime(Hours(24)))
 
-        prod_3 = ContinuousProduct("Prod 3")
+        prod_3 = ContinuousProduct("Prod 3", base_dimension=BaseUnit)
 
         group = ContinuousProductGroup("Sweets", [prod_1, prod_2, prod_3])
         # Add a constraint to all of the products in the group
@@ -360,7 +386,7 @@ class ContinuousMachine(_Machine):
         mach_1.add_product_group(
             group=group,
             run_rates=[
-                ("Prod 1", Unit(45, Mins(1)),
+                ("Prod 1", Unit(45), Mins(1)),
                 ("Prod 2", Unit(52), Mins(1)),
                 ("Prod 3", Unit(50), Mins(1))
             ]
@@ -433,7 +459,7 @@ class ContinuousMachine(_Machine):
             constraints = [constraints]
 
         if not all(isinstance(item, HardConstraint) for item in constraints):
-            raise TypeError("Constraints must all be of type HardConstraint")
+            raise TypeError("Constraints must all be of type HardConstraint.")
 
         for constraint in constraints:
             if constraint.machine is None:
@@ -459,7 +485,7 @@ class ContinuousMachineGroup:
             if not all(
                 isinstance(item, ContinuousMachine) for item in self.machines
             ):
-                raise TypeError("Incorrect type added to machine group")
+                raise TypeError("Incorrect type added to machine group.")
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
@@ -467,17 +493,17 @@ class ContinuousMachineGroup:
     def add_machine(
         self, machines: ContinuousMachine | list[ContinuousMachine]
     ) -> None:
-        """Add a machine to an existing grouping
+        """Add a machine to an existing grouping.
 
         Parameters
         ----------
         machines : _Machine | list[_Machine]
-            The machine(s) to be added
+            The machine(s) to be added.
 
         Raises
         ------
         TypeError
-            Attempted to add something other than a Machine to the grouping
+            Attempted to add something other than a Machine to the grouping.
         """
         if isinstance(machines, _Machine):
             self.machines.append(machines)

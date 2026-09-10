@@ -29,7 +29,7 @@ class _ConsumableRegistry(metaclass=Singleton):
 
 
 class Consumable:
-    """Represents some item that is not manufactured on site
+    """Represents some item that is not manufactured on site.
 
     Consumables are by default rate-limiting. This means that if there is no
     available stock, any products that depend on this item will not be made.

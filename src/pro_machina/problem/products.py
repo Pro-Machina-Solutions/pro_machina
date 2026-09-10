@@ -133,7 +133,7 @@ class _Product:
         else:
             if not component.base_dimension.is_compatible(qty):
                 raise UnitError(
-                    f"{qty.name()} is an invalid measure for {component.name}"
+                    f"{qty.name()} is an invalid measure for {component.name}."
                 )
             amt = qty._base_qty
             unit = qty.get_base().symbol
@@ -180,12 +180,12 @@ class _Product:
         ----------
         constraints : HardConstraint | list[HardConstraint]
             Either a single HardConstraint or a list of HardConstraints to be
-            applied
+            applied.
 
         Raises
         ------
         TypeError
-            Something other than a HardConstraint was applied
+            Something other than a HardConstraint was applied.
         """
 
         if isinstance(constraints, HardConstraint):
@@ -216,9 +216,9 @@ class _Product:
                     warn(
                         "\n"
                         + (
-                            f"{type(constraints).__name__} has already"
-                            f" been defined for {self.name} and is being"
-                            f" overwritten by {constraints}\n"
+                            f"{type(cons).__name__} has already been defined"
+                            f" for {self.name} and is being overwritten by"
+                            f" {constraints}\n"
                         ),
                         stacklevel=1,
                     )
@@ -230,9 +230,6 @@ class _Product:
         ]
         new_cons.extend(constraints)
         self._soft_constraints = new_cons
-
-    def __repr__(self):
-        return f"<Product: {self.name}>"
 
 
 class ContinuousProduct(_Product):

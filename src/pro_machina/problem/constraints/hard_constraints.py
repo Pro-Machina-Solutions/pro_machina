@@ -14,7 +14,7 @@ from .type_checkers import (
 
 
 class MinProductionTime(HardConstraint):
-    """Specify the minimum continuous run time of a product or a machine
+    """Specify the minimum continuous run time of a product or a machine.
 
     **Only applies to Continous Products/Machines**
 
@@ -32,27 +32,27 @@ class MinProductionTime(HardConstraint):
     Parameters
     ----------
     value : Duration
-        The minimum continuous duration that this product can be produced
+        The minimum continuous duration that this product can be produced.
     start_date : str | dt.datetime | dt.date | None, optional
         The start date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
+        left as None, it will apply across the entire problem.
     end_date : str | dt.datetime | dt.date | None, optional
         The end date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
+        left as None, it will apply across the entire problem.
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
     machine : ContinuousMachine | None, optional
         Specify a particular machine that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
 
     Raises
     ------
     ConstraintError
         Raised if this is applied to a product or machine that is not
-        Continuous
+        Continuous.
     """
 
     def __init__(
@@ -95,14 +95,14 @@ class MinProductionTime(HardConstraint):
         prod = self.product.name if self.product is not None else "All"
         mach = self.machine.name if self.machine is not None else "All"
         return (
-            f"<{self.__class__.__name__}. Product: {prod}, Machine: {mach},"
-            f" Run time: {self.value}, Start date: {self.start_date},"
-            f" End date: {self.end_date}>"
+            f"<HardConstraint: {type(self).__name__}. Product: {prod},"
+            f" Machine: {mach}, Min run time: {self.value}, Start date:"
+            f" {self.start_date}, End date: {self.end_date}>"
         )
 
 
 class MaxProductionTime(HardConstraint):
-    """Specify the maximum continuous run time of a product or a machine
+    """Specify the maximum continuous run time of a product or a machine.
 
     **Only applies to Continous Products/Machines**
 
@@ -120,27 +120,27 @@ class MaxProductionTime(HardConstraint):
     Parameters
     ----------
     value : Duration
-        The maximum continuous duration that this product can be produced
+        The maximum continuous duration that this product can be produced.
     start_date : str | dt.datetime | dt.date | None, optional
         The start date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
+        left as None, it will apply across the entire problem.
     end_date : str | dt.datetime | dt.date | None, optional
         The end date of the constraint consideration, by default None. If
-        left as None, it will apply across the entire problem
+        left as None, it will apply across the entire problem.
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
     machine : ContinuousMachine | None, optional
         Specify a particular machine that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
 
     Raises
     ------
     ConstraintError
         Raised if this is applied to a product or machine that is not
-        Continuous
+        Continuous.
     """
 
     def __init__(
@@ -183,14 +183,14 @@ class MaxProductionTime(HardConstraint):
         prod = self.product.name if self.product is not None else "All"
         mach = self.machine.name if self.machine is not None else "All"
         return (
-            f"<{self.__class__.__name__}. Product: {prod}, Machine: {mach},"
+            f"<{type(self).__name__}. Product: {prod}, Machine: {mach},"
             f" Run time: {self.value}, Start date: {self.start_date},"
             f" End date: {self.end_date}>"
         )
 
 
 class SeasonalProduction(HardConstraint):
-    """Specify a date range in which a product can be produced
+    """Specify a date range in which a product can be produced.
 
     This is useful for promos or events e.g. products that are only produced
     for Christmas should not be produced before November 1st and should not be
@@ -212,17 +212,17 @@ class SeasonalProduction(HardConstraint):
     Parameters
     ----------
     start_date : str | dt.datetime | dt.date
-        The start date of the production period
+        The start date of the production period.
     end_date : str | dt.datetime | dt.date
-        The end date of the production period
+        The end date of the production period.
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
     machine : ContinuousMachine | None, optional
         Specify a particular machine that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
     """
 
     def __init__(
@@ -250,7 +250,7 @@ class SeasonalProduction(HardConstraint):
 
 
 class ReducedProductionPeriod(HardConstraint):
-    """Define a period in which the production rate is lower than normal
+    """Define a period in which the production rate is lower than normal.
 
     **Only applies to Continous Products/Machines**
 
@@ -267,19 +267,19 @@ class ReducedProductionPeriod(HardConstraint):
         A percentage of the normal run rate that applies during this period.
         For example, if a machine normally produces 100 products per minute,
         setting this as 80 would mean that the machine only produces 80
-        products per minute during this period
+        products per minute during this period.
     start_date : str | dt.datetime | dt.date
-        The start date of the reduced run rate
+        The start date of the reduced run rate.
     end_date : str | dt.datetime | dt.date
-        The end date of the reduced run rate
+        The end date of the reduced run rate.
     product : ContinuousProduct | None, optional
         Specify a particular product that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
     machine : ContinuousMachine | None, optional
         Specify a particular machine that this applies to, by default None. If
         left as None, it will be determined by the context in which the
-        constraint is specified (on the product-level or machine-level)
+        constraint is specified (on the product-level or machine-level).
     """
 
     def __init__(
