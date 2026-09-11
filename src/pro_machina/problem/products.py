@@ -25,7 +25,7 @@ from .constraints import (
     HardConstraint,
     SoftConstraint,
 )
-from .consumables import Consumable
+from .consumables import ConsID, Consumable
 
 
 class _ComponentQty(TypedDict):
@@ -48,8 +48,8 @@ class _Product:
 
         self._consumables: list[_ComponentQty] = []
         self._products: list[_ComponentQty] = []
-        self._seen_consumables: set[int] = set()
-        self._seen_products: set[int] = set()
+        self._seen_consumables: set[ConsID] = set()
+        self._seen_products: set[ProdID] = set()
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
@@ -66,8 +66,8 @@ class _Product:
         # consumable BOM of anything we add. This should just keep expanding
         # as you go up the chain of parents and we don't necessarily care about
         # separating out and apportioning to child items
-        self._bom_products: dict[int, Decimal] = {}
-        self._bom_consumables: dict[int, Decimal] = {}
+        self._bom_products: dict[ProdID, Decimal] = {}
+        self._bom_consumables: dict[ConsID, Decimal] = {}
 
     def add_component(
         self,
@@ -261,9 +261,9 @@ class _Product:
                         warn(
                             (
                                 f"\n constraint {type(constraint).__name__}"
-                                f" has been specified two or more times for"
+                                " has been specified two or more times for"
                                 f" {self.name} and there is a date overlap."
-                                f" This new constraint takes precedence for"
+                                " This new constraint takes precedence for"
                                 f" dates between {min_date} and {max_date}"
                             ).lstrip(),
                             stacklevel=1,
@@ -400,7 +400,7 @@ class ContinuousProductGroup:
 
         self._id = next(self._ids)
         self.name = name
-        self._products: dict[int, ContinuousProduct] = {}
+        self._products: dict[ProdID, ContinuousProduct] = {}
         self._product_by_name: dict[str, ContinuousProduct] = {}
 
         if products is not None:
