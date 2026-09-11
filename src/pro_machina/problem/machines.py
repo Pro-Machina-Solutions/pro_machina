@@ -283,11 +283,9 @@ class ContinuousMachine(_Machine):
             _run_rate = self.default_run_rate
         else:
             raise MachineError(
-
-                    "Neither a default run rate or a specific run rate of"
-                    f" product has been specified for {product.name} on"
-                    f" {self.name}"
-
+                "Neither a default run rate or a specific run rate of"
+                f" product has been specified for {product.name} on"
+                f" {self.name}"
             )
 
         # Now need to check that the dimensions of the product and the run rate
@@ -318,10 +316,8 @@ class ContinuousMachine(_Machine):
             _per = self.default_per
         else:
             raise MachineError(
-
-                    "Neither a default time period or a specific time period "
-                    f" for the run_rate has been specified for {product.name}"
-
+                "Neither a default time period or a specific time period "
+                f" for the run_rate has been specified for {product.name}"
             )
 
         # When adding a product, we want to first "inherit" its own list of

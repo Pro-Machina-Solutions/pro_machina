@@ -4,7 +4,7 @@ import datetime as dt
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 if TYPE_CHECKING:
     from ..machines import _Machine
@@ -52,6 +52,12 @@ class Constraint(metaclass=ABCMeta):
             fields["machine"] = None
 
         return fields
+
+    def __hash__(self) -> int:
+        return hash(type(self).__name__)
+
+    def __eq__(self, other: object) -> bool:
+        return hash(type(self).__name__) == hash(type(other).__name__)
 
 
 class HardConstraint(Constraint):

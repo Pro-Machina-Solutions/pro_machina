@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
 from typing import NewType, TypedDict
 from warnings import warn
+
+import polars as pl
 
 import pro_machina
 
@@ -50,6 +53,14 @@ class _Product:
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
+
+        # This is ust for info purposes to the user. For example, if they set
+        # MinProductionTime twice for the same product but the date ranges
+        # overlap then we should warn the user that the second will take
+        # precidence over the first for any overlapped period.
+        self._hard_cons_collisions: dict[int, list[HardConstraint]] = (
+            defaultdict(list)
+        )
 
         # To avoid recursion, we should just inherit the full product and
         # consumable BOM of anything we add. This should just keep expanding
@@ -169,6 +180,96 @@ class _Product:
 
         return self
 
+    def _check_hard_cons_collisions(self, constraint: HardConstraint) -> None:
+        con_hash = hash(constraint)
+        curr_len = len(self._hard_cons_collisions.get(con_hash, []))
+
+        if curr_len >= 1:
+            # Seen at least one time before
+            if not pro_machina.options["silence_constraint_overrides"]:
+                this_start = constraint.start_date
+                this_end = constraint.end_date
+
+                this_range: pl.Series | None
+                # If no start date is set then this runs for the whole
+                # problem duration
+                if this_start is None:
+                    assert this_start is not None
+                    assert this_end is not None
+                    this_range = pl.date_range(
+                        this_start, this_end, eager=True
+                    )
+                else:
+                    this_range = None
+
+                for con in self._hard_cons_collisions[con_hash]:
+                    other_range: pl.Series | None
+                    if con.start_date is not None and con.end_date is not None:
+                        other_range = pl.date_range(
+                            con.start_date, con.end_date, eager=True
+                        )
+                    else:
+                        other_range = None
+
+                    if this_range is None and other_range is None:
+                        warn(
+                            (
+                                f"\n constraint {type(constraint).__name__}"
+                                f" has been specified two or more times for"
+                                f" {self.name} and there is a date overlap."
+                                " Both constraints span the whole problem"
+                                " duration and this new constraint takes"
+                                " precendence."
+                            ).lstrip(),
+                            stacklevel=1,
+                        )
+                    elif this_range is None and other_range is not None:
+                        warn(
+                            (
+                                f"\n constraint {type(constraint).__name__}"
+                                f" has been specified two or more times for"
+                                f" {self.name} and there is a date overlap."
+                                " The new constraint spans the whole problem"
+                                " duration and takes precedence between"
+                                f" {con.start_date} and {con.end_date}."
+                            ).lstrip(),
+                            stacklevel=1,
+                        )
+                    elif this_range is not None and other_range is None:
+                        warn(
+                            (
+                                f"\n constraint {type(constraint).__name__}"
+                                f" has been specified two or more times for"
+                                f" {self.name} and there is a date overlap."
+                                " The old constraint spans the whole problem"
+                                " duration and the new constraint takes"
+                                " precedence between"
+                                f" {this_start} and {this_end}."
+                            ).lstrip(),
+                            stacklevel=1,
+                        )
+                    else:
+                        assert other_range is not None
+                        overlap = other_range.filter(
+                            other_range.is_in(this_range.implode())
+                        )
+                        if overlap.is_empty():
+                            continue
+
+                        min_date = overlap.min()
+                        max_date = overlap.max()
+                        warn(
+                            (
+                                f"\n constraint {type(constraint).__name__}"
+                                f" has been specified two or more times for"
+                                f" {self.name} and there is a date overlap."
+                                f" This new constraint takes precedence for"
+                                f" dates between {min_date} and {max_date}"
+                            ).lstrip(),
+                            stacklevel=1,
+                        )
+        self._hard_cons_collisions[con_hash].append(constraint)
+
     def add_hard_constraint(
         self,
         constraints: HardConstraint | list[HardConstraint],
@@ -199,6 +300,9 @@ class _Product:
             constraint._set_level(_level)
 
         self._hard_constraints.extend(constraints)
+
+        for constraint in constraints:
+            self._check_hard_cons_collisions(constraint)
 
     def add_soft_constraint(
         self, constraints: SoftConstraint | list[SoftConstraint]
