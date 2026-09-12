@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
-from typing import NewType, TypedDict
+from typing import NewType, Self, TypedDict
 from warnings import warn
 
 import polars as pl
@@ -39,12 +39,25 @@ ProdID = NewType("ProdID", int)
 
 class _Product:
     _ids = count(0)
+    # Products need a unique identifier for users to be able to access them
+    # from ProductGroup etc. Ideally, the name alone will be enough to identify
+    # a product, but we add a code too just in case there is a name clash but
+    # there is a meaningful way to distinguish between them (for example, the
+    # same product sold in multiple countries requiring different wrappers).
+    _product_ids: set[tuple[str, str]] = set()
 
-    def __init__(self, name: str, base_dimension: UnsizedDimension):
+    def __init__(
+        self, name: str, base_dimension: UnsizedDimension, code: str = ""
+    ) -> None:
 
         self._id = ProdID(next(self._ids))
         self.name = name
+        self.code = code
         self.base_dimension = base_dimension
+
+        if (name, code) in self._product_ids:
+            raise ProductError("Product name/code combinations must be unique")
+        self._product_ids.add((name, code))
 
         self._consumables: list[_ComponentQty] = []
         self._products: list[_ComponentQty] = []
@@ -54,10 +67,10 @@ class _Product:
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
 
-        # This is ust for info purposes to the user. For example, if they set
+        # This is just for info purposes to the user. For example, if they set
         # MinProductionTime twice for the same product but the date ranges
         # overlap then we should warn the user that the second will take
-        # precidence over the first for any overlapped period.
+        # precidence over the first for any overlapping period.
         self._hard_cons_collisions: dict[int, list[HardConstraint]] = (
             defaultdict(list)
         )
@@ -65,7 +78,7 @@ class _Product:
         # To avoid recursion, we should just inherit the full product and
         # consumable BOM of anything we add. This should just keep expanding
         # as you go up the chain of parents and we don't necessarily care about
-        # separating out and apportioning to child items
+        # separating out and apportioning to child items.
         self._bom_products: dict[ProdID, Decimal] = {}
         self._bom_consumables: dict[ConsID, Decimal] = {}
 
@@ -74,22 +87,19 @@ class _Product:
         component: BatchProduct | ContinuousProduct | Consumable,
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
-    ) -> _Product:
+    ) -> Self:
         """Add either a consumable or a subproduct to the Bill of Materials.
 
         In each case, the quantity of product must be specified for each
         component being added. So, in the below example, we know that the
-        product will be created in FluidVolume measures. However, when adding
-        components, we can state their quantity in relation to a variable
-        amount to the product being made.
-
-        This is for convenience as not all consumables will be known on a
-        per-unit-measure basis but rather on some aggregate basis.
+        product will be created in FluidVolume measures. All components must
+        therefore be stated in quantities per some final FluidVolume measure of
+        the final product.
 
         A simple example of usage:
         ```
         from pro_machina import ContinuousProduct
-        from pro_machina.measures import(FluidVolume, Kilo, Litre, Millilitre)
+        from pro_machina.measures import FluidVolume, Kilo, Litre, Millilitre
 
         goop = ContinuousProduct("Goop TM", FluidVolume)
         goop.add_component(sugar, qty=Kilo("0.5"), per=Litre(1))
@@ -100,24 +110,28 @@ class _Product:
         Parameters
         ----------
         component : BatchProduct | ContinuousProduct | Consumable
-            An instance of a pre-defined product or consumable.
+            A pre-defined product or consumable that is a constituent part of
+            the product being made.
         qty : SizedDimension | CustomUnit
             The quantity and dimension of component.
         per : SizedDimension
-            The units specified for this product.
+            The amount of product that can be made from the quantity of the
+            subproduct/component being added.
 
         Raises
         ------
+        ProductError
+            Raised when attempting to add a Product or Consumable twice as a
+            component.
         UnitError
-            Raised when either trying to add a component more than once or when
-            specifying components in units that are not compatible with either
-            this product or their own measurement unit.
+            Raised when specifying components in units that are not compatible
+            with their own measurement unit.
         """
         if (
             component._id in self._seen_consumables
             or component._id in self._seen_products
         ):
-            raise UnitError(
+            raise ProductError(
                 f"{component.name} cannot be added twice to {self.name}"
             )
 
@@ -181,6 +195,10 @@ class _Product:
         return self
 
     def _check_hard_cons_collisions(self, constraint: HardConstraint) -> None:
+        """
+        Helper method to see which, if any, duplicate constraint takes
+        precedence.
+        """
         con_hash = hash(constraint)
         curr_len = len(self._hard_cons_collisions.get(con_hash, []))
 
@@ -352,7 +370,9 @@ class ContinuousProduct(_Product):
         etc.
     """
 
-    def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
+    def __init__(
+        self, name: str, base_dimension: UnsizedDimension, code: str = ""
+    ) -> None:
         super().__init__(name, base_dimension)
 
 
@@ -401,7 +421,7 @@ class ContinuousProductGroup:
         self._id = next(self._ids)
         self.name = name
         self._products: dict[ProdID, ContinuousProduct] = {}
-        self._product_by_name: dict[str, ContinuousProduct] = {}
+        self._product_by_name: dict[tuple[str, str], ContinuousProduct] = {}
 
         if products is not None:
             if not all(
@@ -415,7 +435,7 @@ class ContinuousProductGroup:
                 if prod._id in self._products:
                     raise ProductError("Duplicate product in grouping")
                 self._products[prod._id] = prod
-                self._product_by_name[prod.name] = prod
+                self._product_by_name[(prod.name, prod.code)] = prod
 
     def add_products(
         self, products: ContinuousProduct | list[ContinuousProduct]
@@ -424,7 +444,7 @@ class ContinuousProductGroup:
 
         Parameters
         ----------
-        products : _Product | list[_Product]
+        products : ContinuousProduct | list[ContinuousProductt]
             The product(s) to be added.
 
         Raises
@@ -449,7 +469,7 @@ class ContinuousProductGroup:
 
         for prod in products:
             self._products[prod._id] = prod
-            self._product_by_name[prod.name] = prod
+            self._product_by_name[(prod.name, prod.code)] = prod
 
     def add_component(
         self,
@@ -516,25 +536,31 @@ class ContinuousProductGroup:
                     constraint, _level=ConstraintLevel.PRODUCT_GROUP.value
                 )
 
-    def get_prod_by_name(self, product_name: str) -> ContinuousProduct:
-        """Return an individual product from the group by its string name
+    def get_prod_by_name(
+        self, product_name: str, product_code: str = ""
+    ) -> ContinuousProduct:
+        """Return an individual product from the group by its string name.
 
         Parameters
         ----------
         product_name : str
-            The string name of the product within the group
+            The string name of the product within the group.
+        product_code : str | None
+            Optional additional identifier in cases where two products share
+            the same name but are slightly different e.g. one is an
+            international version requiring different labelling.
 
         Returns
         -------
         ContinuousProduct
-            The requested product
+            The requested product.
 
         Raises
         ------
         ValueError
-            Product name not found within the group
+            Product name not found within the group.
         """
-        prod = self._product_by_name.get(product_name)
+        prod = self._product_by_name.get((product_name, product_code))
         if prod is None:
             raise ValueError(f"Product name not recognised: {product_name}")
         return prod

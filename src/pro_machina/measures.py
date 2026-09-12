@@ -19,7 +19,7 @@ class Dimension:
     _base_qty: Decimal
 
     def name(self):
-        return self.__class__.__name__
+        return type(self).__name__
 
     def __str__(self) -> str:
         return f"{self.qty} {self.symbol}"
