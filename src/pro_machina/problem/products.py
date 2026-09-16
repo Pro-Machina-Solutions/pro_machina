@@ -13,6 +13,7 @@ import pro_machina
 
 from ..durations import Duration
 from ..exceptions import ProductError, UnitError
+from ..finances import ProductionCost, SaleValue
 from ..measures import (
     CustomUnit,
     Dimension,
@@ -211,9 +212,7 @@ class _Product:
                 this_range: pl.Series | None
                 # If no start date is set then this runs for the whole
                 # problem duration
-                if this_start is None:
-                    assert this_start is not None
-                    assert this_end is not None
+                if this_start is not None and this_end is not None:
                     this_range = pl.date_range(
                         this_start, this_end, eager=True
                     )
@@ -268,14 +267,16 @@ class _Product:
                         )
                     else:
                         assert other_range is not None
+                        assert this_range is not None
                         overlap = other_range.filter(
                             other_range.is_in(this_range.implode())
                         )
                         if overlap.is_empty():
                             continue
 
-                        min_date = overlap.min()
-                        max_date = overlap.max()
+                        max_date = str(overlap.max())
+                        min_date = str(overlap.min())
+
                         warn(
                             (
                                 f"\n constraint {type(constraint).__name__}"
@@ -371,9 +372,16 @@ class ContinuousProduct(_Product):
     """
 
     def __init__(
-        self, name: str, base_dimension: UnsizedDimension, code: str = ""
+        self,
+        name: str,
+        base_dimension: UnsizedDimension,
+        code: str = "",
+        production_cost: ProductionCost | None = None,
+        sale_value: SaleValue | None = None,
     ) -> None:
-        super().__init__(name, base_dimension)
+        super().__init__(name, base_dimension, code)
+        self.production_cost = production_cost
+        self.sale_value = sale_value
 
 
 class ContinuousProductGroup:
@@ -415,7 +423,10 @@ class ContinuousProductGroup:
     _ids = count(0)
 
     def __init__(
-        self, name: str, products: list[ContinuousProduct] | None = None
+        self,
+        name: str,
+        code: str,
+        products: list[ContinuousProduct] | None = None,
     ) -> None:
 
         self._id = next(self._ids)
@@ -458,14 +469,14 @@ class ContinuousProductGroup:
         if isinstance(products, ContinuousProduct):
             products = [products]
 
-        if any(prod._id in self._products for prod in products):
-            raise ProductError("Duplicate product added to grouping")
-
         if not all(isinstance(item, ContinuousProduct) for item in products):
             raise TypeError(
                 "Attempted to add something other than a ContinuousProduct to"
                 " grouping"
             )
+
+        if any(prod._id in self._products for prod in products):
+            raise ProductError("Duplicate product added to grouping")
 
         for prod in products:
             self._products[prod._id] = prod

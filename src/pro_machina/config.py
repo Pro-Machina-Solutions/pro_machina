@@ -1,6 +1,14 @@
+from enum import StrEnum
 from secrets import randbelow
 
 from .durations import Duration, Hours, Mins, Secs, Weeks
+from .finances import Currency, CurrencyRefresh
+
+
+class InventoryDrawdown(StrEnum):
+    FIFO = "First In, First Out"
+    LIFO = "Last In, First Out"
+    AVE = "Average"
 
 
 class Config:
@@ -25,6 +33,17 @@ class Config:
         whether the solution has converged or not. By default, this is set to
         None, which will allow the solver to terminate naturally once
         convergence criteria are met.
+    improvement_threshold_pct : int
+        The percentage change in solution costs over N number of iterations
+        (`improvement_threshold_iterations`) before the problem is considered
+        converged for the purposes of early termination. For example, the
+        default is 1%. If the solution cost doesn't improve by more than 1%
+        over `improvement_threshold_iterations`, the solver can terminate
+        early. By default, 1%.
+    improvement_threshold_iterations : int
+        How many iterations are performed to check for
+        `improvement_threshold_pct` being before the algorithm terminates
+        early.
     timebucket : Duration
         The duration span of the problem needs to be broken down into distinct
         buckets with a set duration. Most problems do not need second-by-second
@@ -42,7 +61,8 @@ class Config:
         option is off the table in this scenario.
     random_seed : int
         Set a random seed between 0 and 4294967296 to make the algorithm
-        consistent between runs
+        consistent between runs. Otherwise, the number will be chosen at random
+        on each run.
     min_default_swap_block : Duration
         For Continuous problems, we want to have some sensible production runs
         to prevent a machine swapping product every 15 minutes. This sets a
@@ -84,6 +104,38 @@ class Config:
         particular products needed for seasonal or promotional periods and
         having more-flexible rules on stockpiling. This is just the default for
         products that do not carry any kind of specific contraint.
+    base_currency : Currency
+        The primary currency for all financial calculations. By default, NON.
+        This is a special currency that will value everything relative to their
+        base unit quantity as opposed to any particular currency. This allows
+        the model to add a cost to solutions even in the absence of factual
+        currency data (although the results will be vastly improved if this is
+        changed to reflect actual financial value in currencies).
+
+        Items listed in currencies other than the base currency will first be
+        converted into the base currency for the purpose of cost calculations
+        for solving and reporting.
+
+        Available currencies can be seen with:
+
+        ```python
+        from pro_machina.financies import Currencies
+
+        Currencies.list_all()
+        ```
+    currency_refresh_frequency : CurrencyRefresh
+        Determine how requently the conversion rates of currencies are set. By
+        default, Daily.
+    inventory_drawdown : InventoryDrawdown
+        The order and costing of how inventory is used in the production chain
+        from consumables through to finished products for sale. By default,
+        this is assumed to be the average value of each SKU being held, which
+        assumes that the site performs an informal stock rotation.
+
+        Other settings include First In, First Out (FIFO) which ensures that
+        the oldest stock is always used before newer stock. This is the
+        opposite of First In, Last Out (FILO) in which the newest stock
+        available will always be used before the oldest stock.
     """
 
     def __init__(
@@ -93,20 +145,33 @@ class Config:
 
         self.base_time_unit = base_time_unit
 
+        # Algorithm parameters
         self._max_iterations: int | None = None
         self._max_runtime: Duration | None = None
+        self._improvement_threshold_pct: float = 1.0
+        self._improvement_threshold_iterations: int = 1000
         self._timebucket: Duration = Mins(15)
         self._random_seed: int = randbelow(4294967296)
         self._min_default_swap_block: Duration = Hours(4)
         self._max_default_swap_block: Duration = Hours(12)
         self._demand_horizon: Duration = Weeks(1)
 
+        # Financials
+        self._base_currency = Currency.NON
+        self._currency_refresh_frequency: CurrencyRefresh = (
+            CurrencyRefresh.DAILY
+        )
+
+        # Global Sstock handling
+        self._inventory_drawdown: InventoryDrawdown = InventoryDrawdown.AVE
+
     @property
     def max_iterations(self) -> int | None:
         return self._max_iterations
 
     @max_iterations.setter
-    def max_iterations(self, iterations) -> None:
+    def max_iterations(self, iterations: int) -> None:
+        iterations = int(iterations)
         if iterations is not None and iterations <= 0:
             raise ValueError("Max iterations must be positive")
         self._max_iterations = iterations
@@ -120,6 +185,32 @@ class Config:
         if runtime is not None and runtime.to_seconds() <= 0:
             raise ValueError("Max runtime duration must be positive")
         self._max_runtime = runtime
+
+    @property
+    def improvement_threshold_pct(self) -> float:
+        return self._improvement_threshold_pct
+
+    @improvement_threshold_pct.setter
+    def improvement_threshold_pct(self, pct: float) -> None:
+        pct = float(pct)
+        if 0 <= pct <= 100:
+            raise ValueError(
+                "Improvement threshold pct must be above 0.0 and below 100.0"
+            )
+        self._improvement_threshold_pct = pct
+
+    @property
+    def improvement_threshold_iterations(self) -> float:
+        return self._improvement_threshold_iterations
+
+    @improvement_threshold_iterations.setter
+    def improvement_threshold_iterations(self, iterations: int) -> None:
+        iterations = int(iterations)
+        if iterations <= 0:
+            raise ValueError(
+                "Improvement threshold iterations must be above 0"
+            )
+        self._improvement_threshold_iterations = iterations
 
     @property
     def timebucket(self) -> Duration:
@@ -145,16 +236,6 @@ class Config:
         self._random_seed = seed
 
     @property
-    def demand_horizon(self) -> Duration:
-        return self._demand_horizon
-
-    @demand_horizon.setter
-    def demand_horizon(self, horizon: Duration) -> None:
-        if horizon.to_seconds() <= 0:
-            raise ValueError("Demand horizon must be a positive duration")
-        self._demand_horizon = horizon
-
-    @property
     def min_default_swap_block(self) -> Duration:
         return self._min_default_swap_block
 
@@ -174,5 +255,36 @@ class Config:
             raise ValueError("Default max duration must be a positive")
         self._max_default_swap_block = duration
 
-    def __repr__(self) -> str:
-        return "Hello"
+    @property
+    def demand_horizon(self) -> Duration:
+        return self._demand_horizon
+
+    @demand_horizon.setter
+    def demand_horizon(self, horizon: Duration) -> None:
+        if horizon.to_seconds() <= 0:
+            raise ValueError("Demand horizon must be a positive duration")
+        self._demand_horizon = horizon
+
+    @property
+    def base_currency(self) -> str:
+        return self._base_currency
+
+    @base_currency.setter
+    def base_currency(self, currency: Currency) -> None:
+        try:
+            self._base_currency = currency
+        except AttributeError as e:
+            e.add_note("Currency not recognised")
+            raise
+
+    @property
+    def currency_refresh_frequency(self) -> str:
+        return self._currency_refresh_frequency
+
+    @currency_refresh_frequency.setter
+    def currency_refresh_frequency(self, freq: CurrencyRefresh) -> None:
+        try:
+            self._currency_refresh_frequency = freq
+        except AttributeError as e:
+            e.add_note("Currency refresh frequency not recognised")
+            raise

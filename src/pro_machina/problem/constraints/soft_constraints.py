@@ -1,3 +1,4 @@
+"""
 import datetime as dt
 from uuid import uuid4
 
@@ -28,3 +29,4 @@ class OverstockingPenalty(SoftConstraint):
 
 
 __all__ = ["SoftConstraint", "OverstockingPenalty"]
+"""

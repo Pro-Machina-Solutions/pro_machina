@@ -781,7 +781,7 @@ class ShiftPattern:
         """
         path = (
             pathlib.Path(__file__).resolve().parent
-            / f"resources/{shift_name}.json"
+            / f"resources/prebuilt_shifts/{shift_name}.json"
         )
         builder = ShiftBuilder._load_pattern(path)
         return cls(builder=builder)

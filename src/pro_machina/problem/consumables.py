@@ -1,37 +1,29 @@
 from __future__ import annotations
 
 from itertools import count
-from typing import Any, NewType, TypedDict
+from typing import Any, NewType
 
+from ..finances import PurchaseCost
 from ..measures import UnsizedDimension
 from ..util import Singleton
-
-
-class _MetaConsumable(TypedDict):
-    _id: int
-    name: str
-    base_dimension: UnsizedDimension
-    rate_limiting: bool
-    meta: dict[Any, Any]
-
 
 ConsID = NewType("ConsID", int)
 
 
 class _ConsumableRegistry(metaclass=Singleton):
     def __init__(self) -> None:
-        self._by_name: dict[str, _MetaConsumable] = {}
-        self._by_id: dict[ConsID, _MetaConsumable] = {}
+        self._by_name: dict[str, Consumable] = {}
+        self._by_id: dict[ConsID, Consumable] = {}
 
-    def add(self, cons: _MetaConsumable) -> None:
-        self._by_name[cons["name"]] = cons
-        self._by_id[ConsID(cons["_id"])] = cons
+    def add(self, cons: Consumable) -> None:
+        self._by_name[cons.name] = cons
+        self._by_id[ConsID(cons._id)] = cons
 
 
 class Consumable:
     """Represents some item that is not manufactured on site.
 
-    Consumables are by default rate-limiting. This means that if there is no
+    Consumables are, by default, rate-limiting. This means that if there is no
     available stock, any products that depend on this item will not be made.
     However, this can be quite tedius to specify for every consumable,
     especially for high-use, high-availability consumables where supply can be
@@ -59,29 +51,21 @@ class Consumable:
         self,
         name: str,
         base_dimension: UnsizedDimension,
+        code: str = "",
         meta: dict[Any, Any] | None = None,
         rate_limiting: bool = True,
-        _id: int | None = None,
+        purchase_cost: PurchaseCost | None = None,
     ) -> None:
-        if _id is None:
-            self._id = ConsID(next(self._ids))
-        else:
-            self._id = ConsID(_id)
-        self.name: str = name
+        self._id = ConsID(next(self._ids))
+        self.name = name
+        self.code = code
         self.base_dimension = base_dimension
         self.rate_limiting = rate_limiting
         self.meta = meta if meta is not None else {}
+        self.purchase_cost = purchase_cost
 
         reg = _ConsumableRegistry()
-        reg.add(
-            _MetaConsumable(
-                name=name,
-                base_dimension=base_dimension,
-                rate_limiting=rate_limiting,
-                _id=self._id,
-                meta=self.meta,
-            )
-        )
+        reg.add(self)
 
     @staticmethod
     def get_all() -> list[Consumable]:
@@ -93,16 +77,7 @@ class Consumable:
             All consumables defined so far
         """
         reg = _ConsumableRegistry()
-        return [
-            Consumable(
-                name=c["name"],
-                base_dimension=c["base_dimension"],
-                rate_limiting=c["rate_limiting"],
-                _id=c["_id"],
-                meta=c["meta"],
-            )
-            for c in reg._by_name.values()
-        ]
+        return list(reg._by_id.values())
 
     def __repr__(self) -> str:
         return f"<Consumable: {self.name}>"

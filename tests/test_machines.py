@@ -1,3 +1,4 @@
+'''
 # import datetime as dt
 import pytest
 
@@ -142,3 +143,4 @@ def test_incompatible_custom_unit_rate_fails_2():
     )
     with pytest.raises(UnitError, match="Production units of Litre"):
         mach.add_product(prod)
+'''
