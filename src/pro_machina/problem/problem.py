@@ -29,8 +29,6 @@ from .constraints._arbiter import ConstraintArbiter
 from .consumables import ConsID
 from .forecasts import DemandForecast
 from .machines import (
-    BatchMachine,
-    ContinuousMachine,
     MachID,
     _Machine,
 )
@@ -117,7 +115,7 @@ class Problem:
         self._product_names: dict[ProdID, str] = {}
         self._consumable_names: dict[ConsID, str] = {}
 
-    def add_machine(self, machine: BatchMachine | ContinuousMachine) -> None:
+    def add_machine(self, machine: _Machine) -> None:
         """Add a machine to the problem
 
         The machine is assumed to be fully specified at this point, including

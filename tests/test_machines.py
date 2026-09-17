@@ -57,7 +57,9 @@ def test_machine_default_on(base_problem: Problem, cont_machine):
     base_problem.set_forecast(DemandForecast())
     base_problem.add_machine(cont_machine)
     base_problem.build()
-    assert sum(base_problem._machine_base_productivity[0]) == 67200  # type: ignore
+    assert sum(
+        base_problem._machine_base_productivity[0]
+    ) == 67200  # type: ignore
 """
 
 # ===========================================================================

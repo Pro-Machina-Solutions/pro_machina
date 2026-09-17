@@ -405,7 +405,7 @@ class ContinuousProductGroup:
 
     Parameters
     ----------
-    name : str
+    group_name : str
         A unique string identifier for this grouping.
     products : list[_Product] | None, optional
         Optionally instantiate the group with a list of pre-defined
@@ -424,13 +424,12 @@ class ContinuousProductGroup:
 
     def __init__(
         self,
-        name: str,
-        code: str,
+        group_name: str,
         products: list[ContinuousProduct] | None = None,
     ) -> None:
 
         self._id = next(self._ids)
-        self.name = name
+        self.group_name = group_name
         self._products: dict[ProdID, ContinuousProduct] = {}
         self._product_by_name: dict[tuple[str, str], ContinuousProduct] = {}
 
@@ -550,7 +549,8 @@ class ContinuousProductGroup:
     def get_prod_by_name(
         self, product_name: str, product_code: str = ""
     ) -> ContinuousProduct:
-        """Return an individual product from the group by its string name.
+        """Return an individual product from the group by its string name and
+        (optionally) its code.
 
         Parameters
         ----------

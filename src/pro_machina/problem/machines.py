@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from copy import deepcopy
 from itertools import count
-from typing import TYPE_CHECKING, NewType, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NewType, NotRequired, TypedDict
 
 import numpy.typing as npt
 import pandas as pd
@@ -338,7 +338,7 @@ class ContinuousMachine(_Machine):
     def add_product_group(
         self,
         group: ContinuousProductGroup,
-        run_rates: list[tuple[(str, SizedDimension, Duration)]] | None = None,
+        run_rates: list[dict[str, Any]] | None = None,
     ):
         """Add all products within a ProductGroup to a machine.
 
@@ -352,7 +352,12 @@ class ContinuousMachine(_Machine):
         must be specified seperately. For example:
 
         ```python3
-        prod_1 = ContinuousProduct("Prod 1", base_dimension=BaseUnit)
+        # Note that prod_1 has a specified product code. The others do not.
+        prod_1 = ContinuousProduct(
+            name="Prod 1",
+            code="1234",
+            base_dimension=BaseUnit
+        )
 
         # Apply a constraint to just one of the products before adding to the
         # group
@@ -382,14 +387,20 @@ class ContinuousMachine(_Machine):
         mach_1.add_product_group(
             group=group,
             run_rates=[
-                ("Prod 1", Unit(45), Mins(1)),
-                ("Prod 2", Unit(52), Mins(1)),
-                ("Prod 3", Unit(50), Mins(1))
+                {
+                    "prod_name": "Prod 1",
+                    "prod_code": "1234",
+                    "run_rate": Unit(45),
+                    "per": Mins(1)
+                },
+                {"prod_name": "Prod 2", "run_rate": Unit(50), "per": Mins(1)},
+                {"prod_name": "Prod 3", "run_rate": Unit(52), "per": Mins(1)},
             ]
         )
         # Note that the run rate must be specified for all products, even
         # though prod_3 is actually running at the same rate as the machine
-        # default.
+        # default. Also note that, if the product does not have an associated
+        # product code, the "prod_code" field can be omitted for brevity.
         ```
 
         Parameters
@@ -397,7 +408,7 @@ class ContinuousMachine(_Machine):
         group : ContinuousProductGroup
             A ContinuousProductGroup containing multiple products to be added
             to the machine.
-        run_rates : list[tuple[, optional
+        run_rates : list[dict[str, Any], optional
             An optional list of tuples describing the individual run rates of
             each product within the group, by default None. If given, the rate
             must be specified for all products, regardless of whether the rate
@@ -437,9 +448,14 @@ class ContinuousMachine(_Machine):
                     " completely omitted to take the machine defaults."
                 )
 
-            for prod_name, run_rate, per in run_rates:
-                prod = group._product_by_name[prod_name]
-                self.add_product(prod, run_rate=run_rate, per=per)
+            for entry in run_rates:
+                code = entry.get("prod_code", "")
+                prod = group.get_prod_by_name(
+                    product_name=entry["prod_name"], product_code=code
+                )
+                self.add_product(
+                    prod, run_rate=entry["run_rate"], per=entry["per"]
+                )
 
         else:
             for prod in group._products.values():
@@ -521,19 +537,19 @@ class ContinuousMachineGroup:
             raise TypeError("Incorrect type added to machine group")
 
 
-class BatchMachine(_Machine):
-    def __init__(self, name) -> None:
-        super().__init__(name)
+# class BatchMachine(_Machine):
+#     def __init__(self, name) -> None:
+#         super().__init__(name)
 
-        self._products: dict[ProdID, _MachineProduct] = {}
+#         self._products: dict[ProdID, _MachineProduct] = {}
 
-    # def add_product(self, product: BatchProduct):
+# def add_product(self, product: BatchProduct):
 
-    #     if not isinstance(product, BatchProduct):
-    #         raise MachineError("Can only add BatchProduct to this machine")
+#     if not isinstance(product, BatchProduct):
+#         raise MachineError("Can only add BatchProduct to this machine")
 
-    #     self._products[product._id] = _MachineProduct(
-    #         product=product,
-    #         hard_constraints=product._hard_constraints,
-    #         soft_constraints=product._soft_constraints,
-    #     )
+#     self._products[product._id] = _MachineProduct(
+#         product=product,
+#         hard_constraints=product._hard_constraints,
+#         soft_constraints=product._soft_constraints,
+#     )
