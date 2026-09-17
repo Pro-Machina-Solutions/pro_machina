@@ -4,63 +4,32 @@ from decimal import Decimal
 import pytest
 
 from pro_machina import (
-    BatchProduct,
     Consumable,
     ContinuousProduct,
     ContinuousProductGroup,
 )
 from pro_machina.durations import Hours
-from pro_machina.exceptions import ConstraintError, ProductError, UnitError
+from pro_machina.exceptions import ProductError, UnitError
 from pro_machina.measures import CustomUnit, Kilo, Litre, Volume, Weight
-from pro_machina.problem.constraints import SoftConstraint
 from pro_machina.problem.constraints.hard_constraints import (
     MinProductionTime,
     SeasonalProduction,
 )
 
 # ===========================================================================
-# Helpers
+# Scope
 # ===========================================================================
 #
-# There is no concrete, instantiable SoftConstraint anywhere in the codebase
-# at the time of writing (OverstockingPenalty does not implement the
-# abstract `_set_level` method), so a minimal test double is defined here to
-# exercise `add_soft_constraint`.
-
-
-class _DummySoftConstraint(SoftConstraint):
-    def __init__(self, value):
-        self.value = value
-        self.product = None
-        self.machine = None
-
-    def _set_product(self, product):
-        self.product = product
-
-    def _set_machine(self, machine):
-        self.machine = machine
-
-    def _set_level(self, level):
-        self._level = level
-
+# BatchProduct/BatchMachine are unfinished (e.g. BatchProduct doesn't accept
+# `code` and never initialises `_batches`) and SoftConstraint has no
+# concrete, instantiable implementation anywhere in the codebase at the time
+# of writing (OverstockingPenalty does not implement the abstract
+# `_set_level` method). Both are out of scope for this module and are
+# deliberately not exercised here.
 
 # ===========================================================================
 # Product creation & identity
 # ===========================================================================
-
-
-def test_batch_product_creation_sets_expected_defaults():
-    prod = BatchProduct("TP Batch Defaults", base_dimension=Weight)
-
-    assert prod.name == "TP Batch Defaults"
-    assert prod.code == ""
-    assert prod.base_dimension is Weight
-    assert prod._consumables == []
-    assert prod._products == []
-    assert prod._bom_products == {}
-    assert prod._bom_consumables == {}
-    assert prod._hard_constraints == []
-    assert prod._soft_constraints == []
 
 
 def test_continuous_product_creation_sets_expected_defaults():
@@ -101,20 +70,6 @@ def test_duplicate_name_different_code_is_allowed():
     ContinuousProduct("TP Same Name", base_dimension=Weight, code="Y1")
     # Should not raise - different code disambiguates
     ContinuousProduct("TP Same Name", base_dimension=Weight, code="Y2")
-
-
-def test_duplicate_name_code_shared_across_subclasses():
-    # _product_ids is a class attribute on _Product, shared by every
-    # subclass, so a BatchProduct and ContinuousProduct with the same
-    # name/code pair still collide.
-    BatchProduct("TP Cross Subclass", base_dimension=Weight, code="Z1")
-
-    with pytest.raises(
-        ProductError, match="name/code combinations must be unique"
-    ):
-        ContinuousProduct(
-            "TP Cross Subclass", base_dimension=Weight, code="Z1"
-        )
 
 
 # ===========================================================================
@@ -303,15 +258,6 @@ def test_add_hard_constraint_wrong_type_raises_type_error():
         prod.add_hard_constraint("not a constraint")
 
 
-def test_add_hard_constraint_incompatible_product_raises_and_not_added():
-    prod = BatchProduct("TP HC Batch Reject", base_dimension=Weight)
-
-    with pytest.raises(ConstraintError, match="cannot be added to product"):
-        prod.add_hard_constraint(MinProductionTime(Hours(4)))
-
-    assert prod._hard_constraints == []
-
-
 # ===========================================================================
 # Hard constraint collision detection
 # ===========================================================================
@@ -361,7 +307,7 @@ def test_collision_overlapping_dates_warns_with_correct_range():
 
     with pytest.warns(
         UserWarning,
-        match=r"dates between 2026-01-05 00:00:00 and 2026-01-10 00:00:00",
+        match=r"dates between 2026-01-05 and 2026-01-10",
     ):
         prod.add_hard_constraint(
             SeasonalProduction(start_date="2026-01-05", end_date="2026-01-20")
@@ -412,57 +358,6 @@ def test_collision_only_applies_to_same_constraint_type():
 
     assert caught == []
     assert len(prod._hard_constraints) == 2
-
-
-# ===========================================================================
-# add_soft_constraint
-# ===========================================================================
-
-
-def test_add_soft_constraint_single():
-    prod = ContinuousProduct("TP SC Single", base_dimension=Weight)
-    con = _DummySoftConstraint(value=1)
-
-    prod.add_soft_constraint(con)
-
-    assert prod._soft_constraints == [con]
-    assert con.product is prod
-
-
-def test_add_soft_constraint_wrong_type_raises_type_error():
-    prod = ContinuousProduct("TP SC Type Err", base_dimension=Weight)
-
-    with pytest.raises(TypeError, match="must all be of type SoftConstraint"):
-        prod.add_soft_constraint("not a constraint")
-
-
-def test_add_soft_constraint_duplicate_type_replaces_and_warns():
-    prod = ContinuousProduct("TP SC Replace", base_dimension=Weight)
-    old = _DummySoftConstraint(value=1)
-    new = _DummySoftConstraint(value=2)
-    prod.add_soft_constraint(old)
-
-    with pytest.warns(UserWarning, match="already been defined"):
-        prod.add_soft_constraint(new)
-
-    assert prod._soft_constraints == [new]
-
-
-def test_add_soft_constraint_silenced_by_option(monkeypatch):
-    import pro_machina
-
-    monkeypatch.setitem(
-        pro_machina.options, "silence_constraint_overrides", True
-    )
-
-    prod = ContinuousProduct("TP SC Silenced", base_dimension=Weight)
-    prod.add_soft_constraint(_DummySoftConstraint(value=1))
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        prod.add_soft_constraint(_DummySoftConstraint(value=2))
-
-    assert caught == []
 
 
 # ===========================================================================

@@ -149,7 +149,7 @@ strawberry = ContinuousProduct("strawberry sweet", base_dimension=BaseUnit)
 
 # Add the common components across the group
 group = ContinuousProductGroup(
-    name="Flav sweets", products=[raspberry, apple, strawberry]
+    group_name="Flav sweets", products=[raspberry, apple, strawberry]
 )
 group.add_component(sugar, qty=Kilo("7.3"), per=Unit(1000))
 group.add_component(gelatine, qty=Kilo("0.45"), per=Unit(1000))

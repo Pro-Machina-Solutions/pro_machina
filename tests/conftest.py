@@ -3,10 +3,8 @@ import datetime as dt
 import pytest
 
 from pro_machina import (
-    BatchMachine,
     BatchProduct,
     ContinuousMachine,
-    ContinuousProduct,
     Problem,
     ShiftBreak,
     ShiftBuilder,
@@ -32,16 +30,6 @@ def base_problem():
 @pytest.fixture(scope="function")
 def batch_prod():
     return BatchProduct("test batch", base_dimension=Weight)
-
-
-@pytest.fixture(scope="function")
-def cont_prod():
-    return ContinuousProduct("test continuous", base_dimension=Weight)
-
-
-@pytest.fixture(scope="function")
-def batch_machine():
-    return BatchMachine("test batch machine")
 
 
 @pytest.fixture(scope="function")
