@@ -2,7 +2,7 @@ import datetime as dt
 
 import pytest
 
-from pro_machina import (
+from pro_machina.problem import (
     BatchProduct,
     ContinuousMachine,
     Problem,

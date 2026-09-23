@@ -5,16 +5,16 @@ coherent statement of the overall constraints within the problem.
 """
 
 import pro_machina
-from pro_machina import (
+from pro_machina.config import Config
+from pro_machina.durations import Hours, Mins, Weeks
+from pro_machina.measures import BaseUnit, Unit
+from pro_machina.problem import (
     ContinuousMachine,
     ContinuousProduct,
     DemandForecast,
     Problem,
 )
-from pro_machina.config import Config
-from pro_machina.durations import Hours, Mins, Weeks
-from pro_machina.measures import BaseUnit, Unit
-from pro_machina.problem.constraints import (
+from pro_machina.problem.hard_constraints import (
     MinProductionTime,
     SeasonalProduction,
 )

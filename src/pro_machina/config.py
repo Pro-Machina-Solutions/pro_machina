@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from enum import StrEnum
 from secrets import randbelow
 
+from .costs import Currency, CurrencyRefresh
 from .durations import Duration, Hours, Mins, Secs, Weeks
-from .finances import Currency, CurrencyRefresh
 
 
 class InventoryDrawdown(StrEnum):

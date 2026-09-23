@@ -3,7 +3,8 @@ from __future__ import annotations
 from itertools import count
 from typing import Any, NewType
 
-from ..finances import PurchaseCost
+# if TYPE_CHECKING:
+from ..costs import PurchaseCost
 from ..measures import UnsizedDimension
 from ..util import Singleton
 
@@ -17,7 +18,10 @@ class _ConsumableRegistry(metaclass=Singleton):
 
     def add(self, cons: Consumable) -> None:
         self._by_name[cons.name] = cons
-        self._by_id[ConsID(cons._id)] = cons
+        self._by_id[cons._id] = cons
+
+    def contains(self, cons: Consumable) -> bool:
+        return cons._id in self._by_id
 
 
 class Consumable:

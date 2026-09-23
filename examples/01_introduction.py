@@ -8,7 +8,9 @@ Each example will assume knowledge from previous examples, and only explain any
 new features being introduced.
 """
 
-from pro_machina import (
+from pro_machina.durations import Mins, Weeks
+from pro_machina.measures import BaseUnit, Unit
+from pro_machina.problem import (
     ContinuousMachine,
     ContinuousProduct,
     DemandForecast,
@@ -16,8 +18,6 @@ from pro_machina import (
     Problem,
     ShiftPattern,
 )
-from pro_machina.durations import Mins, Weeks
-from pro_machina.measures import BaseUnit, Unit
 
 # The main object in the pro_machina library is the Problem. This serves as a
 # container to define all of the characteristics of what we want to solve for.

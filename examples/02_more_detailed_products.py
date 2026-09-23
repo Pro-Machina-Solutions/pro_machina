@@ -8,16 +8,6 @@ We'll expand the definition here, still using sweets but making multiple levels
 of products. We'll also expand on unit measures.
 """
 
-from pro_machina import (
-    Consumable,
-    ContinuousMachine,
-    ContinuousProduct,
-    ContinuousProductGroup,
-    DemandForecast,
-    Order,
-    Problem,
-    ShiftPattern,
-)
 from pro_machina.durations import Mins, Weeks
 from pro_machina.measures import (
     Area,
@@ -33,6 +23,16 @@ from pro_machina.measures import (
     Sq_Metre,
     Unit,
     Weight,
+)
+from pro_machina.problem import (
+    Consumable,
+    ContinuousMachine,
+    ContinuousProduct,
+    DemandForecast,
+    Order,
+    Problem,
+    ProductGroup,
+    ShiftPattern,
 )
 
 problem = Problem(start_time="2026-03-02 00:00:00", length=Weeks(1))
@@ -141,14 +141,14 @@ problem.solve()
 # some unnecessary repetition in the product definitions. For example, we may
 # have a number of sweets that share exactly the same base components and
 # they only differ in the colouring and flavouring. We can make a shotcut for
-# for such cases by utilising a ContinousProductGroup for the common components
+# for such cases by utilising a ProductGroup for the common components
 
 raspberry = ContinuousProduct("raspberry sweet", base_dimension=BaseUnit)
 apple = ContinuousProduct("apple sweet", base_dimension=BaseUnit)
 strawberry = ContinuousProduct("strawberry sweet", base_dimension=BaseUnit)
 
 # Add the common components across the group
-group = ContinuousProductGroup(
+group = ProductGroup(
     group_name="Flav sweets", products=[raspberry, apple, strawberry]
 )
 group.add_component(sugar, qty=Kilo("7.3"), per=Unit(1000))

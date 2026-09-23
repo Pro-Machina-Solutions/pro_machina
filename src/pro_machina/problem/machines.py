@@ -26,15 +26,21 @@ from ..util import (
     get_problem_buckets,
     parse_datetime,
 )
-from .constraints import (
+from ._constraints import (
     ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
+
+# from ._constraints import (
+#     ConstraintLevel,
+#     HardConstraint,
+#     SoftConstraint,
+# )
 from .products import (
     ContinuousProduct,
-    ContinuousProductGroup,
     ProdID,
+    ProductGroup,
     _Product,
 )
 from .shifts import ShiftPattern
@@ -337,7 +343,7 @@ class ContinuousMachine(_Machine):
 
     def add_product_group(
         self,
-        group: ContinuousProductGroup,
+        group: ProductGroup,
         run_rates: list[dict[str, Any]] | None = None,
     ):
         """Add all products within a ProductGroup to a machine.
@@ -405,8 +411,8 @@ class ContinuousMachine(_Machine):
 
         Parameters
         ----------
-        group : ContinuousProductGroup
-            A ContinuousProductGroup containing multiple products to be added
+        group : ProductGroup
+            A ProductGroup containing multiple ContinuousProduct to be added
             to the machine.
         run_rates : list[dict[str, Any], optional
             An optional list of tuples describing the individual run rates of
@@ -417,9 +423,9 @@ class ContinuousMachine(_Machine):
         Raises
         ------
         TypeError
-            Something other than a ContinuousProductGroup was added.
-        ValueError
-            Product name not recognised for run rate specification.
+            Something other than a ProductGroup was added.
+        TypeError
+            The ProductGroup does not consist of ContinuousProduct instances.
         MachineError
             No product run rate has been specified.
         MachineError
@@ -429,8 +435,14 @@ class ContinuousMachine(_Machine):
             A product has already been added to the machine.
         """
 
-        if not isinstance(group, ContinuousProductGroup):
-            raise TypeError("Not a valid ContinuousProductGroup.")
+        if not isinstance(group, ProductGroup):
+            raise TypeError("Not a valid ProductGroup.")
+
+        if not all(
+            isinstance(prod, ContinuousProduct)
+            for prod in group._products.values()
+        ):
+            raise TypeError("Attempted to add a BatchProduct group.")
 
         if run_rates is None and (
             self.default_per is None or self.default_run_rate is None
@@ -453,12 +465,14 @@ class ContinuousMachine(_Machine):
                 prod = group.get_prod_by_name(
                     product_name=entry["prod_name"], product_code=code
                 )
+                assert isinstance(prod, ContinuousProduct)
                 self.add_product(
                     prod, run_rate=entry["run_rate"], per=entry["per"]
                 )
 
         else:
             for prod in group._products.values():
+                assert isinstance(prod, ContinuousProduct)
                 self.add_product(prod)
 
     def add_hard_constraint(
@@ -482,12 +496,9 @@ class ContinuousMachine(_Machine):
 
 
 class ContinuousMachineGroup:
-    _ids = count(0)
-
     def __init__(
         self, name: str, machines: list[ContinuousMachine] | None = None
     ) -> None:
-        self._id = MachID(next(self._ids))
         self.name = name
         self.machines: list[ContinuousMachine] = (
             machines if machines is not None else []

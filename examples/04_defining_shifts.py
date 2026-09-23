@@ -12,7 +12,7 @@ expected the shift definition to be possible and these issues might need to
 instead be raised on github for further investigation.
 """
 
-from pro_machina import (
+from pro_machina.problem import (
     ContinuousMachine,
     ShiftBreak,
     ShiftBuilder,

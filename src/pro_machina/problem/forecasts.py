@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .problem import Problem
+    from .products import BatchProduct, ContinuousProduct, ProdID
 
 import numpy as np
 import numpy.typing as npt
@@ -15,7 +16,6 @@ from ..exceptions import UnitError
 from ..measures import CustomUnit, SizedDimension, _UnitRegistry
 from ..util import as_day_start, get_problem_buckets, parse_datetime
 from .consumables import ConsID
-from .products import BatchProduct, ContinuousProduct, ProdID
 
 
 class Order:

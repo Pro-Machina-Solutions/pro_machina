@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from ...exceptions import ConstraintError
 from ..machines import ContinuousMachine, _Machine
 from ..products import ContinuousProduct, _Product

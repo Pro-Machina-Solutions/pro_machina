@@ -8,18 +8,6 @@ orders driving demand - we can additionally have MadeToStock targets
 from itertools import count
 from random import randint
 
-from pro_machina import (
-    Consumable,
-    ContinuousMachine,
-    ContinuousProduct,
-    DemandForecast,
-    InboundStock,
-    MadeToStock,
-    Order,
-    Problem,
-    ShiftPattern,
-    StockHolding,
-)
 from pro_machina.durations import Mins, Weeks
 from pro_machina.measures import (
     Area,
@@ -36,6 +24,18 @@ from pro_machina.measures import (
     Tonne,
     Unit,
     Weight,
+)
+from pro_machina.problem import (
+    Consumable,
+    ContinuousMachine,
+    ContinuousProduct,
+    DemandForecast,
+    InboundStock,
+    MadeToStock,
+    Order,
+    Problem,
+    ShiftPattern,
+    StockHolding,
 )
 
 # We'll solve for a longer time period

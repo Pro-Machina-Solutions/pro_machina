@@ -3,11 +3,6 @@ import warnings
 import numpy as np
 import pytest
 
-from pro_machina import (
-    ContinuousMachine,
-    ContinuousProduct,
-    ContinuousProductGroup,
-)
 from pro_machina.durations import Hours, Mins
 from pro_machina.exceptions import (
     MachineError,
@@ -21,8 +16,13 @@ from pro_machina.measures import (
     Unit,
     _UnitRegistry,
 )
-from pro_machina.problem.constraints import ConstraintLevel
-from pro_machina.problem.constraints.hard_constraints import MinProductionTime
+from pro_machina.problem import (
+    ContinuousMachine,
+    ContinuousProduct,
+    ProductGroup,
+)
+from pro_machina.problem._constraints import ConstraintLevel
+from pro_machina.problem.hard_constraints import MinProductionTime
 from pro_machina.problem.machines import ContinuousMachineGroup
 from pro_machina.util import (
     Singleton,
@@ -422,7 +422,7 @@ def test_add_product_group_no_rates_uses_machine_defaults():
     )
     prod_a = ContinuousProduct("APG Defaults A", base_dimension=BaseUnit)
     prod_b = ContinuousProduct("APG Defaults B", base_dimension=BaseUnit)
-    group = ContinuousProductGroup("APG Defaults Group", [prod_a, prod_b])
+    group = ProductGroup("APG Defaults Group", [prod_a, prod_b])
 
     mach.add_product_group(group)
 
@@ -435,7 +435,7 @@ def test_add_product_group_no_default_and_no_rates_raises_machine_error(
     cont_machine,
 ):
     prod = ContinuousProduct("APG No Default", base_dimension=BaseUnit)
-    group = ContinuousProductGroup("APG No Default Group", [prod])
+    group = ProductGroup("APG No Default Group", [prod])
 
     with pytest.raises(
         MachineError,
@@ -448,7 +448,7 @@ def test_add_product_group_mismatched_run_rates_length_raises_machine_error(
     cont_machine,
 ):
     prod = ContinuousProduct("APG Mismatch", base_dimension=BaseUnit)
-    group = ContinuousProductGroup("APG Mismatch Group", [prod])
+    group = ProductGroup("APG Mismatch Group", [prod])
 
     with pytest.raises(
         MachineError, match="either must all be specified or completely"
@@ -460,7 +460,7 @@ def test_add_product_group_custom_run_rates_applied_per_product(
     cont_machine,
 ):
     prod = ContinuousProduct("APG Custom", base_dimension=BaseUnit)
-    group = ContinuousProductGroup("APG Custom Group", [prod])
+    group = ProductGroup("APG Custom Group", [prod])
     run_rate = Unit(20)
     per = Mins(1)
 
@@ -485,7 +485,7 @@ def test_add_product_group_custom_run_rates_disambiguate_by_code(
     prod_us = ContinuousProduct(
         "APG Code Dup", base_dimension=BaseUnit, code="US"
     )
-    group = ContinuousProductGroup("APG Code Group", [prod_uk, prod_us])
+    group = ProductGroup("APG Code Group", [prod_uk, prod_us])
     uk_rate = Unit(10)
     us_rate = Unit(20)
 
@@ -515,7 +515,7 @@ def test_add_product_group_unknown_product_name_raises_value_error(
     cont_machine,
 ):
     prod = ContinuousProduct("APG Unknown", base_dimension=BaseUnit)
-    group = ContinuousProductGroup("APG Unknown Group", [prod])
+    group = ProductGroup("APG Unknown Group", [prod])
 
     with pytest.raises(ValueError, match="Product name not recognised"):
         cont_machine.add_product_group(

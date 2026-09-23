@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from pro_machina import (
+from pro_machina.problem import (
     Consumable,
     ContinuousProduct,
     ContinuousProductGroup,
@@ -11,7 +11,7 @@ from pro_machina import (
 from pro_machina.durations import Hours
 from pro_machina.exceptions import ProductError, UnitError
 from pro_machina.measures import CustomUnit, Kilo, Litre, Volume, Weight
-from pro_machina.problem.constraints.hard_constraints import (
+from pro_machina.problem._constraints.hard_constraints import (
     MinProductionTime,
     SeasonalProduction,
 )

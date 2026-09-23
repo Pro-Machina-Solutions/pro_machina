@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import datetime as dt
 import json
 import uuid
 from collections import defaultdict
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from warnings import warn
 
 import numpy as np
@@ -19,20 +22,22 @@ from ..util import (
     parse_datetime,
     to_str_date,
 )
-from .constraints import (
+from ._constraints import (
     Constraint,
+    ConstraintArbiter,
     ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
-from .constraints._arbiter import ConstraintArbiter
 from .consumables import ConsID
 from .forecasts import DemandForecast
-from .machines import (
-    MachID,
-    _Machine,
-)
-from .products import ProdID
+
+if TYPE_CHECKING:
+    from .machines import (
+        MachID,
+        _Machine,
+    )
+    from .products import ProdID
 from .stocks import InboundStock, StockHolding
 
 

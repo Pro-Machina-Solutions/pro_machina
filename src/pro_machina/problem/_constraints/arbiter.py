@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import datetime as dt
 import itertools
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from ...config import Config
 from ...util import get_problem_buckets
-from ..machines import MachID
-from ..products import ProdID
+
+if TYPE_CHECKING:
+    from ..machines import MachID
+    from ..products import ProdID
 from . import ConstraintLevel, HardConstraint, ProductOnly
 
 

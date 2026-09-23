@@ -4,7 +4,7 @@ import datetime as dt
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..machines import _Machine
@@ -76,15 +76,12 @@ class MachineOnly(Constraint):
     pass
 
 
-from .constraint_groupings import (
-    MutuallyExclusiveMachines,
-    PairedMachines,
-)
-from .hard_constraints import (
-    MaxProductionTime,
-    MaxProductLifetime,
-    MaxStorageCapacity,
-    MinProductionTime,
-    ReducedProductionPeriod,
-    SeasonalProduction,
-)
+class BatchOnly(Constraint):
+    pass
+
+
+class ContinuousOnly(Constraint):
+    pass
+
+
+from .arbiter import ConstraintArbiter

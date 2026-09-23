@@ -4,29 +4,30 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
-from typing import NewType, Self, TypedDict
+from typing import TYPE_CHECKING, NewType, Self, TypedDict
 from warnings import warn
 
 import polars as pl
 
 import pro_machina
 
-from ..durations import Duration
+if TYPE_CHECKING:
+    from ..costs import ProductionCost, SaleValue
+from ..durations import Duration, Secs
 from ..exceptions import ProductError, UnitError
-from ..finances import ProductionCost, SaleValue
 from ..measures import (
     CustomUnit,
-    Dimension,
     SizedDimension,
     UnsizedDimension,
     _UnitRegistry,
 )
-from .constraints import (
+from ..util import Singleton
+from .consumables import ConsID, Consumable
+from .problem import (
     ConstraintLevel,
     HardConstraint,
     SoftConstraint,
 )
-from .consumables import ConsID, Consumable
 
 
 class _ComponentQty(TypedDict):
@@ -38,17 +39,34 @@ class _ComponentQty(TypedDict):
 ProdID = NewType("ProdID", int)
 
 
+class ProductRegistry(metaclass=Singleton):
+    def __init__(self) -> None:
+        self.products_by_id: dict[ProdID, _Product] = {}
+        self.products_by_name: dict[tuple[str, str], _Product] = {}
+
+    def contains(self, product: _Product) -> bool:
+        return product._id in self.products_by_id
+
+    def add(self, product: _Product) -> None:
+        if self.contains(product):
+            raise ProductError("Cannot add the product twice to registry")
+        elif (product.name, product.code) in self.products_by_name:
+            raise ProductError(
+                "Name and code combinations for products must be unique"
+            )
+        else:
+            self.products_by_id[product._id] = product
+            self.products_by_name[(product.name, product.code)] = product
+
+
 class _Product:
     _ids = count(0)
-    # Products need a unique identifier for users to be able to access them
-    # from ProductGroup etc. Ideally, the name alone will be enough to identify
-    # a product, but we add a code too just in case there is a name clash but
-    # there is a meaningful way to distinguish between them (for example, the
-    # same product sold in multiple countries requiring different wrappers).
-    _product_ids: set[tuple[str, str]] = set()
 
     def __init__(
-        self, name: str, base_dimension: UnsizedDimension, code: str = ""
+        self,
+        name: str,
+        base_dimension: UnsizedDimension,
+        code: str = "",
     ) -> None:
 
         self._id = ProdID(next(self._ids))
@@ -56,9 +74,8 @@ class _Product:
         self.code = code
         self.base_dimension = base_dimension
 
-        if (name, code) in self._product_ids:
-            raise ProductError("Product name/code combinations must be unique")
-        self._product_ids.add((name, code))
+        reg = ProductRegistry()
+        reg.add(self)
 
         self._consumables: list[_ComponentQty] = []
         self._products: list[_ComponentQty] = []
@@ -384,7 +401,35 @@ class ContinuousProduct(_Product):
         self.sale_value = sale_value
 
 
-class ContinuousProductGroup:
+class BatchProduct(_Product):
+    def __init__(
+        self,
+        name: str,
+        base_dimension: UnsizedDimension,
+        code: str = "",
+        production_cost: ProductionCost | None = None,
+        sale_value: SaleValue | None = None,
+    ) -> None:
+        super().__init__(name, base_dimension, code)
+        self.production_cost = production_cost
+        self.sale_value = sale_value
+
+
+@dataclass
+class ProductBatch:
+    name: str
+    product: BatchProduct
+    size: SizedDimension
+    manufacturing_time: Duration
+    drain_time: Duration
+    max_total_dwell_time: Duration
+    max_idle_dwell_time: Duration = Secs(0)
+    drains_to_line: bool = False
+    production_cost: ProductionCost | None = None
+    sale_value: SaleValue | None = None
+
+
+class ProductGroup:
     """Create a grouping of products that share some characteristic.
 
     This can be useful for situations where products are competing for a
@@ -420,25 +465,23 @@ class ContinuousProductGroup:
         The same product has been added to the group multiple times.
     """
 
-    _ids = count(0)
-
     def __init__(
         self,
         group_name: str,
-        products: list[ContinuousProduct] | None = None,
+        products: list[_Product] | None = None,
     ) -> None:
-
-        self._id = next(self._ids)
         self.group_name = group_name
-        self._products: dict[ProdID, ContinuousProduct] = {}
-        self._product_by_name: dict[tuple[str, str], ContinuousProduct] = {}
+        self._products: dict[ProdID, _Product] = {}
+        self._product_by_name: dict[tuple[str, str], _Product] = {}
 
         if products is not None:
             if not all(
-                isinstance(prod, ContinuousProduct) for prod in products
+                isinstance(prod, type(products[0])) for prod in products
             ):
                 raise TypeError(
-                    "Only ContinuousProducts can be added to group"
+                    "Groups must contain the same product types. That is, all"
+                    " products must be ContinuousProduct instances or all must"
+                    " be BatchProduct instances but you cannot have a mixture"
                 )
 
             for prod in products:
@@ -447,35 +490,35 @@ class ContinuousProductGroup:
                 self._products[prod._id] = prod
                 self._product_by_name[(prod.name, prod.code)] = prod
 
-    def add_products(
-        self, products: ContinuousProduct | list[ContinuousProduct]
-    ) -> None:
+    def add_products(self, products: _Product | list[_Product]) -> None:
         """Add a product to an existing grouping.
 
         Parameters
         ----------
-        products : ContinuousProduct | list[ContinuousProductt]
+        products : _Product | list[_Product]
             The product(s) to be added.
 
         Raises
         ------
 
         TypeError
-            Attempted to add something other than a ContinuousProduct to the
-            grouping.
+            Attempted to add something that wasn't either a ContinuousProduct
+            or a BatchProduct to the group, or attempted to make a grouping of
+            mixed product types.
         """
 
-        if isinstance(products, ContinuousProduct):
+        if not isinstance(products, list):
             products = [products]
 
-        if not all(isinstance(item, ContinuousProduct) for item in products):
+        if not all(isinstance(item, type(products[0])) for item in products):
             raise TypeError(
-                "Attempted to add something other than a ContinuousProduct to"
-                " grouping"
+                "Attempted to add something that wasn't either a"
+                " ContinuousProduct or a BatchProduct to the group, or"
+                " attempted to make a grouping of mixed product types."
             )
 
         if any(prod._id in self._products for prod in products):
-            raise ProductError("Duplicate product added to grouping")
+            raise ProductError("Duplicate product added to grouping.")
 
         for prod in products:
             self._products[prod._id] = prod
@@ -531,7 +574,7 @@ class ContinuousProductGroup:
             Something other than a HardConstraint was applied.
         """
 
-        if isinstance(constraints, HardConstraint):
+        if not isinstance(constraints, list):
             constraints = [constraints]
 
         if not all(isinstance(item, HardConstraint) for item in constraints):
@@ -548,7 +591,7 @@ class ContinuousProductGroup:
 
     def get_prod_by_name(
         self, product_name: str, product_code: str = ""
-    ) -> ContinuousProduct:
+    ) -> _Product:
         """Return an individual product from the group by its string name and
         (optionally) its code.
 
@@ -577,18 +620,9 @@ class ContinuousProductGroup:
         return prod
 
 
-@dataclass
-class ProductBatch:
-    name: str
-    size: Dimension
-    time: Duration
-
-
-class BatchProduct(_Product):
-    def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
-        super().__init__(name, base_dimension)
-
-        self._batches = list[ProductBatch]
-
-
-__all__ = ["BatchProduct", "ContinuousProduct", "ProductBatch"]
+__all__ = [
+    "BatchProduct",
+    "ContinuousProduct",
+    "ProductGroup",
+    "ProductBatch",
+]

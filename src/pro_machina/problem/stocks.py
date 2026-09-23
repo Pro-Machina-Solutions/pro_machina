@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 import datetime as dt
+from typing import TYPE_CHECKING
 
 from ..exceptions import UnitError
 from ..measures import SizedDimension
 from ..util import parse_datetime
-from .products import BatchProduct, Consumable, ContinuousProduct
+
+if TYPE_CHECKING:
+    from .consumables import Consumable
+    from .products import BatchProduct, ContinuousProduct
 
 
 class StockHolding:

@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import datetime as dt
 from uuid import uuid4
 
 from pro_machina.durations import Duration
 
 from ...util import parse_datetime
-from ..constraints import HardConstraint, ProductOnly
 from ..machines import ContinuousMachine, _Machine
 from ..products import ContinuousProduct, _Product
+from . import HardConstraint, ProductOnly
 from .type_checkers import (
     check_continuous_machine_only,
     check_continuous_prod_only,
