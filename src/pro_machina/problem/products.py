@@ -4,7 +4,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
-from typing import TYPE_CHECKING, NewType, Self, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    NewType,
+    Self,
+    TypedDict,
+)
 from warnings import warn
 
 import polars as pl
@@ -452,7 +457,7 @@ class ProductGroup:
     ----------
     group_name : str
         A unique string identifier for this grouping.
-    products : list[_Product] | None, optional
+    products : ProductSubtype | list[ProductSubtype] | None, optional
         Optionally instantiate the group with a list of pre-defined
         products. Otherwise, you can instantitate an empty group and add
         products to it as and when they are defined in your code.
@@ -461,6 +466,9 @@ class ProductGroup:
     ------
     TypeError
         Attempted to add something other than a Product to the grouping.
+    TypeError
+        Attempted to add a mixture of Continuous and Batch products to the same
+        grouping.
     ProductError
         The same product has been added to the group multiple times.
     """
@@ -468,30 +476,52 @@ class ProductGroup:
     def __init__(
         self,
         group_name: str,
-        products: list[_Product] | None = None,
+        products: ProdSubtype | list[ProdSubtype] | None = None,
     ) -> None:
         self.group_name = group_name
-        self._products: dict[ProdID, _Product] = {}
-        self._product_by_name: dict[tuple[str, str], _Product] = {}
+        self._products: dict[ProdID, ProdSubtype] = {}
+        self._product_by_name: dict[tuple[str, str], ProdSubtype] = {}
+        self._product_type: ProdSubtype | None = None
 
         if products is not None:
-            if not all(
-                isinstance(prod, type(products[0])) for prod in products
-            ):
-                raise TypeError(
-                    "Groups must contain the same product types. That is, all"
-                    " products must be ContinuousProduct instances or all must"
-                    " be BatchProduct instances but you cannot have a mixture"
-                )
+            checked_products = self._check_product_type(products)
 
-            for prod in products:
+            for prod in checked_products:
                 if prod._id in self._products:
-                    raise ProductError("Duplicate product in grouping")
+                    raise ProductError("Duplicate product in grouping.")
                 self._products[prod._id] = prod
                 self._product_by_name[(prod.name, prod.code)] = prod
 
-    def add_products(self, products: _Product | list[_Product]) -> None:
-        """Add a product to an existing grouping.
+    def _check_product_type(
+        self, products: ProdSubtype | list[ProdSubtype]
+    ) -> list[ProdSubtype]:
+
+        # First check that it's a valid subproduct type and ensure it's in a
+        # list
+        if not isinstance(products, list):
+            products = [products]
+
+        # Now ensure that it's a valid subtype of _Product and not _Product
+        # ittself
+        if not all(isinstance(prod, ProdSubtype) for prod in products):
+            raise TypeError("Invalid Product subtype added to group.")
+
+        # Grab the subtype of the first _Product instance we see and compare
+        # everything else against it from then on
+        if self._product_type is None:
+            self._product_type = type(products[0])  # type: ignore[assignment]
+
+        if not all(type(prod) is self._product_type for prod in products):
+            raise TypeError(
+                "Groups must contain the same product types. That is, all"
+                " products must be ContinuousProduct instances or all must"
+                " be BatchProduct instances but you cannot have a mixture."
+            )
+
+        return products
+
+    def add_products(self, products: ProdSubtype | list[ProdSubtype]) -> None:
+        """Add a product or list of products to an existing grouping.
 
         Parameters
         ----------
@@ -500,33 +530,27 @@ class ProductGroup:
 
         Raises
         ------
-
         TypeError
             Attempted to add something that wasn't either a ContinuousProduct
-            or a BatchProduct to the group, or attempted to make a grouping of
-            mixed product types.
+            or a BatchProduct to the group.
+        TypeError
+            Attempted to make a grouping of mixed product types.
+        ProductError
+            Attempted to add the same product twice or more to a grouping.
         """
 
-        if not isinstance(products, list):
-            products = [products]
+        checked_products = self._check_product_type(products)
 
-        if not all(isinstance(item, type(products[0])) for item in products):
-            raise TypeError(
-                "Attempted to add something that wasn't either a"
-                " ContinuousProduct or a BatchProduct to the group, or"
-                " attempted to make a grouping of mixed product types."
-            )
-
-        if any(prod._id in self._products for prod in products):
+        if any(prod._id in self._products for prod in checked_products):
             raise ProductError("Duplicate product added to grouping.")
 
-        for prod in products:
+        for prod in checked_products:
             self._products[prod._id] = prod
             self._product_by_name[(prod.name, prod.code)] = prod
 
     def add_component(
         self,
-        component: BatchProduct | ContinuousProduct | Consumable,
+        component: ProdSubtype | Consumable,
         qty: SizedDimension | CustomUnit,
         per: SizedDimension,
     ):
@@ -618,6 +642,9 @@ class ProductGroup:
         if prod is None:
             raise ValueError(f"Product name not recognised: {product_name}")
         return prod
+
+
+ProdSubtype = BatchProduct | ContinuousProduct
 
 
 __all__ = [

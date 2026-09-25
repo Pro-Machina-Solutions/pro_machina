@@ -69,6 +69,7 @@ class _Machine:
         self.name = name
 
         self._products: dict[ProdID, _MachineProduct] = {}
+        self._product_ids: set[ProdID] = set()
         self._shifts: list[_MachineShift] = []
 
         self._hard_constraints: list[HardConstraint] = []
@@ -276,7 +277,7 @@ class ContinuousMachine(_Machine):
                 f"Can only add ContinuousProduct to machine: {self.name}"
             )
 
-        if product._id in self._products:
+        if product._id in self._product_ids:
             raise MachineError(
                 f"Product: {product.name} has already been assigned to"
                 f" machine: {self.name}"
@@ -340,6 +341,7 @@ class ContinuousMachine(_Machine):
             run_rate=_run_rate,
             run_rate_per=_per,
         )
+        self._product_ids.add(product._id)
 
     def add_product_group(
         self,

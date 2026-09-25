@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from .durations import Duration
+from .exceptions import UnitError
 from .measures import SizedDimension
 
 if TYPE_CHECKING:
@@ -200,7 +201,7 @@ class _RunningCost:
         self,
         value: float | str | Decimal,
         per: Duration,
-        products: _Product | list[_Product] | None,
+        products: _Product | list[_Product] | None = None,
         currency: Currency = Currency.BASE,
         _machine: _Machine | None = None,
     ) -> None:
@@ -208,12 +209,25 @@ class _RunningCost:
         self.currency = currency
         self.per = per
         self._machine = _machine
-        self.products = None  # products
+
+        if isinstance(products, _Product):
+            self.products = [products]
+        elif products is None:
+            self.products = []
+        else:
+            self.products = products
+
+        if self.products is not None and not all(
+            isinstance(item, _Product) for item in self.products
+        ):
+            raise TypeError("Cannot add something that is not a Product")
 
     def _set_machine(self, machine: _Machine):
         if self._machine is None:
             # inherit all of the products made by the machine by default
-            self.products = list(machine._products.values())
+            self.products = list(
+                item["product"] for item in machine._products.values()
+            )
 
         self._machine = machine
 
@@ -225,6 +239,7 @@ class _RunningCost:
         made_prods = set(
             [item["product"]._id for item in self._machine._products.values()]
         )
+        assert self.products is not None
         for prod in self.products:
             if prod._id not in made_prods:
                 raise ValueError(
@@ -324,29 +339,54 @@ class _Capital:
                 "A minimum of either a gross_value or net_value must be"
                 " specified"
             )
-
-        self.gross_value = Decimal(gross_value)
-        self.net_value = Decimal(net_value)
+        if gross_value is not None:
+            self.gross_value = Decimal(gross_value)
+        if net_value is not None:
+            self.net_value = Decimal(net_value)
         self.currency = currency
 
 
-class PurchaseCost(_Capital):
+class PriceBand:
     def __init__(
         self,
-        per: SizedDimension,
-        gross_value: float | str | Decimal | None = None,
-        net_value: float | str | Decimal | None = None,
-        currency: Currency = Currency.BASE,
-        consumable: Consumable | None = None,
+        min_order: SizedDimension,
+        max_order: SizedDimension,
+        order_increment: SizedDimension,
+        cost_per_increment: float | str | Decimal,
     ) -> None:
-        super().__init__(
-            gross_value=gross_value, net_value=net_value, currency=currency
-        )
-        self.per = per
-        self.consumable = consumable
+        self.min_order = min_order
+        self.max_order = max_order
+        self.order_increment = order_increment
+        self.cost_per_increment = Decimal(cost_per_increment)
 
-    def _set_consumable(self, consumable: Consumable):
-        self.consumable = consumable
+
+class PurchaseCost:
+    def __init__(
+        self,
+        price_bands: PriceBand | list[PriceBand],
+        currency: Currency = Currency.BASE,
+    ) -> None:
+
+        if isinstance(price_bands, PriceBand):
+            price_bands = [price_bands]
+
+        if not all(isinstance(p, PriceBand) for p in price_bands):
+            raise TypeError("Not a valid PriceBand instance.")
+
+        self.price_bands = price_bands
+        self.currency = currency
+
+    def _check_unit_compatibility(self, consumable: Consumable) -> None:
+
+        for p in self.price_bands:
+            if not all(
+                consumable.base_dimension.is_compatible(item)
+                for item in [p.min_order, p.max_order, p.order_increment]
+            ):
+                raise UnitError(
+                    "PriceBand order sizes are incompatible with consumable:"
+                    f" {consumable.name} base dimension"
+                )
 
 
 class OrderlineValue(_Capital):

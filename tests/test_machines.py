@@ -410,7 +410,7 @@ def test_add_product_custom_unit_incompatible_with_product_raises_unit_error(
 
 
 def test_add_product_group_wrong_type_raises_type_error(cont_machine):
-    with pytest.raises(TypeError, match="Not a valid ContinuousProductGroup"):
+    with pytest.raises(TypeError, match="Not a valid ProductGroup."):
         cont_machine.add_product_group("not a group")
 
 

@@ -40,13 +40,22 @@ class Consumable:
     Parameters
     ----------
     name : str
-        A representative name for the consumable
+        A representative name for the consumable.
     base_dimension : UnsizedDimension
         The dimension in which this product is sized e.g. FluidVolume or Weight
         etc.
+    code : str
+        An optional additional string to differentiate consumables with the
+        same name but distinct properties. By default, an empty string.
+    meta : dict[Any, Any] | None
+            An optional dictionary of custom properties to store against this
+            consumable item. By default, None.
     rate_limiting : bool
         Whether the stock level of this consumable should be taken into account
         when trying to create products. By default, True.
+    purchase_cost : PurchaseCost | None
+        Define the purchase cost of the unit across multiple order sizes. If
+        left None (the default) then zero cost will be assumed.
     """
 
     _ids = count(1_000_000)

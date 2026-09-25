@@ -2,6 +2,9 @@ import datetime as dt
 
 import pytest
 
+from pro_machina.config import Config
+from pro_machina.durations import Mins, Weeks
+from pro_machina.measures import Weight
 from pro_machina.problem import (
     BatchProduct,
     ContinuousMachine,
@@ -10,9 +13,6 @@ from pro_machina.problem import (
     ShiftBuilder,
     ShiftPattern,
 )
-from pro_machina.config import Config
-from pro_machina.durations import Mins, Weeks
-from pro_machina.measures import Weight
 from pro_machina.util import as_day_end, as_day_start, parse_datetime
 
 

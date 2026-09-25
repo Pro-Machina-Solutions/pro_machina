@@ -10,3 +10,4 @@ from .products import (
 )
 from .shifts import ShiftBreak, ShiftBuilder, ShiftPattern
 from .stocks import InboundStock, StockHolding
+from .storage import ConsumableStorage, _Storage

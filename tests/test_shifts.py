@@ -4,9 +4,9 @@ import json
 import numpy as np
 import pytest
 
-from pro_machina import ShiftBreak, ShiftBuilder, ShiftPattern
 from pro_machina.durations import Hours, Mins
 from pro_machina.exceptions import ShiftDefinitionError, ShiftIntegrityError
+from pro_machina.problem import ShiftBreak, ShiftBuilder, ShiftPattern
 from pro_machina.problem.shifts import _ShiftDay
 
 # ===========================================================================

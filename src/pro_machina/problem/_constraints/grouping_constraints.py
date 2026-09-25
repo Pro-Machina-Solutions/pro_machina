@@ -158,3 +158,6 @@ class MutuallyExclusiveMachines:
                 f" pairing: {self.name}\n",
                 stacklevel=3,
             )
+
+
+__all__ = ["MutuallyExclusiveMachines", "PairedMachines"]

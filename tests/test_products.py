@@ -3,15 +3,16 @@ from decimal import Decimal
 
 import pytest
 
-from pro_machina.problem import (
-    Consumable,
-    ContinuousProduct,
-    ContinuousProductGroup,
-)
 from pro_machina.durations import Hours
 from pro_machina.exceptions import ProductError, UnitError
 from pro_machina.measures import CustomUnit, Kilo, Litre, Volume, Weight
-from pro_machina.problem._constraints.hard_constraints import (
+from pro_machina.problem import (
+    BatchProduct,
+    Consumable,
+    ContinuousProduct,
+    ProductGroup,
+)
+from pro_machina.problem.hard_constraints import (
     MinProductionTime,
     SeasonalProduction,
 )
@@ -61,7 +62,8 @@ def test_duplicate_name_and_code_raises_product_error():
     ContinuousProduct("TP Dup Name", base_dimension=Weight, code="X1")
 
     with pytest.raises(
-        ProductError, match="name/code combinations must be unique"
+        ProductError,
+        match="Name and code combinations for products must be unique",
     ):
         ContinuousProduct("TP Dup Name", base_dimension=Weight, code="X1")
 
@@ -361,12 +363,12 @@ def test_collision_only_applies_to_same_constraint_type():
 
 
 # ===========================================================================
-# ContinuousProductGroup
+# ProductGroup
 # ===========================================================================
 
 
 def test_group_init_empty():
-    group = ContinuousProductGroup("TP Group Empty")
+    group = ProductGroup("TP Group Empty")
 
     assert group._products == {}
 
@@ -375,25 +377,27 @@ def test_group_init_with_products():
     prod_a = ContinuousProduct("TP Group Init A", base_dimension=Weight)
     prod_b = ContinuousProduct("TP Group Init B", base_dimension=Weight)
 
-    group = ContinuousProductGroup("TP Group Init", [prod_a, prod_b])
+    group = ProductGroup("TP Group Init", [prod_a, prod_b])
 
     assert set(group._products.values()) == {prod_a, prod_b}
 
 
 def test_group_init_wrong_type_raises_type_error():
-    with pytest.raises(TypeError, match="Only ContinuousProducts"):
-        ContinuousProductGroup("TP Group Bad Init", ["not a product"])
+    with pytest.raises(
+        TypeError, match="Invalid Product subtype added to group."
+    ):
+        ProductGroup("TP Group Bad Init", ["not a product"])
 
 
 def test_group_init_duplicate_raises_product_error():
     prod = ContinuousProduct("TP Group Dup Init", base_dimension=Weight)
 
     with pytest.raises(ProductError, match="Duplicate product in grouping"):
-        ContinuousProductGroup("TP Group Dup", [prod, prod])
+        ProductGroup("TP Group Dup", [prod, prod])
 
 
 def test_group_add_products_single_and_list():
-    group = ContinuousProductGroup("TP Group Add")
+    group = ProductGroup("TP Group Add")
     prod_a = ContinuousProduct("TP Group Add A", base_dimension=Weight)
     prod_b = ContinuousProduct("TP Group Add B", base_dimension=Weight)
     prod_c = ContinuousProduct("TP Group Add C", base_dimension=Weight)
@@ -408,15 +412,15 @@ def test_group_add_products_wrong_type_raises_type_error():
     # Regression test: add_products used to check for duplicates before
     # checking types, so a non-Product item raised AttributeError instead
     # of the documented TypeError.
-    group = ContinuousProductGroup("TP Group Add Bad Type")
+    group = ProductGroup("TP Group Add Bad Type")
 
-    with pytest.raises(TypeError, match="Attempted to add"):
+    with pytest.raises(TypeError, match="Invalid Product subtype"):
         group.add_products(["not a product"])
 
 
 def test_group_add_products_duplicate_raises_product_error():
     prod = ContinuousProduct("TP Group Add Dup", base_dimension=Weight)
-    group = ContinuousProductGroup("TP Group Add Dup Grp", [prod])
+    group = ProductGroup("TP Group Add Dup Grp", [prod])
 
     with pytest.raises(ProductError, match="Duplicate product added"):
         group.add_products(prod)
@@ -425,7 +429,7 @@ def test_group_add_products_duplicate_raises_product_error():
 def test_group_add_component_delegates_to_all_products():
     prod_a = ContinuousProduct("TP Group Comp A", base_dimension=Weight)
     prod_b = ContinuousProduct("TP Group Comp B", base_dimension=Weight)
-    group = ContinuousProductGroup("TP Group Comp", [prod_a, prod_b])
+    group = ProductGroup("TP Group Comp", [prod_a, prod_b])
     cons = Consumable("TP Group Comp Cons", base_dimension=Weight)
 
     group.add_component(cons, qty=Kilo(1), per=Kilo(1))
@@ -437,7 +441,7 @@ def test_group_add_component_delegates_to_all_products():
 def test_group_add_hard_constraint_applies_to_all_products():
     prod_a = ContinuousProduct("TP Group HC A", base_dimension=Weight)
     prod_b = ContinuousProduct("TP Group HC B", base_dimension=Weight)
-    group = ContinuousProductGroup("TP Group HC", [prod_a, prod_b])
+    group = ProductGroup("TP Group HC", [prod_a, prod_b])
     con = SeasonalProduction(start_date="2026-01-01", end_date="2026-01-10")
 
     group.add_hard_constraint(con)
@@ -447,7 +451,7 @@ def test_group_add_hard_constraint_applies_to_all_products():
 
 
 def test_group_add_hard_constraint_wrong_type_raises_type_error():
-    group = ContinuousProductGroup("TP Group HC Type Err")
+    group = ProductGroup("TP Group HC Type Err")
 
     with pytest.raises(TypeError, match="must all be of type HardConstraint"):
         group.add_hard_constraint("not a constraint")
@@ -455,7 +459,7 @@ def test_group_add_hard_constraint_wrong_type_raises_type_error():
 
 def test_get_prod_by_name_returns_product():
     prod = ContinuousProduct("TP Get By Name", base_dimension=Weight)
-    group = ContinuousProductGroup("TP Get Group", [prod])
+    group = ProductGroup("TP Get Group", [prod])
 
     assert group.get_prod_by_name("TP Get By Name") is prod
 
@@ -467,14 +471,32 @@ def test_get_prod_by_name_with_code_disambiguates():
     prod_us = ContinuousProduct(
         "TP Get Dupe Name", base_dimension=Weight, code="US"
     )
-    group = ContinuousProductGroup("TP Get Group 2", [prod_uk, prod_us])
+    group = ProductGroup("TP Get Group 2", [prod_uk, prod_us])
 
     assert group.get_prod_by_name("TP Get Dupe Name", "UK") is prod_uk
     assert group.get_prod_by_name("TP Get Dupe Name", "US") is prod_us
 
 
 def test_get_prod_by_name_missing_raises_value_error():
-    group = ContinuousProductGroup("TP Get Group Missing")
+    group = ProductGroup("TP Get Group Missing")
 
     with pytest.raises(ValueError, match="Product name not recognised"):
         group.get_prod_by_name("TP Nonexistent")
+
+
+def test_cannot_make_product_group_of_mixed_types():
+    cont = ContinuousProduct("Test Cont", base_dimension=Weight)
+    batch = BatchProduct("Test Batch", base_dimension=Weight)
+
+    with pytest.raises(
+        TypeError, match="Groups must contain the same product types"
+    ):
+        group = ProductGroup("Added to together", products=[cont, batch])
+
+    group = ProductGroup("Attempt mixed added to in parts")
+    group.add_products(cont)
+
+    with pytest.raises(
+        TypeError, match="Groups must contain the same product types"
+    ):
+        group.add_products(batch)
