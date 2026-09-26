@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from .durations import Duration
 from .exceptions import UnitError
 from .measures import SizedDimension
+from .suppliers import Supplier
 
 if TYPE_CHECKING:
     from .problem.consumables import Consumable
@@ -364,7 +365,10 @@ class PurchaseCost:
     def __init__(
         self,
         price_bands: PriceBand | list[PriceBand],
+        supplier: Supplier | None = None,
+        lead_time: Duration | None = None,
         currency: Currency = Currency.BASE,
+        use_supplier_currency: bool = False,
     ) -> None:
 
         if isinstance(price_bands, PriceBand):
@@ -374,7 +378,10 @@ class PurchaseCost:
             raise TypeError("Not a valid PriceBand instance.")
 
         self.price_bands = price_bands
+        self.supplier = supplier
+        self.lead_time = lead_time
         self.currency = currency
+        self.use_supplier_currency = use_supplier_currency
 
     def _check_unit_compatibility(self, consumable: Consumable) -> None:
 

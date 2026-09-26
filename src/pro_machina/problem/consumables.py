@@ -67,7 +67,7 @@ class Consumable:
         code: str = "",
         meta: dict[Any, Any] | None = None,
         rate_limiting: bool = True,
-        purchase_cost: PurchaseCost | None = None,
+        purchase_cost: PurchaseCost | list[PurchaseCost] | None = None,
     ) -> None:
         self._id = ConsID(next(self._ids))
         self.name = name
