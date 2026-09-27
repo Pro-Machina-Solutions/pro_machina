@@ -32,12 +32,6 @@ from ._constraints import (
     HardConstraint,
     SoftConstraint,
 )
-
-# from ._constraints import (
-#     ConstraintLevel,
-#     HardConstraint,
-#     SoftConstraint,
-# )
 from .products import (
     ContinuousProduct,
     ProdID,
@@ -560,20 +554,3 @@ class BatchMachine(_Machine):
 
 
 MachineSubtype = BatchMachine | ContinuousMachine
-
-# class BatchMachine(_Machine):
-#     def __init__(self, name) -> None:
-#         super().__init__(name)
-
-#         self._products: dict[ProdID, _MachineProduct] = {}
-
-# def add_product(self, product: BatchProduct):
-
-#     if not isinstance(product, BatchProduct):
-#         raise MachineError("Can only add BatchProduct to this machine")
-
-#     self._products[product._id] = _MachineProduct(
-#         product=product,
-#         hard_constraints=product._hard_constraints,
-#         soft_constraints=product._soft_constraints,
-#     )
