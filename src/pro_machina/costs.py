@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from .durations import Duration
 from .exceptions import UnitError
 from .measures import SizedDimension
-from .suppliers import Supplier
 
 if TYPE_CHECKING:
     from .problem.consumables import Consumable
     from .problem.machines import _Machine
     from .problem.products import _Product
+    from .suppliers import Supplier
 
 
 class CurrencyRefresh(StrEnum):

@@ -9,6 +9,7 @@ import numpy.typing as npt
 import pandas as pd
 
 if TYPE_CHECKING:
+    from ..locations import Department, Factory
     from .problem import Problem
 from warnings import warn
 
@@ -74,6 +75,9 @@ class _Machine:
 
         self._hard_constraints: list[HardConstraint] = []
         self._soft_constraints: list[SoftConstraint] = []
+
+        self._department: Department | None = None
+        self._factory: Factory | None = None
 
     def add_shift(
         self,
@@ -549,6 +553,13 @@ class ContinuousMachineGroup:
         if not all(isinstance(item, _Machine) for item in self.machines):
             raise TypeError("Incorrect type added to machine group")
 
+
+class BatchMachine(_Machine):
+    def __init__(self, name: str) -> None:
+        super().__init__(name=name)
+
+
+MachineSubtype = BatchMachine | ContinuousMachine
 
 # class BatchMachine(_Machine):
 #     def __init__(self, name) -> None:

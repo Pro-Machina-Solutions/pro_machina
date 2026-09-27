@@ -3,10 +3,10 @@ from __future__ import annotations
 from itertools import count
 from typing import TYPE_CHECKING, NewType
 
+from .costs import Currency
 from .util import Singleton
 
 if TYPE_CHECKING:
-    from .costs import Currency
     from .countries import Country
     from .problem.consumables import ConsID, Consumable
 
