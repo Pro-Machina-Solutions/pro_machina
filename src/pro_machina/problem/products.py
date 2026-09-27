@@ -42,6 +42,7 @@ class _ComponentQty(TypedDict):
 
 
 ProdID = NewType("ProdID", int)
+ProdGroupID = NewType("ProdGroupID", int)
 
 
 class ProductRegistry(metaclass=Singleton):
@@ -473,11 +474,14 @@ class ProductGroup:
         The same product has been added to the group multiple times.
     """
 
+    _ids = count(0)
+
     def __init__(
         self,
         group_name: str,
         products: ProdSubtype | list[ProdSubtype] | None = None,
     ) -> None:
+        self._id = ProdGroupID(next(self._ids))
         self.group_name = group_name
         self._products: dict[ProdID, ProdSubtype] = {}
         self._product_by_name: dict[tuple[str, str], ProdSubtype] = {}

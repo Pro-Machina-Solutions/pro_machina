@@ -3,8 +3,16 @@ from __future__ import annotations
 from itertools import count
 from typing import TYPE_CHECKING, NewType
 
+from .measures import CustomUnit, SizedDimension, _UnitRegistry
+
 if TYPE_CHECKING:
     from .problem.machines import MachID, MachineSubtype
+    from .problem.products import (
+        ProdGroupID,
+        ProdID,
+        ProdSubtype,
+        ProductGroup,
+    )
 
 LocID = NewType("LocID", int)
 StorageID = NewType("StorageID", int)
@@ -112,9 +120,43 @@ class UnsizedStorage(_Location):
 class SizedStorage(_Location):
     _ids = count(0)
 
-    def __init__(self, name: str):
+    def __init__(
+        self,
+        name: str,
+        total_capacity: SizedDimension | CustomUnit,
+        department: Department | None = None,
+        factory: Factory | None = None,
+    ):
         super().__init__()
         self._id = StorageID(next(self._ids))
+        self.name = name
+        self.department = department
+        self.factory = factory
+
+        self.total_capacity = total_capacity
+        self.single_product_limits: dict[
+            ProdID, SizedDimension | CustomUnit
+        ] = {}
+        self.grouped_product_limits: dict[
+            ProdGroupID, SizedDimension | CustomUnit
+        ] = {}
+
+    def add_single_product_limit(
+        self, product: ProdSubtype, limit: SizedDimension | CustomUnit
+    ):
+        if isinstance(limit, CustomUnit):
+            # Check that it's been registered for this product, or throw
+            reg = _UnitRegistry()
+            dimension = reg.get_measure(limit, product)
+
+    def add_product_group_limit(
+        self, group: ProductGroup, limit: SizedDimension | CustomUnit
+    ):
+        if isinstance(limit, CustomUnit):
+            # Check that it's been registered for this product, or throw
+            reg = _UnitRegistry()
+            for prod in group._products.values():
+                dimension = reg.get_measure(limit, prod)
 
 
 class LocationMove:
