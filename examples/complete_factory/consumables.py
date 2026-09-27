@@ -5,7 +5,7 @@ from pro_machina.problem import Consumable
 Sugar = Consumable(
     "Sugar",
     base_dimension=Weight,
-    purchase_cost=[
+    purchase_costs=[
         PurchaseCost(
             price_bands=[
                 PriceBand(
