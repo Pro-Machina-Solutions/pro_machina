@@ -18,14 +18,13 @@ import pro_machina
 
 if TYPE_CHECKING:
     from ..costs import ProductionCost, SaleValue
-from .._registries import ProductReg
+from .._registries import ProductReg, UnitReg
 from ..durations import Duration, Secs
 from ..exceptions import ProductError, UnitError
 from ..measures import (
     CustomUnit,
     SizedDimension,
     UnsizedDimension,
-    _UnitRegistry,
 )
 from .consumables import ConsID, Consumable
 from .problem import (
@@ -145,7 +144,7 @@ class _Product:
             )
 
         if isinstance(qty, CustomUnit):
-            reg = _UnitRegistry()
+            reg = UnitReg()
 
             # Specifies the SizedDimension of the CustomUnit for this
             # Consumable. e.g. "Bag of Sugar" -> "0.25kg"

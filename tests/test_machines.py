@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import pytest
 
+from pro_machina._registries import UnitReg
 from pro_machina.durations import Hours, Mins
 from pro_machina.exceptions import (
     MachineError,
@@ -14,7 +15,6 @@ from pro_machina.measures import (
     CustomUnit,
     Litre,
     Unit,
-    _UnitRegistry,
 )
 from pro_machina.problem import (
     ContinuousMachine,
@@ -372,13 +372,13 @@ def test_add_product_compatible_custom_unit_works(cont_machine):
 def test_add_product_custom_unit_not_registered_raises_unit_error(
     cont_machine,
 ):
-    # _UnitRegistry is a process-wide Singleton, and CustomUnit's __eq__ /
+    # UnitReg is a process-wide Singleton, and CustomUnit's __eq__ /
     # __hash__ are based purely on the class name rather than identity or
     # `.name` (see measures.py), so every CustomUnit that has ever been
     # registered - by any test, for any name - shares the same entry in the
     # registry. Reset the singleton so "has not been registered" is
     # reachable here regardless of what other tests already registered.
-    Singleton._instances.pop(_UnitRegistry, None)
+    Singleton._instances.pop(UnitReg, None)
 
     Case = CustomUnit("AP Unregistered Case", dimension=BaseUnit)
     prod = ContinuousProduct("AP Unregistered Prod", base_dimension=BaseUnit)
@@ -396,7 +396,7 @@ def test_add_product_custom_unit_incompatible_with_product_raises_unit_error(
     # registry, bypassing that guard.
     Case = CustomUnit("AP Mismatched Case", dimension=BaseUnit)
     prod = ContinuousProduct("AP Mismatched Prod", base_dimension=BaseUnit)
-    _UnitRegistry().add(Case, prod, Litre(10))
+    UnitReg().add(Case, prod, Litre(10))
 
     with pytest.raises(
         UnitError, match="Production units of AP Mismatched Case"

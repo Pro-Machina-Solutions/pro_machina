@@ -3,7 +3,8 @@ from __future__ import annotations
 from itertools import count
 from typing import TYPE_CHECKING, NewType
 
-from .measures import CustomUnit, SizedDimension, _UnitRegistry
+from ._registries import UnitReg
+from .measures import CustomUnit, SizedDimension
 
 if TYPE_CHECKING:
     from .problem.machines import MachID, MachineSubtype
@@ -74,7 +75,7 @@ class Department(_Location):
         self._id = DeptID(next(self._ids))
         self.name = DeptName(name)
         self._factory: Factory | None = None
-        self._department = None
+        self._department: Department | None = None
 
         self._machs_by_id: dict[MachID, MachineSubtype] = {}
         self._machs_by_name: dict[tuple[str, FactoryName], MachineSubtype] = {}
@@ -91,14 +92,18 @@ class Department(_Location):
         if isinstance(machines, MachineSubtype):
             machines = [machines]
 
-        if not isinstance(machines, MachineSubtype):
-            raise TypeError("Invalid Machine type.")
-
         for mach in machines:
+            if not isinstance(mach, MachineSubtype):
+                raise TypeError("Invalid Machine type.")
             self._department = self
             self._factory = self._factory
             self._machs_by_id[mach._id] = mach
-            self._machs_by_name[(mach.name, self.name)] = mach
+            factory_name = (
+                self._factory.name
+                if self._factory is not None
+                else FactoryName("")
+            )
+            self._machs_by_name[(mach.name, factory_name)] = mach
 
 
 class Warehouse(_Location):
@@ -146,7 +151,7 @@ class SizedStorage(_Location):
     ):
         if isinstance(limit, CustomUnit):
             # Check that it's been registered for this product, or throw
-            reg = _UnitRegistry()
+            reg = UnitReg()
             dimension = reg.get_measure(limit, product)
 
     def add_product_group_limit(
@@ -154,11 +159,14 @@ class SizedStorage(_Location):
     ):
         if isinstance(limit, CustomUnit):
             # Check that it's been registered for this product, or throw
-            reg = _UnitRegistry()
+            reg = UnitReg()
             for prod in group._products.values():
                 dimension = reg.get_measure(limit, prod)
 
     def _check_capacity(self):
+        # TODO need to see whether the combined rules for different products
+        # overruns the total capacity of the storage unit. Need to think how
+        # best to do this
         pass
 
 

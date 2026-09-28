@@ -17,9 +17,10 @@ import numpy as np
 
 import pro_machina
 
+from .._registries import UnitReg
 from ..durations import Duration
 from ..exceptions import MachineError, ShiftDefinitionError, UnitError
-from ..measures import CustomUnit, SizedDimension, _UnitRegistry
+from ..measures import CustomUnit, SizedDimension
 from ..util import (
     as_day_end,
     as_day_start,
@@ -304,7 +305,7 @@ class ContinuousMachine(_Machine):
                     f" {prod_dim.__name__} for {product.name}"
                 )
         else:
-            reg = _UnitRegistry()
+            reg = UnitReg()
             custom_unit = reg.get_measure(_run_rate, product)
             prod_dim = product.base_dimension
             if not prod_dim.is_compatible(custom_unit):

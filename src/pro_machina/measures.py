@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from ._registries import UnitReg
 from .exceptions import UnitError
-from .util import Singleton
 
 if TYPE_CHECKING:
     from .problem.consumables import Consumable
@@ -483,7 +482,7 @@ class CustomUnit:
             raise UnitError(
                 f"{unit.name()} is an invalid unit measure for {item.name}"
             )
-        reg = _UnitRegistry()
+        reg = UnitReg()
         reg.add(self, item, unit)
 
     def __call__(self, qty: float | Decimal | str):
@@ -505,33 +504,6 @@ class CustomUnit:
 
     def __repr__(self):
         return f"<CustomUnit: {self.name}>"
-
-
-class _UnitRegistry(metaclass=Singleton):
-    def __init__(self) -> None:
-        self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
-            dict
-        )
-
-    def add(
-        self,
-        unit: CustomUnit,
-        item: _Product | Consumable,
-        qty: SizedDimension,
-    ) -> None:
-        self.units[unit][item._id] = qty
-
-    def get_measure(
-        self, unit: CustomUnit, item: _Product | Consumable
-    ) -> SizedDimension:
-        if self.units.get(unit) is None:
-            raise UnitError(f"Unit: {unit.name} has not been registered")
-
-        if self.units[unit].get(item._id) is None:
-            raise UnitError(
-                f"Unit: {unit.name} has not been sized for {item.name}"
-            )
-        return self.units[unit][item._id]
 
 
 __all__ = [

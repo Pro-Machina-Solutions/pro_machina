@@ -11,9 +11,10 @@ if TYPE_CHECKING:
 import numpy as np
 import numpy.typing as npt
 
+from .._registries import UnitReg
 from ..durations import Duration
 from ..exceptions import UnitError
-from ..measures import CustomUnit, SizedDimension, _UnitRegistry
+from ..measures import CustomUnit, SizedDimension
 from ..util import as_day_start, get_problem_buckets, parse_datetime
 from .consumables import ConsID
 
@@ -62,7 +63,7 @@ class Order:
             )
 
         if isinstance(qty, CustomUnit):
-            reg = _UnitRegistry()
+            reg = UnitReg()
             custom_unit = reg.get_measure(qty, product)
             custom_qty = qty._tmp_qty
 
@@ -133,7 +134,7 @@ class MadeToStock:
             )
 
         if isinstance(qty, CustomUnit):
-            reg = _UnitRegistry()
+            reg = UnitReg()
             custom_unit = reg.get_measure(qty, product)
             custom_qty = qty._tmp_qty
 

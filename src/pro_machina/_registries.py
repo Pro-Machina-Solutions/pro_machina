@@ -1,14 +1,43 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from .exceptions import ProductError
+from .exceptions import ProductError, UnitError
 from .util import Singleton
 
 if TYPE_CHECKING:
+    from .measures import CustomUnit, SizedDimension
     from .problem.consumables import ConsID, Consumable
     from .problem.products import ProdID, _Product
     from .suppliers import Supplier, SupplierID
+
+
+class UnitReg(metaclass=Singleton):
+    def __init__(self) -> None:
+        self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
+            dict
+        )
+
+    def add(
+        self,
+        unit: CustomUnit,
+        item: _Product | Consumable,
+        qty: SizedDimension,
+    ) -> None:
+        self.units[unit][item._id] = qty
+
+    def get_measure(
+        self, unit: CustomUnit, item: _Product | Consumable
+    ) -> SizedDimension:
+        if self.units.get(unit) is None:
+            raise UnitError(f"Unit: {unit.name} has not been registered")
+
+        if self.units[unit].get(item._id) is None:
+            raise UnitError(
+                f"Unit: {unit.name} has not been sized for {item.name}"
+            )
+        return self.units[unit][item._id]
 
 
 class ConsumableReg(metaclass=Singleton):

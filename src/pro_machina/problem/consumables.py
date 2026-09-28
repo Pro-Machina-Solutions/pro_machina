@@ -4,8 +4,6 @@ from itertools import count
 from typing import Any, NewType
 
 from .._registries import ConsumableReg
-
-# if TYPE_CHECKING:
 from ..costs import PriceBand, PurchaseCost
 from ..measures import UnsizedDimension
 from ..suppliers import SupplierID
