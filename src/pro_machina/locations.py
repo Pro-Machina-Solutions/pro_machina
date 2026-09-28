@@ -158,6 +158,9 @@ class SizedStorage(_Location):
             for prod in group._products.values():
                 dimension = reg.get_measure(limit, prod)
 
+    def _check_capacity(self):
+        pass
+
 
 class LocationMove:
     def __init__(self):

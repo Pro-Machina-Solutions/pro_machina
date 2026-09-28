@@ -18,6 +18,7 @@ import pro_machina
 
 if TYPE_CHECKING:
     from ..costs import ProductionCost, SaleValue
+from .._registries import ProductReg
 from ..durations import Duration, Secs
 from ..exceptions import ProductError, UnitError
 from ..measures import (
@@ -26,7 +27,6 @@ from ..measures import (
     UnsizedDimension,
     _UnitRegistry,
 )
-from ..util import Singleton
 from .consumables import ConsID, Consumable
 from .problem import (
     ConstraintLevel,
@@ -45,26 +45,6 @@ ProdID = NewType("ProdID", int)
 ProdGroupID = NewType("ProdGroupID", int)
 
 
-class ProductRegistry(metaclass=Singleton):
-    def __init__(self) -> None:
-        self.products_by_id: dict[ProdID, _Product] = {}
-        self.products_by_name: dict[tuple[str, str], _Product] = {}
-
-    def contains(self, product: _Product) -> bool:
-        return product._id in self.products_by_id
-
-    def add(self, product: _Product) -> None:
-        if self.contains(product):
-            raise ProductError("Cannot add the product twice to registry")
-        elif (product.name, product.code) in self.products_by_name:
-            raise ProductError(
-                "Name and code combinations for products must be unique"
-            )
-        else:
-            self.products_by_id[product._id] = product
-            self.products_by_name[(product.name, product.code)] = product
-
-
 class _Product:
     _ids = count(0)
 
@@ -80,7 +60,7 @@ class _Product:
         self.code = code
         self.base_dimension = base_dimension
 
-        reg = ProductRegistry()
+        reg = ProductReg()
         reg.add(self)
 
         self._consumables: list[_ComponentQty] = []

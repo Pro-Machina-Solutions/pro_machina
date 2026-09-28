@@ -3,29 +3,14 @@ from __future__ import annotations
 from itertools import count
 from typing import Any, NewType
 
+from .._registries import ConsumableReg
+
 # if TYPE_CHECKING:
 from ..costs import PriceBand, PurchaseCost
 from ..measures import UnsizedDimension
 from ..suppliers import SupplierID
-from ..util import Singleton
 
 ConsID = NewType("ConsID", int)
-
-
-class _ConsumableRegistry(metaclass=Singleton):
-    def __init__(self) -> None:
-        self._by_name: dict[tuple[str, str], Consumable] = {}
-        self._by_id: dict[ConsID, Consumable] = {}
-
-    def add(self, cons: Consumable) -> None:
-        self._by_name[(cons.name, cons.code)] = cons
-        self._by_id[cons._id] = cons
-
-    def contains(self, cons: Consumable) -> bool:
-        return cons._id in self._by_id
-
-    def get_by_id(self, cons_id: ConsID) -> Consumable:
-        return self._by_id[cons_id]
 
 
 class Consumable:
@@ -80,7 +65,7 @@ class Consumable:
         self.rate_limiting = rate_limiting
         self.meta = meta if meta is not None else {}
 
-        reg = _ConsumableRegistry()
+        reg = ConsumableReg()
         reg.add(self)
 
         self.purchase_costs: list[PriceBand] = []
@@ -126,7 +111,7 @@ class Consumable:
         list[Consumable]
             All consumables defined so far
         """
-        reg = _ConsumableRegistry()
+        reg = ConsumableReg()
         return list(reg._by_id.values())
 
 

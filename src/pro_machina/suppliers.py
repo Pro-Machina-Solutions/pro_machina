@@ -4,7 +4,6 @@ from itertools import count
 from typing import TYPE_CHECKING, NewType
 
 from .costs import Currency
-from .util import Singleton
 
 if TYPE_CHECKING:
     from .countries import Country
@@ -12,25 +11,6 @@ if TYPE_CHECKING:
 
 
 SupplierID = NewType("SupplierID", int)
-
-
-class _SupplierRegistry(metaclass=Singleton):
-    def __init__(self) -> None:
-        self._by_name: dict[tuple[str, str], Supplier] = {}
-        self._by_id: dict[SupplierID, Supplier] = {}
-
-    def add(self, sup: Supplier) -> None:
-        self._by_name[(sup.name, sup.code)] = sup
-        self._by_id[sup._id] = sup
-
-    def contains(self, sup: Supplier) -> bool:
-        return sup._id in self._by_id
-
-    def get_by_id(self, sup_id: SupplierID) -> Supplier:
-        return self._by_id[sup_id]
-
-    def get_by_name(self, name, code) -> Supplier:
-        return self._by_name[(name, code)]
 
 
 class Supplier:
