@@ -52,7 +52,7 @@ class UnitReg(metaclass=Singleton):
 
 class ConsumableReg(metaclass=Singleton):
     def __init__(self) -> None:
-        self._by_name: dict[tuple[str, str], Consumable] = {}
+        self._by_name: dict[tuple[str, str | None], Consumable] = {}
         self._by_id: dict[ConsID, Consumable] = {}
 
     def add(self, cons: Consumable) -> None:

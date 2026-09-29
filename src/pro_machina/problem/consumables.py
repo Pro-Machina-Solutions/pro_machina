@@ -51,7 +51,7 @@ class Consumable:
         self,
         name: str,
         base_dimension: UnsizedDimension,
-        code: str = "",
+        code: str | None = None,
         meta: dict[Any, Any] | None = None,
         rate_limiting: bool = True,
         purchase_costs: PurchaseCost | list[PurchaseCost] | None = None,
