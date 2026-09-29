@@ -42,6 +42,8 @@ class _ComponentQty(TypedDict):
 
 ProdID = NewType("ProdID", int)
 ProdGroupID = NewType("ProdGroupID", int)
+ProdName = NewType("ProdName", str)
+ProdGroupName = NewType("ProdGroupName", str)
 
 
 class _Product:
@@ -51,11 +53,11 @@ class _Product:
         self,
         name: str,
         base_dimension: UnsizedDimension,
-        code: str = "",
+        code: str | None = None,
     ) -> None:
 
         self._id = ProdID(next(self._ids))
-        self.name = name
+        self.name = ProdName(name)
         self.code = code
         self.base_dimension = base_dimension
 
@@ -377,11 +379,11 @@ class ContinuousProduct(_Product):
         self,
         name: str,
         base_dimension: UnsizedDimension,
-        code: str = "",
+        code: str | None = None,
         production_cost: ProductionCost | None = None,
         sale_value: SaleValue | None = None,
     ) -> None:
-        super().__init__(name, base_dimension, code)
+        super().__init__(name=name, base_dimension=base_dimension, code=code)
         self.production_cost = production_cost
         self.sale_value = sale_value
 
@@ -391,11 +393,11 @@ class BatchProduct(_Product):
         self,
         name: str,
         base_dimension: UnsizedDimension,
-        code: str = "",
+        code: str | None = None,
         production_cost: ProductionCost | None = None,
         sale_value: SaleValue | None = None,
     ) -> None:
-        super().__init__(name, base_dimension, code)
+        super().__init__(name=name, base_dimension=base_dimension, code=code)
         self.production_cost = production_cost
         self.sale_value = sale_value
 
@@ -461,9 +463,11 @@ class ProductGroup:
         products: ProdSubtype | list[ProdSubtype] | None = None,
     ) -> None:
         self._id = ProdGroupID(next(self._ids))
-        self.group_name = group_name
+        self.group_name = ProdGroupName(group_name)
         self._products: dict[ProdID, ProdSubtype] = {}
-        self._product_by_name: dict[tuple[str, str], ProdSubtype] = {}
+        self._products_by_name: dict[
+            tuple[ProdName, str | None], ProdSubtype
+        ] = {}
         self._product_type: ProdSubtype | None = None
 
         if products is not None:
@@ -473,7 +477,7 @@ class ProductGroup:
                 if prod._id in self._products:
                     raise ProductError("Duplicate product in grouping.")
                 self._products[prod._id] = prod
-                self._product_by_name[(prod.name, prod.code)] = prod
+                self._products_by_name[(prod.name, prod.code)] = prod
 
     def _check_product_type(
         self, products: ProdSubtype | list[ProdSubtype]
@@ -485,7 +489,7 @@ class ProductGroup:
             products = [products]
 
         # Now ensure that it's a valid subtype of _Product and not _Product
-        # ittself
+        # itself
         if not all(isinstance(prod, ProdSubtype) for prod in products):
             raise TypeError("Invalid Product subtype added to group.")
 
@@ -496,7 +500,7 @@ class ProductGroup:
 
         if not all(type(prod) is self._product_type for prod in products):
             raise TypeError(
-                "Groups must contain the same product types. That is, all"
+                "Groups must contain the same Product types. That is, all"
                 " products must be ContinuousProduct instances or all must"
                 " be BatchProduct instances but you cannot have a mixture."
             )
@@ -529,7 +533,7 @@ class ProductGroup:
 
         for prod in checked_products:
             self._products[prod._id] = prod
-            self._product_by_name[(prod.name, prod.code)] = prod
+            self._products_by_name[(prod.name, prod.code)] = prod
 
     def add_component(
         self,
@@ -597,7 +601,7 @@ class ProductGroup:
                 )
 
     def get_prod_by_name(
-        self, product_name: str, product_code: str = ""
+        self, product_name: str, product_code: str | None = None
     ) -> _Product:
         """Return an individual product from the group by its string name and
         (optionally) its code.
@@ -621,7 +625,9 @@ class ProductGroup:
         ValueError
             Product name not found within the group.
         """
-        prod = self._product_by_name.get((product_name, product_code))
+        prod = self._products_by_name.get(
+            (ProdName(product_name), product_code)
+        )
         if prod is None:
             raise ValueError(f"Product name not recognised: {product_name}")
         return prod

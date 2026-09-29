@@ -9,7 +9,7 @@ from ..util import parse_datetime
 
 if TYPE_CHECKING:
     from .consumables import Consumable
-    from .products import BatchProduct, ContinuousProduct
+    from .products import ProdSubtype
 
 
 class StockHolding:
@@ -31,7 +31,7 @@ class StockHolding:
 
     def __init__(
         self,
-        item: ContinuousProduct | BatchProduct | Consumable,
+        item: ProdSubtype | Consumable,
         qty: SizedDimension,
     ) -> None:
 

@@ -1,4 +1,3 @@
-import warnings
 
 import numpy as np
 import pytest
@@ -19,11 +18,11 @@ from pro_machina.measures import (
 from pro_machina.problem import (
     ContinuousMachine,
     ContinuousProduct,
+    MachineGroup,
     ProductGroup,
 )
 from pro_machina.problem._constraints import ConstraintLevel
 from pro_machina.problem.hard_constraints import MinProductionTime
-from pro_machina.problem.machines import ContinuousMachineGroup
 from pro_machina.util import (
     Singleton,
     as_day_end,
@@ -575,88 +574,62 @@ def test_add_hard_constraint_does_not_overwrite_existing_machine(
 
 
 # ===========================================================================
-# ContinuousMachineGroup
+# MachineGroup
 # ===========================================================================
 
 
 def test_machine_group_init_empty():
-    group = ContinuousMachineGroup("TM Group Empty")
+    group = MachineGroup("TM Group Empty")
 
-    assert group.machines == []
+    assert group._machines == []
 
 
 def test_machine_group_init_with_machines():
     mach_a = ContinuousMachine("TM Group Init A")
     mach_b = ContinuousMachine("TM Group Init B")
 
-    group = ContinuousMachineGroup("TM Group Init", [mach_a, mach_b])
+    group = MachineGroup("TM Group Init", [mach_a, mach_b])
 
-    assert set(group.machines) == {mach_a, mach_b}
+    assert set(group._machines) == {mach_a, mach_b}
 
 
 def test_machine_group_init_wrong_type_raises_type_error():
-    with pytest.raises(TypeError, match="Incorrect type added to machine"):
-        ContinuousMachineGroup("TM Group Bad Init", ["not a machine"])
+    with pytest.raises(
+        TypeError, match="Invalid Machine subtype added to group."
+    ):
+        MachineGroup("TM Group Bad Init", ["not a machine"])
 
 
 def test_machine_group_add_machine_single_and_list():
-    group = ContinuousMachineGroup("TM Group Add")
+    group = MachineGroup("TM Group Add")
     mach_a = ContinuousMachine("TM Group Add A")
     mach_b = ContinuousMachine("TM Group Add B")
     mach_c = ContinuousMachine("TM Group Add C")
 
-    group.add_machine(mach_a)
-    group.add_machine([mach_b, mach_c])
+    group.add_machines(mach_a)
+    group.add_machines([mach_b, mach_c])
 
-    assert set(group.machines) == {mach_a, mach_b, mach_c}
+    assert set(group._machines) == {mach_a, mach_b, mach_c}
 
 
-def test_machine_group_add_machine_duplicate_warns():
+def test_machine_group_add_machine_duplicate_throws():
     mach = ContinuousMachine("TM Group Dup")
-    group = ContinuousMachineGroup("TM Group Dup Grp")
-    group.add_machine(mach)
+    group = MachineGroup("TM Group Dup Grp")
+    group.add_machines(mach)
 
-    with pytest.warns(UserWarning, match="Duplicate machines"):
-        group.add_machine(mach)
+    with pytest.raises(
+        MachineError, match="Duplicate machine added to grouping."
+    ):
+        group.add_machines(mach)
 
     # The duplicate is deduplicated away.
-    assert group.machines == [mach]
-
-
-def test_machine_group_add_machine_duplicate_silenced_by_option(
-    monkeypatch,
-):
-    import pro_machina
-
-    monkeypatch.setitem(pro_machina.options, "silence_warnings", True)
-
-    mach = ContinuousMachine("TM Group Dup Silenced")
-    group = ContinuousMachineGroup("TM Group Dup Silenced Grp")
-    group.add_machine(mach)
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        group.add_machine(mach)
-
-    assert caught == []
+    assert group._machines == [mach]
 
 
 def test_machine_group_add_machine_wrong_type_raises_type_error():
-    group = ContinuousMachineGroup("TM Group Bad Type")
+    group = MachineGroup("TM Group Bad Type")
 
-    with pytest.raises(TypeError, match="Incorrect type added to machine"):
-        group.add_machine(["not a machine"])
-
-
-def test_machine_group_add_machine_raw_string_explodes_into_characters():
-    # Regression test: add_machine() only checks types *after* extending
-    # self.machines, and a bare string is iterable - each character gets
-    # appended as its own "machine" first. With enough repeated characters
-    # that even triggers the (spurious) "Duplicate machines" warning before
-    # the eventual TypeError. Passing a list (as in the test above) avoids
-    # this pitfall.
-    group = ContinuousMachineGroup("TM Group Raw String")
-
-    with pytest.warns(UserWarning, match="Duplicate machines"):
-        with pytest.raises(TypeError, match="Incorrect type added to machine"):
-            group.add_machine("not a machine")
+    with pytest.raises(
+        TypeError, match="Invalid Machine subtype added to group."
+    ):
+        group.add_machines(["not a machine"])

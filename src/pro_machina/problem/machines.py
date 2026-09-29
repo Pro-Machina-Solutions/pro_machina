@@ -11,11 +11,8 @@ import pandas as pd
 if TYPE_CHECKING:
     from ..locations import Department, Factory
     from .problem import Problem
-from warnings import warn
 
 import numpy as np
-
-import pro_machina
 
 from .._registries import UnitReg
 from ..durations import Duration
@@ -55,6 +52,9 @@ class _MachineShift(TypedDict):
 
 
 MachID = NewType("MachID", int)
+MachName = NewType("MachName", str)
+MachGroupID = NewType("MachGroupID", int)
+MachGroupName = NewType("MachGroupName", str)
 
 
 class _Machine:
@@ -62,7 +62,7 @@ class _Machine:
 
     def __init__(self, name: str) -> None:
         self._id = MachID(next(self._ids))
-        self.name = name
+        self.name = MachName(name)
 
         self._products: dict[ProdID, _MachineProduct] = {}
         self._product_ids: set[ProdID] = set()
@@ -219,11 +219,11 @@ class ContinuousMachine(_Machine):
 
     def __init__(
         self,
-        name,
+        name: str,
         default_run_rate: SizedDimension | None = None,
         default_per: Duration | None = None,
     ) -> None:
-        super().__init__(name)
+        super().__init__(name=name)
         self.default_run_rate = default_run_rate
         self.default_per = default_per
 
@@ -462,7 +462,7 @@ class ContinuousMachine(_Machine):
                 )
 
             for entry in run_rates:
-                code = entry.get("prod_code", "")
+                code = entry.get("prod_code")
                 prod = group.get_prod_by_name(
                     product_name=entry["prod_name"], product_code=code
                 )
@@ -496,57 +496,86 @@ class ContinuousMachine(_Machine):
         self._hard_constraints.extend(constraints)
 
 
-class ContinuousMachineGroup:
+class MachineGroup:
+    _ids = count(0)
+
     def __init__(
-        self, name: str, machines: list[ContinuousMachine] | None = None
+        self,
+        group_name: str,
+        machines: MachineSubtype | list[MachineSubtype] | None = None,
     ) -> None:
-        self.name = name
-        self.machines: list[ContinuousMachine] = (
-            machines if machines is not None else []
-        )
+        self._id = MachGroupID(next(self._ids))
+        self.group_name = MachGroupName(group_name)
+        self._machines: dict[MachID, MachineSubtype] = {}
+        self._machines_by_name: dict[MachName, MachineSubtype] = {}
+        self._machine_type: MachineSubtype | None = None
 
-        if self.machines:
-            if not all(
-                isinstance(item, ContinuousMachine) for item in self.machines
-            ):
-                raise TypeError("Incorrect type added to machine group.")
+        if machines is not None:
+            checked_machines = self._check_machine_type(machines)
 
-        self._hard_constraints: list[HardConstraint] = []
-        self._soft_constraints: list[SoftConstraint] = []
+            for mach in checked_machines:
+                if mach._id in self._machines:
+                    raise MachineError("Duplicate product in grouping.")
+                self._machines[mach._id] = mach
+                self._machines_by_name[mach.name] = mach
 
-    def add_machine(
-        self, machines: ContinuousMachine | list[ContinuousMachine]
+    def _check_machine_type(
+        self, machines: MachineSubtype | list[MachineSubtype]
+    ) -> list[MachineSubtype]:
+
+        # First check that it's a valid submachine type and ensure it's in a
+        # list
+        if not isinstance(machines, list):
+            machines = [machines]
+
+        # Now ensure that it's a valid subtype of _Machine and not _Machine
+        # itself
+        if not all(isinstance(mach, MachineSubtype) for mach in machines):
+            raise TypeError("Invalid Machine subtype added to group.")
+
+        # Grab the subtype of the first _Product instance we see and compare
+        # everything else against it from then on
+        if self._machine_type is None:
+            self._machine_type = type(machines[0])  # type: ignore[assignment]
+
+        if not all(type(mach) is self._machine_type for mach in machines):
+            raise TypeError(
+                "Groups must contain the same Machine types. That is, all"
+                " machines must be ContinuousMachine instances or all must"
+                " be BatchMachine instances but you cannot have a mixture."
+            )
+
+        return machines
+
+    def add_machines(
+        self, machines: MachineSubtype | list[MachineSubtype]
     ) -> None:
-        """Add a machine to an existing grouping.
+        """Add a machine or list of machines to an existing grouping.
 
         Parameters
         ----------
-        machines : _Machine | list[_Machine]
+        machines : MachineSubtype | list[MachineSubtype]
             The machine(s) to be added.
 
         Raises
         ------
         TypeError
-            Attempted to add something other than a Machine to the grouping.
+            Attempted to add something that wasn't either a ContinuousMachine
+            or a BatchMachine to the group.
+        TypeError
+            Attempted to make a grouping of mixed machine types.
+        MachineError
+            Attempted to add the same machine twice or more to a grouping.
         """
-        if isinstance(machines, _Machine):
-            self.machines.append(machines)
-        else:
-            self.machines.extend(machines)
 
-        prev_len = len(self.machines)
-        self.machines = list(set(self.machines))
-        if (
-            len(self.machines) < prev_len
-            and not pro_machina.options["silence_warnings"]
-        ):
-            warn(
-                f"\n Duplicate machines were added to group: {self.name}",
-                stacklevel=1,
-            )
+        checked_machines = self._check_machine_type(machines)
 
-        if not all(isinstance(item, _Machine) for item in self.machines):
-            raise TypeError("Incorrect type added to machine group")
+        if any(mach._id in self._machines for mach in checked_machines):
+            raise MachineError("Duplicate machine added to grouping.")
+
+        for mach in checked_machines:
+            self._machines[mach._id] = mach
+            self._machines_by_name[mach.name] = mach
 
 
 class BatchMachine(_Machine):

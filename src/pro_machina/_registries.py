@@ -10,7 +10,7 @@ from .util import Singleton
 if TYPE_CHECKING:
     from .measures import CustomUnit, SizedDimension, UnitID, UnitName
     from .problem.consumables import ConsID, Consumable
-    from .problem.products import ProdID, _Product
+    from .problem.products import ProdID, ProdName, _Product
     from .suppliers import Supplier, SupplierID
 
 
@@ -69,7 +69,7 @@ class ConsumableReg(metaclass=Singleton):
 class ProductReg(metaclass=Singleton):
     def __init__(self) -> None:
         self.products_by_id: dict[ProdID, _Product] = {}
-        self.products_by_name: dict[tuple[str, str], _Product] = {}
+        self.products_by_name: dict[tuple[ProdName, str | None], _Product] = {}
 
     def contains(self, product: _Product) -> bool:
         return product._id in self.products_by_id

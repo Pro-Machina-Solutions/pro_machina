@@ -1,6 +1,6 @@
 from .consumables import Consumable
 from .forecasts import DemandForecast, MadeToStock, Order
-from .machines import ContinuousMachine, ContinuousMachineGroup
+from .machines import ContinuousMachine, MachineGroup
 from .problem import Problem
 from .products import (
     BatchProduct,

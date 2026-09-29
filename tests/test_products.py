@@ -37,7 +37,7 @@ def test_continuous_product_creation_sets_expected_defaults():
     prod = ContinuousProduct("TP Continuous Defaults", base_dimension=Weight)
 
     assert prod.name == "TP Continuous Defaults"
-    assert prod.code == ""
+    assert prod.code is None
     assert prod.base_dimension is Weight
 
 
@@ -489,7 +489,7 @@ def test_cannot_make_product_group_of_mixed_types():
     batch = BatchProduct("Test Batch", base_dimension=Weight)
 
     with pytest.raises(
-        TypeError, match="Groups must contain the same product types"
+        TypeError, match="Groups must contain the same Product types."
     ):
         group = ProductGroup("Added to together", products=[cont, batch])
 
@@ -497,6 +497,6 @@ def test_cannot_make_product_group_of_mixed_types():
     group.add_products(cont)
 
     with pytest.raises(
-        TypeError, match="Groups must contain the same product types"
+        TypeError, match="Groups must contain the same Product types."
     ):
         group.add_products(batch)
