@@ -33,6 +33,12 @@ class ShiftBreak:
     productivity : int
         The percentage of regular machine capacity during this period, between
         0 and 100%
+    wage_factor : float, optional
+        The relative `LabourCosts` for this break period. For example, if
+        set to 1.5 then the worker will be paid time-and-a-half during this
+        period, and setting to 2 will be double-time wages. If the breaks are
+        unpaid then set this to 0. By default, 1.
+
     """
 
     def __init__(
@@ -40,6 +46,7 @@ class ShiftBreak:
         start: str | dt.datetime,
         end: str | dt.datetime,
         productivity: int = 0,
+        wage_factor: float = 1.0,
     ) -> None:
         self.start = (
             dt.datetime.fromisoformat(start)
@@ -50,6 +57,7 @@ class ShiftBreak:
             dt.datetime.fromisoformat(end) if isinstance(end, str) else end
         )
         self.productivity = productivity
+        self.wage_factor = wage_factor
 
 
 class _Activity(TypedDict):
@@ -58,6 +66,7 @@ class _Activity(TypedDict):
     start: dt.datetime
     end: dt.datetime
     prod: int
+    wage_factor: float
 
 
 class _JSONActivity(TypedDict):
@@ -66,6 +75,7 @@ class _JSONActivity(TypedDict):
     start: str
     end: str
     prod: int
+    wage_factor: float
 
 
 class _ShiftPeriod(TypedDict, total=False):
@@ -76,6 +86,7 @@ class _ShiftPeriod(TypedDict, total=False):
     breaks: list[ShiftBreak]
     end: dt.datetime
     prod: int
+    wage_factor: float
 
 
 class _TimeBlock(TypedDict):
@@ -145,7 +156,12 @@ class _ShiftDay:
             start = period["start"].strftime("%Y-%m-%d %H:%M:%S")
             end = period["end"].strftime("%Y-%m-%d %H:%M:%S")
             rtn.append(
-                _JSONActivity(start=start, end=end, prod=period["prod"])
+                _JSONActivity(
+                    start=start,
+                    end=end,
+                    prod=period["prod"],
+                    wage_factor=period["wage_factor"],
+                )
             )
         return rtn
 
@@ -158,6 +174,7 @@ class _ShiftDay:
                     start=dt.datetime.fromisoformat(row["start"]),
                     end=dt.datetime.fromisoformat(row["end"]),
                     prod=row["prod"],
+                    wage_factor=row["wage_factor"],
                 )
             )
         return rtn
@@ -167,8 +184,8 @@ class _ShiftDay:
         to_join = []
         for period in self.periods:
             to_join.append(
-                f"    [start: {period['start']}, end: {period['end']},"
-                f" prod: {period['prod']}]"
+                f"\t[start: {period['start']}, end: {period['end']},"
+                f" prod: {period['prod']}, wage: {period['wage_factor']}]"
             )
         to_join.append(">")
         rtn += "\n".join(to_join)
@@ -231,6 +248,7 @@ class ShiftBuilder:
         end_time: str | dt.datetime,
         breaks: ShiftBreak | list[ShiftBreak] | None = None,
         productivity: int = 100,
+        wage_factor: float = 1.0,
     ) -> None:
         """Add a period of productivity to the shift pattern
 
@@ -246,6 +264,10 @@ class ShiftBuilder:
         productivity : int, optional
             The percentage running speed of the machine during normal shift
             hours, by default 100
+        wage_factor : float, optional
+            The relative `LabourCosts` for this shift period. For example, if
+            set to 1.5 then the worker will be paid time-and-a-half during this
+            period, and setting to 2 will be double-time wages. By default, 1.
 
         Raises
         ------
@@ -285,6 +307,7 @@ class ShiftBuilder:
                 breaks=breaks,
                 end=end_time,
                 prod=productivity,
+                wage_factor=wage_factor,
             )
         )
 
@@ -339,7 +362,9 @@ class ShiftBuilder:
 
         day_end = as_day_end(rolling_dt)
 
-        shift_day.add_period(_Activity(start=rolling_dt, end=day_end, prod=0))
+        shift_day.add_period(
+            _Activity(start=rolling_dt, end=day_end, prod=0, wage_factor=0.0)
+        )
         self._shift_days.append(shift_day)
 
         # Automatically roll over to next day
@@ -363,7 +388,10 @@ class ShiftBuilder:
                     # Break starts past midnight. Tie up the current day
                     shift_day.add_period(
                         _Activity(
-                            start=this["start"], end=day_end, prod=this["prod"]
+                            start=this["start"],
+                            end=day_end,
+                            prod=this["prod"],
+                            wage_factor=this["wage_factor"],
                         )
                     )
                     self._shift_days.append(shift_day)
@@ -376,6 +404,7 @@ class ShiftBuilder:
                             start=rolling_dt,
                             end=_break.start,
                             prod=this["prod"],
+                            wage_factor=this["wage_factor"],
                         )
                     )
                     shift_day.add_period(
@@ -383,6 +412,7 @@ class ShiftBuilder:
                             start=_break.start,
                             end=_break.end,
                             prod=_break.productivity,
+                            wage_factor=_break.wage_factor,  # TODO
                         )
                     )
                     rolling_dt = _break.end
@@ -394,6 +424,7 @@ class ShiftBuilder:
                             start=rolling_dt,
                             end=_break.start,
                             prod=this["prod"],
+                            wage_factor=this["wage_factor"],
                         )
                     )
                     shift_day.add_period(
@@ -401,6 +432,7 @@ class ShiftBuilder:
                             start=_break.start,
                             end=_break.end,
                             prod=_break.productivity,
+                            wage_factor=_break.wage_factor,
                         )
                     )
                     rolling_dt = _break.end
@@ -413,6 +445,7 @@ class ShiftBuilder:
                             start=this["start"],
                             end=_break.start,
                             prod=this["prod"],
+                            wage_factor=this["wage_factor"],
                         )
                     )
                 else:
@@ -423,6 +456,7 @@ class ShiftBuilder:
                             start=rolling_dt,
                             end=_break.start,
                             prod=this["prod"],
+                            wage_factor=this["wage_factor"],
                         )
                     )
                 rolling_dt = _break.start
@@ -435,6 +469,7 @@ class ShiftBuilder:
                             start=_break.start,
                             end=day_end,
                             prod=_break.productivity,
+                            wage_factor=_break.wage_factor,
                         )
                     )
                     self._shift_days.append(shift_day)
@@ -447,6 +482,7 @@ class ShiftBuilder:
                             start=rolling_dt,
                             end=_break.end,
                             prod=_break.productivity,
+                            wage_factor=_break.wage_factor,
                         )
                     )
                     rolling_dt = _break.end
@@ -457,6 +493,7 @@ class ShiftBuilder:
                             start=_break.start,
                             end=_break.end,
                             prod=_break.productivity,
+                            wage_factor=_break.wage_factor,
                         )
                     )
                     rolling_dt = _break.end
@@ -474,7 +511,12 @@ class ShiftBuilder:
         if not skip_initial:
             # Finish whatever period we might be in
             shift_day.add_period(
-                _Activity(start=rolling_dt, end=this["end"], prod=this["prod"])
+                _Activity(
+                    start=rolling_dt,
+                    end=this["end"],
+                    prod=this["prod"],
+                    wage_factor=this["wage_factor"],
+                )
             )
         rolling_dt = this["end"]
 
@@ -484,7 +526,9 @@ class ShiftBuilder:
 
             if this["end"] < day_end:
                 shift_day.add_period(
-                    _Activity(start=this["end"], end=day_end, prod=0)
+                    _Activity(
+                        start=this["end"], end=day_end, prod=0, wage_factor=0.0
+                    )
                 )
             self._shift_days.append(shift_day)
             rolling_dt = day_end
@@ -493,14 +537,21 @@ class ShiftBuilder:
         elif next is not None:
             # Push up to the next period
             shift_day.add_period(
-                _Activity(start=this["end"], end=next["start"], prod=0)
+                _Activity(
+                    start=this["end"],
+                    end=next["start"],
+                    prod=0,
+                    wage_factor=0.0,
+                )
             )
             rolling_dt = next["start"]
 
         else:
             # Last period of the entire pattern
             end = as_day_end(rolling_dt.date())
-            shift_day.add_period(_Activity(start=rolling_dt, end=end, prod=0))
+            shift_day.add_period(
+                _Activity(start=rolling_dt, end=end, prod=0, wage_factor=0.0)
+            )
             self._shift_days.append(shift_day)
 
         return shift_day, rolling_dt
@@ -616,7 +667,12 @@ class ShiftBuilder:
                 if this["start"] != rolling_dt:
                     # Takes us from start of day until first activity
                     shift_day.add_period(
-                        _Activity(start=rolling_dt, end=this["start"], prod=0)
+                        _Activity(
+                            start=rolling_dt,
+                            end=this["start"],
+                            prod=0,
+                            wage_factor=0.0,
+                        )
                     )
 
                 if not this["breaks"]:
@@ -626,6 +682,7 @@ class ShiftBuilder:
                                 start=this["start"],
                                 end=this["end"],
                                 prod=this["prod"],
+                                wage_factor=this["wage_factor"],
                             )
                         )
                         shift_day, rolling_dt = self._close_work_period(
@@ -641,6 +698,7 @@ class ShiftBuilder:
                                 start=this["start"],
                                 end=day_end,
                                 prod=this["prod"],
+                                wage_factor=this["wage_factor"],
                             )
                         )
 
