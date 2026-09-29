@@ -67,7 +67,12 @@ class TestShiftDay:
         midnight_end = midnight_start + dt.timedelta(days=1)
         d = _ShiftDay()
         d.add_period(
-            {"start": midnight_start, "end": midnight_end, "prod": 100}
+            {
+                "start": midnight_start,
+                "end": midnight_end,
+                "prod": 100,
+                "wage_factor": 1.0,
+            }
         )
         return d
 
@@ -139,6 +144,7 @@ class TestShiftDay:
                 "start": "2026-02-02 00:00:00",
                 "end": "2026-02-03 00:00:00",
                 "prod": 100,
+                "wage_factor": 1.0,
             }
         ]
         d = _ShiftDay.from_json(raw)  # type: ignore
