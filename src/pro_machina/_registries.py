@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from .exceptions import ProductError, UnitError
 from .util import Singleton
 
 if TYPE_CHECKING:
-    from .measures import CustomUnit, SizedDimension
+    from .measures import CustomUnit, SizedDimension, UnitID, UnitName
     from .problem.consumables import ConsID, Consumable
     from .problem.products import ProdID, _Product
     from .suppliers import Supplier, SupplierID
@@ -18,6 +19,12 @@ class UnitReg(metaclass=Singleton):
         self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
             dict
         )
+        self._item_unit_id_to_base: dict[
+            ProdID | ConsID, dict[UnitID, Decimal]
+        ] = defaultdict(dict)
+        self._item_unit_name_to_base: dict[
+            ProdID | ConsID, dict[UnitName, Decimal]
+        ] = defaultdict(dict)
 
     def add(
         self,
@@ -26,6 +33,9 @@ class UnitReg(metaclass=Singleton):
         qty: SizedDimension,
     ) -> None:
         self.units[unit][item._id] = qty
+
+        self._item_unit_id_to_base[item._id][unit._id] = qty._base_qty
+        self._item_unit_name_to_base[item._id][unit.name] = qty._base_qty
 
     def get_measure(
         self, unit: CustomUnit, item: _Product | Consumable
@@ -94,7 +104,7 @@ class LocationReg(metaclass=Singleton):
 
 class SupplierReg(metaclass=Singleton):
     def __init__(self) -> None:
-        self._by_name: dict[tuple[str, str], Supplier] = {}
+        self._by_name: dict[tuple[str, str | None], Supplier] = {}
         self._by_id: dict[SupplierID, Supplier] = {}
 
     def add(self, sup: Supplier) -> None:

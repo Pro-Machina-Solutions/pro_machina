@@ -19,7 +19,7 @@ class Supplier:
     def __init__(
         self,
         name: str,
-        code: str = "",
+        code: str | None = None,
         addr_1: str | None = None,
         addr_2: str | None = None,
         addr_3: str | None = None,

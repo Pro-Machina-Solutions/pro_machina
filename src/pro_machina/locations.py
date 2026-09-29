@@ -42,9 +42,7 @@ class Factory(_Location):
         self.name = FactoryName(name)
 
         self._depts_by_id: dict[DeptID, Department] = {}
-        self._depts_by_name: dict[
-            tuple[DeptName, FactoryName], Department
-        ] = {}
+        self._depts_by_name: dict[DeptName, Department] = {}
 
         if departments is not None:
             self.add_departments(departments)
@@ -54,13 +52,13 @@ class Factory(_Location):
         if isinstance(departments, Department):
             departments = [departments]
 
-        if not isinstance(departments, Department):
+        if not all(isinstance(dept, Department) for dept in departments):
             raise TypeError("Invalid Department type.")
 
         for dept in departments:
             dept._factory = self
-            self._depts_by_id[departments._id] = dept
-            self._depts_by_name[(dept.name, self.name)] = dept
+            self._depts_by_id[dept._id] = dept
+            self._depts_by_name[dept.name] = dept
 
 
 class Department(_Location):
@@ -75,10 +73,9 @@ class Department(_Location):
         self._id = DeptID(next(self._ids))
         self.name = DeptName(name)
         self._factory: Factory | None = None
-        self._department: Department | None = None
 
         self._machs_by_id: dict[MachID, MachineSubtype] = {}
-        self._machs_by_name: dict[tuple[str, FactoryName], MachineSubtype] = {}
+        self._machs_by_name: dict[str, MachineSubtype] = {}
 
         if isinstance(machines, MachineSubtype):
             machines = [machines]
@@ -95,15 +92,8 @@ class Department(_Location):
         for mach in machines:
             if not isinstance(mach, MachineSubtype):
                 raise TypeError("Invalid Machine type.")
-            self._department = self
-            self._factory = self._factory
             self._machs_by_id[mach._id] = mach
-            factory_name = (
-                self._factory.name
-                if self._factory is not None
-                else FactoryName("")
-            )
-            self._machs_by_name[(mach.name, factory_name)] = mach
+            self._machs_by_name[mach.name] = mach
 
 
 class Warehouse(_Location):

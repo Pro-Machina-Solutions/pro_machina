@@ -47,12 +47,10 @@ def _check_constraint_is_fully_specified(constraint: Constraint) -> None:
         hasattr(constraint, "machine") and constraint.machine is None
     ):
         raise ConstraintError(
-            (
-                "Constraints on the Problem level must be fully specified"
-                " and that's not the case for"
-                f" {type(constraint).__name__}. If the constraint takes a "
-                " product and a machine, then both must be specified."
-            ).lstrip()
+            "Constraints on the Problem level must be fully specified and"
+            f" that's not the case for {type(constraint).__name__}. If the"
+            " constraint takes a product and a machine, then both must be"
+            " specified."
         )
 
 

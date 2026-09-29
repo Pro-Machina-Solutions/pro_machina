@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from itertools import count
+from typing import TYPE_CHECKING, NewType
 
 from ._registries import UnitReg
 from .exceptions import UnitError
@@ -10,6 +11,10 @@ from .exceptions import UnitError
 if TYPE_CHECKING:
     from .problem.consumables import Consumable
     from .problem.products import _Product
+
+
+UnitID = NewType("UnitID", int)
+UnitName = NewType("UnitName", str)
 
 
 class Dimension:
@@ -470,8 +475,11 @@ class CustomUnit:
         The unsized dimension of the unit e.g. Weight or BaseUnit
     """
 
+    _ids = count(0)
+
     def __init__(self, name: str, dimension: UnsizedDimension) -> None:
-        self.name = name
+        self._id = UnitID(next(self._ids))
+        self.name = UnitName(name)
         self.dimension = dimension
         self._tmp_qty: Decimal = Decimal(0)
 
