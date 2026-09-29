@@ -515,7 +515,7 @@ class MachineGroup:
 
             for mach in checked_machines:
                 if mach._id in self._machines:
-                    raise MachineError("Duplicate product in grouping.")
+                    raise MachineError("Duplicate machine in grouping.")
                 self._machines[mach._id] = mach
                 self._machines_by_name[mach.name] = mach
 
@@ -576,6 +576,27 @@ class MachineGroup:
         for mach in checked_machines:
             self._machines[mach._id] = mach
             self._machines_by_name[mach.name] = mach
+
+    def add_hard_constraint(
+        self, constraints: HardConstraint | list[HardConstraint]
+    ) -> None:
+
+        if not isinstance(constraints, list):
+            constraints = [constraints]
+
+        if not all(isinstance(item, HardConstraint) for item in constraints):
+            raise TypeError("Constraints must all be of type HardConstraint")
+
+        for mach in self._machines.values():
+            for item in mach._products.values():
+                prod = item["product"]
+                for constraint in constraints:
+                    cons = deepcopy(constraint)
+                    cons._set_product(prod)
+
+                    prod.add_hard_constraint(
+                        cons, _level=ConstraintLevel.MACHINE_GROUP.value
+                    )
 
 
 class BatchMachine(_Machine):

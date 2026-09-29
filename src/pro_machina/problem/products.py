@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
 from itertools import count
@@ -593,11 +594,11 @@ class ProductGroup:
 
         for product in self._products.values():
             for constraint in constraints:
-                if constraint.product is None:
-                    constraint._set_product(product)
+                cons = deepcopy(constraint)
+                cons._set_product(product)
 
                 product.add_hard_constraint(
-                    constraint, _level=ConstraintLevel.PRODUCT_GROUP.value
+                    cons, _level=ConstraintLevel.PRODUCT_GROUP.value
                 )
 
     def get_prod_by_name(
