@@ -2,14 +2,8 @@ from __future__ import annotations
 
 import datetime as dt
 from functools import cache
-from typing import TYPE_CHECKING
 
 from .durations import Duration
-
-# from ._registries import UnitReg
-
-if TYPE_CHECKING:
-    pass
 
 
 def parse_datetime(dt_: str | dt.datetime | dt.date) -> dt.datetime:
@@ -192,13 +186,6 @@ def get_bucket_index(
     if not 0 <= frac <= 1:
         raise ValueError("Timestamp outside of problem range")
     return int(frac * num_buckets)
-
-
-# def custom_unit_as_base(item: ProdSubtype | Consumable, unit: CustomUnit):
-#     reg = UnitReg()
-#     reg.get_measure(item)
-#     qty = reg.get_measure(unit=unit, item=item)
-#     return qty
 
 
 class Singleton(type):
