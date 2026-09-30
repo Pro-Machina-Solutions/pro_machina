@@ -198,6 +198,10 @@ class MadeToStock:
         # TODO
 
 
+def _get_demand_per_index() -> None:
+    pass
+
+
 def _product_demand_aggregator(
     problem: Problem, orders: list[Order], mts: list[MadeToStock]
 ) -> None:
@@ -207,7 +211,7 @@ def _product_demand_aggregator(
     num_buckets = get_problem_buckets(start, end, timebucket)
     dflt_demand_horizon_secs = problem.config.demand_horizon.to_seconds()
 
-    base_demand = np.zeros(num_buckets, 0, dtype=np.float64)
+    base_demand = np.zeros(shape=num_buckets, dtype=np.float64)
     prod_demand_buckets: dict[ProdID, npt.NDArray[np.float64]] = {}
     cons_demand_buckets: dict[ConsID, npt.NDArray[np.float64]] = {}
 
@@ -216,7 +220,7 @@ def _product_demand_aggregator(
     # ramping up to delivery date over a lot longer periods.
     for order in orders:
         if order.production_lead_time is not None:
-            prod_start_date = order.due_date = dt.timedelta(
+            prod_start_date = order.due_date - dt.timedelta(
                 seconds=order.production_lead_time.to_seconds()
             )
         else:
@@ -232,18 +236,35 @@ def _product_demand_aggregator(
         # Cannot start production before start date. Anything made before the
         # problem start date will be in stock already (presumably). We might
         # need to account for any buckets but off before the problem start
-        unaccounted_buckets = 0
+        unaccounted_start_buckets = 0
 
         if prod_start_date < start:
-            missing_secs = int(
-                (start - prod_start_date).total_seconds()
-            )
-            unaccounted_buckets = int(
+            missing_secs = int((start - prod_start_date).total_seconds())
+            unaccounted_start_buckets = int(
                 missing_secs / timebucket.to_seconds()
             )
 
+        # Bump it up to whatever date we actually start on
+        prod_start_date = max(start, prod_start_date)
 
+        # Now need to look at the end date side
+        unaccounted_end_buckets = 0
 
+        if order.due_date > end:
+            unaccounted_end_buckets = int(
+                (order.due_date - end).total_seconds()
+                / timebucket.to_seconds()
+            )
+
+        prod_end_date = min(end, order.due_date)
+
+        total_prod_buckets = int(
+            (prod_end_date - prod_start_date).total_seconds()
+            / timebucket.to_seconds()
+        )
+
+        for line in order._lines:
+            pass
 
 
 class DemandForecast:

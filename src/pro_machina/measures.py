@@ -59,7 +59,9 @@ class BaseUnit(Dimension):
     """The base, unsized dimension for Unit"""
 
     @staticmethod
-    def is_compatible(other: SizedDimension) -> bool:
+    def is_compatible(other: SizedDimension | CustomUnit) -> bool:
+        if isinstance(other, CustomUnit):
+            return other.is_compatible(BaseUnit.get_base())
         return isinstance(other, BaseUnit)
 
     @staticmethod
@@ -85,7 +87,9 @@ class Weight(Dimension):
     """The base, unsized dimension for all measures of weight"""
 
     @staticmethod
-    def is_compatible(other: SizedDimension) -> bool:
+    def is_compatible(other: SizedDimension | CustomUnit) -> bool:
+        if isinstance(other, CustomUnit):
+            return other.is_compatible(Weight.get_base())
         return isinstance(other, Weight)
 
     @staticmethod
@@ -166,7 +170,9 @@ class Length(Dimension):
     """The base, unsized dimension for all measures of length"""
 
     @staticmethod
-    def is_compatible(other: SizedDimension) -> bool:
+    def is_compatible(other: SizedDimension | CustomUnit) -> bool:
+        if isinstance(other, CustomUnit):
+            return other.is_compatible(Length.get_base())
         return isinstance(other, Length)
 
     @staticmethod
@@ -236,7 +242,9 @@ class Area(Dimension):
     """The base, unsized dimension for all measures of area"""
 
     @staticmethod
-    def is_compatible(other: SizedDimension) -> bool:
+    def is_compatible(other: SizedDimension | CustomUnit) -> bool:
+        if isinstance(other, CustomUnit):
+            return other.is_compatible(Area.get_base())
         return isinstance(other, Area)
 
     @staticmethod
@@ -306,7 +314,9 @@ class Volume(Dimension):
     """The base, unsized dimension for all measures of volume"""
 
     @staticmethod
-    def is_compatible(other: SizedDimension) -> bool:
+    def is_compatible(other: SizedDimension | CustomUnit) -> bool:
+        if isinstance(other, CustomUnit):
+            return other.is_compatible(Volume.get_base())
         return isinstance(other, Volume)
 
     @staticmethod
@@ -318,7 +328,9 @@ class FluidVolume(Dimension):
     """The base, unsized dimension for all measures of liquid volume"""
 
     @staticmethod
-    def is_compatible(other: SizedDimension) -> bool:
+    def is_compatible(other: SizedDimension | CustomUnit) -> bool:
+        if isinstance(other, CustomUnit):
+            return other.is_compatible(FluidVolume.get_base())
         return isinstance(other, FluidVolume)
 
     @staticmethod
@@ -477,10 +489,11 @@ class CustomUnit:
 
     _ids = count(0)
 
-    def __init__(self, name: str, dimension: UnsizedDimension) -> None:
+    def __init__(self, name: str, base_dimension: UnsizedDimension) -> None:
         self._id = UnitID(next(self._ids))
         self.name = UnitName(name)
-        self.dimension = dimension
+        self.base_dimension = base_dimension
+        self.sized_dimension = base_dimension.get_base()
         self._tmp_qty: Decimal = Decimal(0)
 
     def size_for(
@@ -493,8 +506,11 @@ class CustomUnit:
         reg = UnitReg()
         reg.add(self, item, unit)
 
+    def is_compatible(self, other: SizedDimension) -> bool:
+        return self.sized_dimension.is_compatible(other)
+
     def __call__(self, qty: float | Decimal | str):
-        tmp = CustomUnit(name=self.name, dimension=self.dimension)
+        tmp = CustomUnit(name=self.name, dimension=self.base_dimension)
         tmp._tmp_qty = Decimal(qty)
         return tmp
 
