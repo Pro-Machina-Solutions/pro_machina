@@ -434,7 +434,6 @@ class SaleValue(_Capital):
     def __init__(
         self,
         per: SizedDimension,
-        product: _Product,
         gross_value: float | str | Decimal | None = None,
         net_value: float | str | Decimal | None = None,
         currency: Currency = Currency.BASE,
@@ -443,7 +442,6 @@ class SaleValue(_Capital):
             gross_value=gross_value, net_value=net_value, currency=currency
         )
 
-        self.product = product
         self.per = per
 
 

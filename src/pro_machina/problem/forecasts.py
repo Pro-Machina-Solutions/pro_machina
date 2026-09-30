@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, NewType
 if TYPE_CHECKING:
     from ._constraints import HardConstraint, SoftConstraint
     from .problem import Problem
-    from .products import ProdID, ProdSubtype
+    from .products import ProdID, ProdSubtype, ProductGroup
 
 import numpy as np
 import numpy.typing as npt
@@ -36,11 +36,12 @@ class Order:
         name: str | None,
         code: str | None,
         due_date: dt.date | str,
+        production_lead_time: Duration | None,
         customer: Customer | None = None,
         order_value: OrderValue | None = None,
         lines: Orderline | list[Orderline] | None = None,
         hard_constraints: HardConstraint | list[HardConstraint] | None = None,
-        soft_constraints: HardConstraint | list[HardConstraint] | None = None,
+        soft_constraints: SoftConstraint | list[SoftConstraint] | None = None,
     ) -> None:
         self._id = OrderID(next(self._ids))
         if name is None and code is None:
@@ -50,6 +51,10 @@ class Order:
         self.name = name
         self.code = code
         self.due_date = as_day_start(due_date)
+        self.production_lead_time = (
+            production_lead_time if production_lead_time is not None else None
+        )
+
         customer = customer
         order_value = order_value
 
@@ -63,7 +68,7 @@ class Order:
 
         self._soft_constraints: list[SoftConstraint] = []
         if soft_constraints is not None:
-            self.add_soft_constraints(hard_constraints)
+            self.add_soft_constraints(soft_constraints)
 
     def add_orderlines(self, lines: Orderline | list[Orderline]) -> None:
 
@@ -133,79 +138,112 @@ class Orderline:
 
 
 class MadeToStock:
-    """Generate product demand that is not associated with a fixed order.
-
-    Parameters
-    ----------
-    product : BatchProduct | ContinuousProduct
-        The product that the demand relates to.
-    qty : SizedDimension
-        The target quantity to produce.
-    start_date : str | dt.datetime
-        The theoretical date that this applies to. For example, on a problem
-        that starts on a Monday, you might set the start date as the following
-        Friday, giving the plant five days to meet the demand.
-    freq : Duration | None, optional
-        The frequency with which this demand should repeat. For example,
-        setting a qty of Unit(1000) and a freq of Weeks(1) will generate a
-        repeating demand every seven days from the start date. Set as None for
-        a one-off demand.
-    end_date : str | dt.datetime | None, optional
-        An optional end date for which repeated demand should cease.
-    value : float | None
-        The total financial value of the stock. If set to None then it will
-        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
-
-    Raises
-    ------
-    UnitError
-        Raised if the stated quantity is incompatible with the product units.
-    ValueError
-        Raised if an end_date is set but no freq has been specified.
-    """
+    _ids = count(0)
 
     def __init__(
         self,
-        product: BatchProduct | ContinuousProduct,
-        qty: SizedDimension,
+        product: ProdSubtype | ProductGroup,
         start_date: str | dt.datetime,
-        freq: Duration | None = None,
         end_date: str | dt.datetime | None = None,
-        value: float | None = None,
+        freq: Duration | None = None,
+        hard_constraints: HardConstraint | list[HardConstraint] | None = None,
+        soft_constraints: SoftConstraint | list[SoftConstraint] | None = None,
     ):
-        self.start_date = as_day_start(start_date)
+        self._id = next(self._ids)
 
+        if not isinstance(product, (ProductGroup, ProdSubtype)):
+            raise TypeError("Not a valid Product or Product group for MTS.")
+
+        self.start_date = as_day_start(start_date)
         if end_date is not None and freq is None:
             raise ValueError(
                 "Cannot set an end date for MadeToStock without specifying a"
                 " frequency of restocking."
             )
 
-        if not isinstance(
-            qty, CustomUnit
-        ) and not product.base_dimension.is_compatible(qty):
-            raise UnitError(
-                f"{qty} is not a compatible quantity for {product}."
-            )
+        self.end_date = (
+            as_day_start(end_date) if end_date is not None else None
+        )
 
-        if isinstance(qty, CustomUnit):
-            reg = UnitReg()
-            custom_unit = reg.get_measure(qty, product)
-            custom_qty = qty._tmp_qty
+        self._hard_constraints: list[HardConstraint] = []
+        if hard_constraints is not None:
+            self.add_hard_constraints(hard_constraints)
 
-            self.qty: SizedDimension = product.base_dimension.get_base(
-                custom_unit._base_qty * custom_qty
+        self._soft_constraints: list[SoftConstraint] = []
+        if soft_constraints is not None:
+            self.add_soft_constraints(soft_constraints)
+
+    def add_hard_constraints(
+        self, constraints: HardConstraint | list[HardConstraint]
+    ) -> None:
+
+        if not isinstance(constraints, list):
+            constraints = [constraints]
+
+        if not all(isinstance(cons, HardConstraint) for cons in constraints):
+            raise TypeError("Not a valid HardConstraint type.")
+
+        # TODO
+
+    def add_soft_constraints(
+        self, constraints: SoftConstraint | list[SoftConstraint]
+    ) -> None:
+
+        if not isinstance(constraints, list):
+            constraints = [constraints]
+
+        if not all(isinstance(cons, SoftConstraint) for cons in constraints):
+            raise TypeError("Not a valid SoftConstraint type.")
+
+        # TODO
+
+
+def _product_demand_aggregator(
+    problem: Problem, orders: list[Order], mts: list[MadeToStock]
+) -> None:
+    start = problem._start
+    end = problem._end
+    timebucket = problem.config.timebucket
+    num_buckets = get_problem_buckets(start, end, timebucket)
+    dflt_demand_horizon_secs = problem.config.demand_horizon.to_seconds()
+
+    base_demand = np.zeros(num_buckets, 0, dtype=np.float64)
+    prod_demand_buckets: dict[ProdID, npt.NDArray[np.float64]] = {}
+    cons_demand_buckets: dict[ConsID, npt.NDArray[np.float64]] = {}
+
+    # We need to know when to start seeing the demand for the order volume. It
+    # could be the default set in Config (the coming week) or we might be
+    # ramping up to delivery date over a lot longer periods.
+    for order in orders:
+        if order.production_lead_time is not None:
+            prod_start_date = order.due_date = dt.timedelta(
+                seconds=order.production_lead_time.to_seconds()
             )
         else:
-            self.qty = qty
+            prod_start_date = order.due_date - dt.timedelta(
+                seconds=dflt_demand_horizon_secs
+            )
 
-        self.product = product
-        self.freq = freq
-        if end_date is not None:
-            self.end_date = parse_datetime(end_date)
-        else:
-            self.end_date = None  # type: ignore
-        self.value = value
+        if prod_start_date >= end:
+            # Order isn't even in our problem time period, including its ramp
+            # up time. Just ignore it.
+            continue
+
+        # Cannot start production before start date. Anything made before the
+        # problem start date will be in stock already (presumably). We might
+        # need to account for any buckets but off before the problem start
+        unaccounted_buckets = 0
+
+        if prod_start_date < start:
+            missing_secs = int(
+                (start - prod_start_date).total_seconds()
+            )
+            unaccounted_buckets = int(
+                missing_secs / timebucket.to_seconds()
+            )
+
+
+
 
 
 class DemandForecast:
@@ -478,6 +516,82 @@ class DemandForecast:
 
         for k, v in self._cons_demands.items():
             self._cons_demands[k] = v.cumsum()
+
+
+class MadeToStockOld:
+    """Generate product demand that is not associated with a fixed order.
+
+    Parameters
+    ----------
+    product : BatchProduct | ContinuousProduct
+        The product that the demand relates to.
+    qty : SizedDimension
+        The target quantity to produce.
+    start_date : str | dt.datetime
+        The theoretical date that this applies to. For example, on a problem
+        that starts on a Monday, you might set the start date as the following
+        Friday, giving the plant five days to meet the demand.
+    freq : Duration | None, optional
+        The frequency with which this demand should repeat. For example,
+        setting a qty of Unit(1000) and a freq of Weeks(1) will generate a
+        repeating demand every seven days from the start date. Set as None for
+        a one-off demand.
+    end_date : str | dt.datetime | None, optional
+        An optional end date for which repeated demand should cease.
+    value : float | None
+        The total financial value of the stock. If set to None then it will
+        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
+
+    Raises
+    ------
+    UnitError
+        Raised if the stated quantity is incompatible with the product units.
+    ValueError
+        Raised if an end_date is set but no freq has been specified.
+    """
+
+    def __init__(
+        self,
+        product: BatchProduct | ContinuousProduct,
+        qty: SizedDimension,
+        start_date: str | dt.datetime,
+        freq: Duration | None = None,
+        end_date: str | dt.datetime | None = None,
+        value: float | None = None,
+    ):
+        self.start_date = as_day_start(start_date)
+
+        if end_date is not None and freq is None:
+            raise ValueError(
+                "Cannot set an end date for MadeToStock without specifying a"
+                " frequency of restocking."
+            )
+
+        if not isinstance(
+            qty, CustomUnit
+        ) and not product.base_dimension.is_compatible(qty):
+            raise UnitError(
+                f"{qty} is not a compatible quantity for {product}."
+            )
+
+        if isinstance(qty, CustomUnit):
+            reg = UnitReg()
+            custom_unit = reg.get_measure(qty, product)
+            custom_qty = qty._tmp_qty
+
+            self.qty: SizedDimension = product.base_dimension.get_base(
+                custom_unit._base_qty * custom_qty
+            )
+        else:
+            self.qty = qty
+
+        self.product = product
+        self.freq = freq
+        if end_date is not None:
+            self.end_date = parse_datetime(end_date)
+        else:
+            self.end_date = None  # type: ignore
+        self.value = value
 
 
 __all__ = ["Order", "MadeToStock", "DemandForecast"]
