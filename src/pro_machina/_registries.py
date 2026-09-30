@@ -8,10 +8,10 @@ from .exceptions import ProductError, UnitError
 from .util import Singleton
 
 if TYPE_CHECKING:
+    from .businesses import Customer, CustomerID, Supplier, SupplierID
     from .measures import CustomUnit, SizedDimension, UnitID, UnitName
     from .problem.consumables import ConsID, Consumable
     from .problem.products import ProdID, ProdName, _Product
-    from .suppliers import Supplier, SupplierID
 
 
 class UnitReg(metaclass=Singleton):
@@ -118,6 +118,25 @@ class SupplierReg(metaclass=Singleton):
         return self._by_id[sup_id]
 
     def get_by_name(self, name, code) -> Supplier:
+        return self._by_name[(name, code)]
+
+
+class CustomerReg(metaclass=Singleton):
+    def __init__(self) -> None:
+        self._by_name: dict[tuple[str, str | None], Customer] = {}
+        self._by_id: dict[CustomerID, Customer] = {}
+
+    def add(self, cust: Customer) -> None:
+        self._by_name[(cust.name, cust.code)] = cust
+        self._by_id[cust._id] = cust
+
+    def contains(self, cust: Customer) -> bool:
+        return cust._id in self._by_id
+
+    def get_by_id(self, cust_id: CustomerID) -> Customer:
+        return self._by_id[cust_id]
+
+    def get_by_name(self, name, code) -> Customer:
         return self._by_name[(name, code)]
 
 

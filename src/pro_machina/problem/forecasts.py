@@ -1,80 +1,135 @@
 from __future__ import annotations
 
 import datetime as dt
+import warnings
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from itertools import count
+from typing import TYPE_CHECKING, NewType
 
 if TYPE_CHECKING:
+    from ._constraints import HardConstraint, SoftConstraint
     from .problem import Problem
-    from .products import BatchProduct, ContinuousProduct, ProdID
+    from .products import ProdID, ProdSubtype
 
 import numpy as np
 import numpy.typing as npt
 
+from pro_machina import options
+
 from .._registries import UnitReg
+from ..businesses import Customer
+from ..costs import OrderValue
 from ..durations import Duration
 from ..exceptions import UnitError
 from ..measures import CustomUnit, SizedDimension
 from ..util import as_day_start, get_problem_buckets, parse_datetime
 from .consumables import ConsID
 
+OrderID = NewType("OrderID", int)
+
 
 class Order:
-    """Create a fixed quantity demand for a product on a fixed date.
-
-    Parameters
-    ----------
-    product : BatchProduct | ContinuousProduct
-        The product the order relates to.
-    date : dt.date | str
-        The date on which the demand must be met.
-    qty : SizedDimension
-        The due quantity of the order.
-    value : float | None
-        The total financial value of the order. If set to None then it will
-        default to a value of 1 for each base unit. 1cm == unit == 1cm^3 etc.
-    meta : dict[Any, Any] | None, optional
-        A dictionary of any further information to store with the order such as
-        the order number etc.
-
-    Raises
-    ------
-    UnitError
-        Raised if the order quantity is incompatible with the product units.
-    """
+    _ids = count(0)
 
     def __init__(
         self,
-        product: BatchProduct | ContinuousProduct,
-        date: dt.date | str,
-        qty: SizedDimension,
-        value: float | None = None,
-        meta: dict[Any, Any] | None = None,
+        name: str | None,
+        code: str | None,
+        due_date: dt.date | str,
+        customer: Customer | None = None,
+        order_value: OrderValue | None = None,
+        lines: Orderline | list[Orderline] | None = None,
+        hard_constraints: HardConstraint | list[HardConstraint] | None = None,
+        soft_constraints: HardConstraint | list[HardConstraint] | None = None,
+    ) -> None:
+        self._id = OrderID(next(self._ids))
+        if name is None and code is None:
+            raise ValueError(
+                "Either a name or a code must be supplied for an Order."
+            )
+        self.name = name
+        self.code = code
+        self.due_date = as_day_start(due_date)
+        customer = customer
+        order_value = order_value
+
+        self._lines: dict[ProdID, Orderline] = {}
+        if lines is not None:
+            self.add_orderlines(lines)
+
+        self._hard_constraints: list[HardConstraint] = []
+        if hard_constraints is not None:
+            self.add_hard_constraints(hard_constraints)
+
+        self._soft_constraints: list[SoftConstraint] = []
+        if soft_constraints is not None:
+            self.add_soft_constraints(hard_constraints)
+
+    def add_orderlines(self, lines: Orderline | list[Orderline]) -> None:
+
+        if not isinstance(lines, list):
+            lines = [lines]
+
+        if not all(isinstance(line, Orderline) for line in lines):
+            raise TypeError("Not a valid Orderline type.")
+
+        for line in lines:
+            if line._id in self._lines and not options["silence_warnings"]:
+                _name = self.name if self.name is not None else self.code
+                warnings.warn(
+                    (
+                        f"Orderline of {line.product.name} has been added more"
+                        f" than once to order: {_name}"
+                    ),
+                    stacklevel=1,
+                )
+            self._lines[line.product._id] = line
+
+    def add_hard_constraints(
+        self, constraints: HardConstraint | list[HardConstraint]
     ) -> None:
 
+        if not isinstance(constraints, list):
+            constraints = [constraints]
+
+        if not all(isinstance(cons, HardConstraint) for cons in constraints):
+            raise TypeError("Not a valid HardConstraint type.")
+
+        # TODO
+
+    def add_soft_constraints(
+        self, constraints: SoftConstraint | list[SoftConstraint]
+    ) -> None:
+
+        if not isinstance(constraints, list):
+            constraints = [constraints]
+
+        if not all(isinstance(cons, SoftConstraint) for cons in constraints):
+            raise TypeError("Not a valid SoftConstraint type.")
+
+        # TODO
+
+
+class Orderline:
+    _ids = count(0)
+
+    def __init__(
+        self, product: ProdSubtype, qty: SizedDimension | CustomUnit
+    ) -> None:
+
+        if not isinstance(product, ProdSubtype):
+            raise TypeError("Not a valid Product for OrderLine")
+
+        if not isinstance(qty, CustomUnit):
+            if not product.base_dimension.is_compatible(qty):
+                raise UnitError(
+                    f"{qty.name()} is not in a compatible unit for"
+                    f" {product.name}"
+                )
+
+        self._id = next(self._ids)
         self.product = product
-        self.date = as_day_start(date)
-
-        if not isinstance(
-            qty, CustomUnit
-        ) and not product.base_dimension.is_compatible(qty):
-            raise UnitError(
-                f"{qty} is not a compatible quantity for {product}"
-            )
-
-        if isinstance(qty, CustomUnit):
-            reg = UnitReg()
-            custom_unit = reg.get_measure(qty, product)
-            custom_qty = qty._tmp_qty
-
-            self.qty: SizedDimension = product.base_dimension.get_base(
-                custom_unit._base_qty * custom_qty
-            )
-        else:
-            self.qty = qty
-
-        self.meta = meta
-        self.value = value
+        self.qty = qty
 
 
 class MadeToStock:

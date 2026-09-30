@@ -71,3 +71,4 @@ order-by-type = true
 
 [tool.mypy]
 allow_redefinition = true
+exclude = ["examples/*"]
