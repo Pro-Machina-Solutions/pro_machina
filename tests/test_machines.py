@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from pro_machina._registries import UnitReg
 from pro_machina.durations import Hours, Mins
 from pro_machina.exceptions import (
     MachineError,
@@ -23,7 +22,6 @@ from pro_machina.problem import (
 from pro_machina.problem._constraints import ConstraintLevel
 from pro_machina.problem.hard_constraints import MinProductionTime
 from pro_machina.util import (
-    Singleton,
     as_day_end,
     as_day_start,
     get_bucket_index,
@@ -357,49 +355,30 @@ def test_add_product_incompatible_default_run_rate_raises_unit_error():
 
 
 def test_add_product_compatible_custom_unit_works(cont_machine):
-    Case = CustomUnit("AP Case", dimension=BaseUnit)
+    Case = CustomUnit("AP Case", base_dimension=BaseUnit)
     prod = ContinuousProduct("AP Custom Unit Prod", base_dimension=BaseUnit)
     Case.size_for(prod, Unit(10))
-    run_rate = Case(2)
 
-    cont_machine.add_product(prod, run_rate=run_rate, per=Mins(1))
+    cont_machine.add_product(prod, run_rate=Case(2), per=Mins(1))
 
-    assert cont_machine._products[prod._id]["run_rate"] is run_rate
+    # Stored resolved: 2 cases of 10 units
+    assert cont_machine._products[prod._id]["run_rate"]._base_qty == 20
 
 
-def test_add_product_custom_unit_not_registered_raises_unit_error(
-    cont_machine,
-):
-    # UnitReg is a process-wide Singleton, and CustomUnit's __eq__ /
-    # __hash__ are based purely on the class name rather than identity or
-    # `.name` (see measures.py), so every CustomUnit that has ever been
-    # registered - by any test, for any name - shares the same entry in the
-    # registry. Reset the singleton so "has not been registered" is
-    # reachable here regardless of what other tests already registered.
-    Singleton._instances.pop(UnitReg, None)
+def test_add_product_custom_unit_not_sized_raises_unit_error(cont_machine):
+    Case = CustomUnit("AP Unsized Case", base_dimension=BaseUnit)
+    prod = ContinuousProduct("AP Unsized Prod", base_dimension=BaseUnit)
 
-    Case = CustomUnit("AP Unregistered Case", dimension=BaseUnit)
-    prod = ContinuousProduct("AP Unregistered Prod", base_dimension=BaseUnit)
-
-    with pytest.raises(UnitError, match="has not been registered"):
+    with pytest.raises(UnitError, match="has not been sized for"):
         cont_machine.add_product(prod, run_rate=Case(1), per=Mins(1))
 
 
-def test_add_product_custom_unit_incompatible_with_product_raises_unit_error(
-    cont_machine,
-):
-    # `CustomUnit.size_for()` itself enforces compatibility at registration
-    # time, so the only way to reach the incompatibility check inside
-    # `add_product()` is to register the sizing directly against the
-    # registry, bypassing that guard.
-    Case = CustomUnit("AP Mismatched Case", dimension=BaseUnit)
+def test_custom_unit_cannot_be_sized_incompatibly_with_product():
+    Case = CustomUnit("AP Mismatched Case")
     prod = ContinuousProduct("AP Mismatched Prod", base_dimension=BaseUnit)
-    UnitReg().add(Case, prod, Litre(10))
 
-    with pytest.raises(
-        UnitError, match="Production units of AP Mismatched Case"
-    ):
-        cont_machine.add_product(prod, run_rate=Case(1), per=Mins(1))
+    with pytest.raises(UnitError, match="invalid measure"):
+        Case.size_for(prod, Litre(10))
 
 
 # ===========================================================================

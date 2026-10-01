@@ -14,10 +14,9 @@ if TYPE_CHECKING:
 
 import numpy as np
 
-from .._registries import UnitReg
 from ..durations import Duration
 from ..exceptions import MachineError, ShiftDefinitionError, UnitError
-from ..measures import CustomUnit, SizedDimension
+from ..measures import Quantity, SizedDimension
 from ..util import (
     as_day_end,
     as_day_start,
@@ -220,7 +219,7 @@ class ContinuousMachine(_Machine):
     def __init__(
         self,
         name: str,
-        default_run_rate: SizedDimension | None = None,
+        default_run_rate: Quantity | None = None,
         default_per: Duration | None = None,
     ) -> None:
         super().__init__(name=name)
@@ -230,7 +229,7 @@ class ContinuousMachine(_Machine):
     def add_product(
         self,
         product: ContinuousProduct,
-        run_rate: SizedDimension | None = None,
+        run_rate: Quantity | None = None,
         per: Duration | None = None,
     ) -> None:
         """Define a ContinuousProduct and its associated run rate.
@@ -294,26 +293,14 @@ class ContinuousMachine(_Machine):
                 f" {self.name}"
             )
 
-        # Now need to check that the dimensions of the product and the run rate
-        # of the machine are compatible
-        if not isinstance(_run_rate, CustomUnit):
-            prod_dim = product.base_dimension
-            if not prod_dim.is_compatible(_run_rate):
-                raise UnitError(
-                    f"Production units of {type(_run_rate).__name__} for"
-                    f" {self.name} are incompatible with the product unit of"
-                    f" {prod_dim.__name__} for {product.name}"
-                )
-        else:
-            reg = UnitReg()
-            custom_unit = reg.get_measure(_run_rate, product)
-            prod_dim = product.base_dimension
-            if not prod_dim.is_compatible(custom_unit):
-                raise UnitError(
-                    f"Production units of {_run_rate.name} for"
-                    f" {self.name} are incompatible with the product unit of"
-                    f" {prod_dim.__name__} for {product.name}"
-                )
+        # Resolve once: Case(2) and Unit(20) become indistinguishable here
+        try:
+            _run_rate = _run_rate.resolve(product)
+        except UnitError as e:
+            raise UnitError(
+                f"Production units of {_run_rate.name()} for {self.name} are"
+                f" incompatible with {product.name}: {e}"
+            ) from e
 
         _per = None
         if per is not None:
