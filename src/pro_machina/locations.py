@@ -3,8 +3,7 @@ from __future__ import annotations
 from itertools import count
 from typing import TYPE_CHECKING, NewType
 
-from ._registries import UnitReg
-from .measures import CustomUnit, SizedDimension
+from .measures import Quantity, SizedDimension
 
 if TYPE_CHECKING:
     from .problem.machines import MachID, MachineSubtype
@@ -118,7 +117,7 @@ class SizedStorage(_Location):
     def __init__(
         self,
         name: str,
-        total_capacity: SizedDimension | CustomUnit,
+        total_capacity: Quantity,
         department: Department | None = None,
         factory: Factory | None = None,
     ):
@@ -130,28 +129,25 @@ class SizedStorage(_Location):
 
         self.total_capacity = total_capacity
         self.single_product_limits: dict[
-            ProdID, SizedDimension | CustomUnit
+            ProdID, Quantity
         ] = {}
         self.grouped_product_limits: dict[
-            ProdGroupID, SizedDimension | CustomUnit
+            ProdGroupID, Quantity
         ] = {}
 
     def add_single_product_limit(
-        self, product: ProdSubtype, limit: SizedDimension | CustomUnit
+        self, product: ProdSubtype, limit: Quantity
     ):
-        if isinstance(limit, CustomUnit):
-            # Check that it's been registered for this product, or throw
-            reg = UnitReg()
-            dimension = reg.get_measure(limit, product)
+        self.single_product_limits[product._id] = limit.resolve(product)
 
     def add_product_group_limit(
-        self, group: ProductGroup, limit: SizedDimension | CustomUnit
+        self, group: ProductGroup, limit: Quantity
     ):
-        if isinstance(limit, CustomUnit):
-            # Check that it's been registered for this product, or throw
-            reg = UnitReg()
-            for prod in group._products.values():
-                dimension = reg.get_measure(limit, prod)
+        # Validate now (raises if Pallet isn't sized for a member), but keep
+        # the unresolved quantity: it means a different amount per product.
+        for prod in group._products.values():
+            limit.resolve(prod)
+        self.grouped_product_limits[group._id] = limit
 
     def _check_capacity(self):
         # TODO need to see whether the combined rules for different products

@@ -19,11 +19,11 @@ import pro_machina
 
 if TYPE_CHECKING:
     from ..costs import ProductionCost, SaleValue
-from .._registries import ProductReg, UnitReg
+from .._registries import ProductReg
 from ..durations import Duration, Secs
 from ..exceptions import ProductError, UnitError
 from ..measures import (
-    CustomUnit,
+    Quantity,
     SizedDimension,
     UnsizedDimension,
 )
@@ -91,8 +91,8 @@ class _Product:
     def add_component(
         self,
         component: BatchProduct | ContinuousProduct | Consumable,
-        qty: SizedDimension | CustomUnit,
-        per: SizedDimension,
+        qty: Quantity,
+        per: Quantity,
     ) -> Self:
         """Add either a consumable or a subproduct to the Bill of Materials.
 
@@ -118,7 +118,7 @@ class _Product:
         component : BatchProduct | ContinuousProduct | Consumable
             A pre-defined product or consumable that is a constituent part of
             the product being made.
-        qty : SizedDimension | CustomUnit
+        qty : Quantity
             The quantity and dimension of component.
         per : SizedDimension
             The amount of product that can be made from the quantity of the
@@ -141,35 +141,13 @@ class _Product:
                 f"{component.name} cannot be added twice to {self.name}"
             )
 
-        if not self.base_dimension.is_compatible(per):
-            raise UnitError(
-                f"{per.name()} is an invalid measure for {self.name}"
-            )
+        # Both sides are resolved against the item they describe; after this
+        # there is no difference between Bottle(2) and Fl_Ounce(24).
+        qty_ = qty.resolve(component)
+        per_ = per.resolve(self)
 
-        if isinstance(qty, CustomUnit):
-            reg = UnitReg()
-
-            # Specifies the SizedDimension of the CustomUnit for this
-            # Consumable. e.g. "Bag of Sugar" -> "0.25kg"
-            custom_unit = reg.get_measure(qty, component)
-
-            # How many of the CustomUnits are we specifying? e.g. 2 Bags
-            custom_qty = qty._tmp_qty
-
-            base_dimension = self.base_dimension.get_base()
-            amt = (custom_unit._base_qty * custom_qty) / base_dimension.qty
-
-            unit = custom_unit.get_base().symbol
-
-        else:
-            if not component.base_dimension.is_compatible(qty):
-                raise UnitError(
-                    f"{qty.name()} is an invalid measure for {component.name}."
-                )
-            amt = qty._base_qty
-            unit = qty.get_base().symbol
-
-        amt /= per._base_qty
+        amt = qty_._base_qty / per_._base_qty
+        unit = qty_.get_base().symbol
 
         if isinstance(component, Consumable):
             self._consumables.append(
@@ -539,8 +517,8 @@ class ProductGroup:
     def add_component(
         self,
         component: ProdSubtype | Consumable,
-        qty: SizedDimension | CustomUnit,
-        per: SizedDimension,
+        qty: Quantity,
+        per: Quantity,
     ):
         """Add either a consumable or a subproduct to the Bill of Materials for
         each product within the group.
@@ -552,7 +530,7 @@ class ProductGroup:
         ----------
         component : BatchProduct | ContinuousProduct | Consumable
             An instance of a pre-defined product or consumable.
-        qty : SizedDimension | CustomUnit
+        qty : Quantity
             The quantity and dimension of component.
         per : SizedDimension
             The units specified for this product.

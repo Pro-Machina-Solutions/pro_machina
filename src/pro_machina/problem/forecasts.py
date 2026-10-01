@@ -16,12 +16,11 @@ import numpy.typing as npt
 
 from pro_machina import options
 
-from .._registries import UnitReg
 from ..businesses import Customer
 from ..costs import OrderValue
 from ..durations import Duration
 from ..exceptions import UnitError
-from ..measures import CustomUnit, SizedDimension
+from ..measures import Quantity, SizedDimension
 from ..util import as_day_start, get_problem_buckets, parse_datetime
 from .consumables import ConsID
 
@@ -119,22 +118,12 @@ class Orderline:
     _ids = count(0)
 
     def __init__(
-        self, product: ProdSubtype, qty: SizedDimension | CustomUnit
+        self, product: ProdSubtype, qty: Quantity
     ) -> None:
-
-        if not isinstance(product, ProdSubtype):
-            raise TypeError("Not a valid Product for OrderLine")
-
-        if not isinstance(qty, CustomUnit):
-            if not product.base_dimension.is_compatible(qty):
-                raise UnitError(
-                    f"{qty.name()} is not in a compatible unit for"
-                    f" {product.name}"
-                )
 
         self._id = next(self._ids)
         self.product = product
-        self.qty = qty
+        self.qty: SizedDimension = qty.resolve(product)
 
 
 class MadeToStock:
@@ -574,7 +563,7 @@ class MadeToStockOld:
     def __init__(
         self,
         product: BatchProduct | ContinuousProduct,
-        qty: SizedDimension,
+        qty: Quantity,
         start_date: str | dt.datetime,
         freq: Duration | None = None,
         end_date: str | dt.datetime | None = None,
@@ -588,23 +577,7 @@ class MadeToStockOld:
                 " frequency of restocking."
             )
 
-        if not isinstance(
-            qty, CustomUnit
-        ) and not product.base_dimension.is_compatible(qty):
-            raise UnitError(
-                f"{qty} is not a compatible quantity for {product}."
-            )
-
-        if isinstance(qty, CustomUnit):
-            reg = UnitReg()
-            custom_unit = reg.get_measure(qty, product)
-            custom_qty = qty._tmp_qty
-
-            self.qty: SizedDimension = product.base_dimension.get_base(
-                custom_unit._base_qty * custom_qty
-            )
-        else:
-            self.qty = qty
+        self.qty: SizedDimension = qty.resolve(product)
 
         self.product = product
         self.freq = freq

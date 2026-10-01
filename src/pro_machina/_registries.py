@@ -9,45 +9,31 @@ from .util import Singleton
 
 if TYPE_CHECKING:
     from .businesses import Customer, CustomerID, Supplier, SupplierID
-    from .measures import CustomUnit, SizedDimension, UnitID, UnitName
+    from .measures import CustomUnit, UnitID, UnitName
     from .problem.consumables import ConsID, Consumable
     from .problem.products import ProdID, ProdName, _Product
 
 
 class UnitReg(metaclass=Singleton):
+    """Index of every CustomUnit, for lookup by id/name (e.g. serialising).
+
+    It holds no sizing data - that lives on each CustomUnit - so nothing
+    needs to reach in here to work out quantities.
+    """
+
     def __init__(self) -> None:
-        self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
-            dict
-        )
-        self._item_unit_id_to_base: dict[
-            ProdID | ConsID, dict[UnitID, Decimal]
-        ] = defaultdict(dict)
-        self._item_unit_name_to_base: dict[
-            ProdID | ConsID, dict[UnitName, Decimal]
-        ] = defaultdict(dict)
+        self._by_id: dict[UnitID, CustomUnit] = {}
+        self._by_name: dict[UnitName, CustomUnit] = {}
 
-    def add(
-        self,
-        unit: CustomUnit,
-        item: _Product | Consumable,
-        qty: SizedDimension,
-    ) -> None:
-        self.units[unit][item._id] = qty
+    def add(self, unit: CustomUnit) -> None:
+        self._by_id[unit._id] = unit
+        self._by_name[unit.name] = unit
 
-        self._item_unit_id_to_base[item._id][unit._id] = qty._base_qty
-        self._item_unit_name_to_base[item._id][unit.name] = qty._base_qty
+    def get_by_id(self, unit_id: UnitID) -> CustomUnit:
+        return self._by_id[unit_id]
 
-    def get_measure(
-        self, unit: CustomUnit, item: _Product | Consumable
-    ) -> SizedDimension:
-        if self.units.get(unit) is None:
-            raise UnitError(f"Unit: {unit.name} has not been registered")
-
-        if self.units[unit].get(item._id) is None:
-            raise UnitError(
-                f"Unit: {unit.name} has not been sized for {item.name}"
-            )
-        return self.units[unit][item._id]
+    def get_by_name(self, name: UnitName) -> CustomUnit:
+        return self._by_name[name]
 
 
 class ConsumableReg(metaclass=Singleton):

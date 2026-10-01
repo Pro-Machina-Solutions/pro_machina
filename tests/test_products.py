@@ -209,7 +209,7 @@ def test_add_component_duplicate_subproduct_raises_product_error():
 
 def test_add_component_custom_unit_computes_correct_ratio():
     sugar = Consumable("TP Cons Custom Unit", base_dimension=Weight)
-    Bag = CustomUnit("TP Bag", dimension=Weight)
+    Bag = CustomUnit("TP Bag", base_dimension=Weight)
     Bag.size_for(sugar, Kilo("0.25"))
 
     prod = ContinuousProduct("TP Prod Custom Unit", base_dimension=Weight)
@@ -221,7 +221,7 @@ def test_add_component_custom_unit_computes_correct_ratio():
 
 def test_add_component_custom_unit_not_sized_raises_unit_error():
     sugar = Consumable("TP Cons Custom Unsized", base_dimension=Weight)
-    Box = CustomUnit("TP Box", dimension=Weight)
+    Box = CustomUnit("TP Box", base_dimension=Weight)
     prod = ContinuousProduct("TP Prod Custom Unsized", base_dimension=Weight)
 
     with pytest.raises(UnitError, match="has not been sized for"):
