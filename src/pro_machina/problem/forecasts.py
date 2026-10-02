@@ -20,7 +20,7 @@ from .._registries import ProductReg
 from ..businesses import Customer
 from ..costs import OrderValue
 from ..durations import Duration
-from ..measures import Quantity, SizedDimension
+from ..measures import Quantity
 from ..util import (
     as_day_start,
     get_bucket_index,
@@ -135,7 +135,7 @@ class MadeToStock:
     def __init__(
         self,
         product: ProdSubtype | ProductGroup,
-        qty: SizedDimension,
+        qty: Quantity,
         start_date: str | dt.datetime,
         end_date: str | dt.datetime | None = None,
         freq: Duration | None = None,
@@ -159,6 +159,8 @@ class MadeToStock:
         )
 
         self.qty = qty
+        self.product = product
+        self.freq = freq
 
         self._hard_constraints: list[HardConstraint] = []
         if hard_constraints is not None:
@@ -203,6 +205,7 @@ class DemandForecast:
         self._seen_orders: set[OrderID] = set()
         self.mts: list[MadeToStock] = []
         self._seen_mts: set[MtsID] = set()
+        self._seen_mts_products: set[ProdID] = set()
 
         if orders is not None:
             self.add_order(orders)
@@ -235,6 +238,25 @@ class DemandForecast:
         if not all(isinstance(m, MadeToStock) for m in mts):
             raise TypeError("Invalid MadeToStock type passed.")
 
+        for m in mts:
+            if m._id in self._seen_mts:
+                raise ValueError("Cannot raise this MTS order twice")
+
+            if isinstance(m.product, ProdSubtype):
+                if m.product._id in self._seen_mts_products:
+                    raise ValueError(
+                        f"Cannot make a second MTS order for {m.product.name}"
+                    )
+
+            elif isinstance(m.product, ProductGroup):
+                for prod in m.product._products.values():
+                    if prod._id in self._seen_mts_products:
+                        raise ValueError(
+                            f"Cannot make a second MTS order for {prod.name}"
+                        )
+
+            self.mts.append(m)
+
     def _preprocessing(self, problem: Problem) -> None:
         self.problem = problem
         self.prob_start = problem._start
@@ -253,6 +275,7 @@ class DemandForecast:
     def _process_order_buckets(
         self, order: Order, prod_reg: ProductReg
     ) -> dict[str, Any] | None:
+
         if order.production_lead_time is not None:
             raw_prod_start_date = order.due_date - dt.timedelta(
                 seconds=order.production_lead_time.to_seconds()
@@ -269,7 +292,7 @@ class DemandForecast:
             # up time. Just ignore it.
             return None
 
-        # Bump it up to whatever date we actually start on
+        # Bump dates to be bounded by our problem start and end (if necessary)
         prod_start_date = max(self.prob_start, raw_prod_start_date)
         prod_end_date = min(self.prob_end, order.due_date)
 
@@ -293,6 +316,7 @@ class DemandForecast:
 
         prod_demand: dict[ProdID, Decimal] = {}
         cons_demand: dict[ConsID, Decimal] = {}
+
         for prod_id, line in order._lines.items():
             base_qty_per_bucket = line.qty._base_qty / total_order_buckets
             prod_demand[prod_id] = base_qty_per_bucket
@@ -336,8 +360,153 @@ class DemandForecast:
                         res["start_index"] : res["end_index"]
                     ] += demand
 
+    def _decipher_mts_cycle(self, mts: MadeToStock) -> dict[str, Any] | None:
+
+        # First just kick out any redundant cycles
+        if mts.start_date > self.prob_end:
+            # Starts after the end of our window of intered
+            return None
+
+        if mts.end_date is not None and mts.end_date < self.prob_start:
+            # Ended before our window of interest
+            return None
+
+        if mts.end_date is None:
+            # This is a theoretical value. For example, we might have an MTS on
+            # a Weeks(2) cycle and the problem end date lands in the middle of
+            # that period. We will need to make up part of that stock
+            end_date = self.prob_end
+        else:
+            end_date = mts.end_date
+
+        if mts.freq is None:
+            # We assume that this one-off demand starts production on
+            # mts.start_date and spans until mts.end_date. First thing is to
+            # work out the total number of buckets in that spread, and the prod
+            # demand for each bucket. There could be multiple products here in
+            # the group and so we can't `.resolve()` at this point.
+            one_shot_total_buckets = int(
+                (end_date - mts.start_date).total_seconds()
+                / self.timebucket.to_seconds()
+            )
+
+            # We'll have to check this later and get the actual bucket qty on
+            # a per-product basis in the main loop in case there is a
+            # ProductGroup, not just a single Product.
+            return {
+                "type": "one_off",
+                "start_date": max(self.prob_start, mts.start_date),
+                "end_date": min(self.prob_end, end_date),
+                "total_buckets": one_shot_total_buckets,
+            }
+
+        # Now we have to handle actual recurring frequency, which needs
+        # resolving on both ends; start date and end date
+        cycle_seconds = mts.freq.to_seconds()
+        cycle_buckets = int(cycle_seconds / self.timebucket.to_seconds())
+
+        cycle_demands: list[dict[str, Any]] = []
+        rolling_date = self.prob_start
+
+        if mts.start_date < self.prob_start:
+            # There could be N completed cycles beforehand but we're only
+            # interested in how far we are into the cycle that crosses the
+            # prob_start threshold. So, we need a multiplier to scale down
+            # the first cycle demand.
+
+            total_start_discrep_secs = (
+                self.prob_start - mts.start_date
+            ).total_seconds()
+
+            part_cycle_secs = total_start_discrep_secs % cycle_seconds
+            remaining_cycle_secs = cycle_seconds - part_cycle_secs
+            cycle_demands.append(
+                {
+                    "start": self.prob_start,
+                    "end": (
+                        self.prob_start
+                        + dt.timedelta(seconds=remaining_cycle_secs)
+                    ),
+                    "proportion": remaining_cycle_secs / cycle_seconds,
+                }
+            )
+            rolling_date = self.prob_start + dt.timedelta(
+                seconds=remaining_cycle_secs
+            )
+
+        elif (mts.start_date == self.prob_start) and (
+            mts.start_date + dt.timedelta(seconds=cycle_seconds)
+            < self.prob_end
+        ):
+            # In this case, we have just shifted the first MTS target because
+            # it's the same as the start date. Our first demand is therefore
+            # realised at the end of the first cycle.
+            end = mts.start_date + dt.timedelta(seconds=cycle_seconds)
+            cycle_demands.append(
+                {"start": self.prob_start, "end": end, "proportion": 1.0}
+            )
+            rolling_date = end
+
+        elif (mts.start_date >= self.prob_start) and (
+            mts.start_date + dt.timedelta(seconds=cycle_seconds) >= end_date
+        ):
+            proportion = (self.prob_end - self.prob_start).total_seconds() / (
+                end_date - mts.start_date
+            ).total_seconds()
+
+            cycle_demands.append(
+                {
+                    "start": self.prob_start,
+                    "end": self.prob_end,
+                    "proportion": proportion,
+                }
+            )
+            # We're done here; can't be another cycle
+            return {"type": "multiple", "cycles": cycle_demands}
+        else:
+            while (
+                rolling_date + dt.timedelta(seconds=cycle_seconds) <= end_date
+            ):
+                cycle_end = rolling_date + dt.timedelta(seconds=cycle_seconds)
+                cycle_demands.append(
+                    {
+                        "start": rolling_date,
+                        "end": cycle_end,
+                        "proportion": 1.0,
+                    }
+                )
+                rolling_date = cycle_end
+
+        # Now see if we need to tie up the end period in case it's a partial
+        # cycle
+        if rolling_date < end_date:
+            missing_prop = (
+                rolling_date + dt.timedelta(seconds=cycle_seconds) - end_date
+            ).total_seconds() / cycle_seconds
+            cycle_demands.append(
+                {
+                    "start": rolling_date,
+                    "end": end_date,
+                    "proportion": missing_prop,
+                }
+            )
+
+        return {"type": "multiple", "cycles": cycle_demands}
+
     def _process_mts(self) -> None:
-        pass
+        for mts in self.mts:
+            mts_prod_demands: dict[ProdID, Decimal] = {}
+            if isinstance(mts.product, ProdSubtype):
+                mts_prod_demands[mts.product._id] = mts.qty.resolve(
+                    mts.product
+                )._base_qty
+            else:
+                assert isinstance(mts.product, ProductGroup)
+                a = mts.product._products
+                for product in mts.product._products.values():
+                    mts_prod_demands[product._id] = mts.qty.resolve(
+                        product
+                    )._base_qty
 
     def _build(self, problem: Problem) -> None:
         self._preprocessing(problem)
