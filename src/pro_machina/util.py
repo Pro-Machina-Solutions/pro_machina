@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import datetime as dt
 from functools import cache
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .problem import Problem
 
 from .durations import Duration
 
@@ -146,9 +150,7 @@ def get_problem_buckets(
 
 
 def get_bucket_index(
-    problem_start: dt.datetime,
-    problem_end: dt.datetime,
-    timebucket: Duration,
+    problem: Problem,
     timestamp: dt.datetime,
 ) -> int:
     """Return the closest bucket index for a datetime
@@ -179,9 +181,11 @@ def get_bucket_index(
     ValueError
         The timestamp is outside of the bounds of the problem duration
     """
-    num_buckets = get_problem_buckets(problem_start, problem_end, timebucket)
-    frac = (timestamp - problem_start).total_seconds() / (
-        (problem_end - problem_start).total_seconds()
+    num_buckets = get_problem_buckets(
+        problem._start, problem._end, problem.config.timebucket
+    )
+    frac = (timestamp - problem._start).total_seconds() / (
+        (problem._end - problem._start).total_seconds()
     )
     if not 0 <= frac <= 1:
         raise ValueError("Timestamp outside of problem range")

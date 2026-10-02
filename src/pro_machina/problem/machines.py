@@ -168,12 +168,7 @@ class _Machine:
                 pattern = shift["shift"]._yield_day(
                     date, problem.config.timebucket
                 )
-                start_bucket = get_bucket_index(
-                    problem._start,
-                    problem._end,
-                    problem.config.timebucket,
-                    date,
-                )
+                start_bucket = get_bucket_index(problem, date)
                 end_bucket = start_bucket + len(pattern)
                 base_productivity[start_bucket:end_bucket] = pattern
 
@@ -298,8 +293,8 @@ class ContinuousMachine(_Machine):
             _run_rate = _run_rate.resolve(product)
         except UnitError as e:
             raise UnitError(
-                f"Production units of {_run_rate.name()} for {self.name} are"
-                f" incompatible with {product.name}: {e}"
+                f"Production units for {self.name} are incompatible with"
+                f" {product.name}: {e}"
             ) from e
 
         _per = None

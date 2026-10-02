@@ -75,16 +75,15 @@ class Problem:
 
     def __init__(
         self,
-        start_time: str | dt.datetime | dt.date,
+        start_date: str | dt.datetime | dt.date,
         length: Duration,
         config: Config | None = None,
     ):
         self.config = config if config is not None else Config()
 
         # Params
-        self._user_start_time: dt.datetime | dt.date
-        self._user_start_time = parse_datetime(start_time)
-        self._start = as_day_start(self._user_start_time)
+        self._user_start_dt = parse_datetime(start_date)
+        self._start = as_day_start(self._user_start_dt)
         self._end = self._start + dt.timedelta(seconds=length.to_seconds())
         self._duration_secs = (self._end - self._start).total_seconds()
 

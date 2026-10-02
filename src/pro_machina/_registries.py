@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from .exceptions import ProductError, UnitError
+from .exceptions import ConsumableError, ProductError
 from .util import Singleton
 
 if TYPE_CHECKING:
@@ -38,38 +36,49 @@ class UnitReg(metaclass=Singleton):
 
 class ConsumableReg(metaclass=Singleton):
     def __init__(self) -> None:
-        self._by_name: dict[tuple[str, str | None], Consumable] = {}
-        self._by_id: dict[ConsID, Consumable] = {}
-
-    def add(self, cons: Consumable) -> None:
-        self._by_name[(cons.name, cons.code)] = cons
-        self._by_id[cons._id] = cons
+        self.cons_by_name: dict[tuple[str, str | None], Consumable] = {}
+        self.cons_by_id: dict[ConsID, Consumable] = {}
 
     def contains(self, cons: Consumable) -> bool:
-        return cons._id in self._by_id
+        return cons._id in self.cons_by_id
+
+    def add(self, cons: Consumable) -> None:
+        if self.contains(cons):
+            raise ConsumableError("Cannot register same Consumable twice.")
+        self.cons_by_name[(cons.name, cons.code)] = cons
+        self.cons_by_id[cons._id] = cons
 
     def get_by_id(self, cons_id: ConsID) -> Consumable:
-        return self._by_id[cons_id]
+        rtn = self.cons_by_id.get(cons_id)
+        if rtn is None:
+            raise ValueError("Consumable ID not recognised.")
+        return rtn
 
 
 class ProductReg(metaclass=Singleton):
     def __init__(self) -> None:
-        self.products_by_id: dict[ProdID, _Product] = {}
-        self.products_by_name: dict[tuple[ProdName, str | None], _Product] = {}
+        self.prods_by_id: dict[ProdID, _Product] = {}
+        self.prods_by_name: dict[tuple[ProdName, str | None], _Product] = {}
 
     def contains(self, product: _Product) -> bool:
-        return product._id in self.products_by_id
+        return product._id in self.prods_by_id
 
     def add(self, product: _Product) -> None:
         if self.contains(product):
             raise ProductError("Cannot add the product twice to registry")
-        elif (product.name, product.code) in self.products_by_name:
+        elif (product.name, product.code) in self.prods_by_name:
             raise ProductError(
                 "Name and code combinations for products must be unique"
             )
         else:
-            self.products_by_id[product._id] = product
-            self.products_by_name[(product.name, product.code)] = product
+            self.prods_by_id[product._id] = product
+            self.prods_by_name[(product.name, product.code)] = product
+
+    def get_by_id(self, prod_id: ProdID) -> _Product:
+        rtn = self.prods_by_id.get(prod_id)
+        if rtn is None:
+            raise ValueError("Product ID not recognised.")
+        return rtn
 
 
 class ProductGroupReg(metaclass=Singleton):

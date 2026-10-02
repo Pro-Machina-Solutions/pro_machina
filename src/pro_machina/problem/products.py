@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from ..costs import ProductionCost, SaleValue
 from .._registries import ProductReg
 from ..durations import Duration, Secs
-from ..exceptions import ProductError, UnitError
+from ..exceptions import ProductError
 from ..measures import (
     Quantity,
     SizedDimension,

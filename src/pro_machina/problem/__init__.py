@@ -1,5 +1,5 @@
 from .consumables import Consumable
-from .forecasts import DemandForecast, MadeToStock, Order
+from .forecasts import DemandForecast, MadeToStock, Order, Orderline
 from .machines import ContinuousMachine, MachineGroup
 from .problem import Problem
 from .products import (

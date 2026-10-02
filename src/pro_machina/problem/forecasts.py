@@ -4,7 +4,7 @@ import datetime as dt
 import warnings
 from decimal import Decimal
 from itertools import count
-from typing import TYPE_CHECKING, NewType
+from typing import TYPE_CHECKING, Any, NewType
 
 if TYPE_CHECKING:
     from ._constraints import HardConstraint, SoftConstraint
@@ -16,15 +16,21 @@ import numpy.typing as npt
 
 from pro_machina import options
 
+from .._registries import ProductReg
 from ..businesses import Customer
 from ..costs import OrderValue
 from ..durations import Duration
-from ..exceptions import UnitError
 from ..measures import Quantity, SizedDimension
-from ..util import as_day_start, get_problem_buckets, parse_datetime
+from ..util import (
+    as_day_start,
+    get_bucket_index,
+    get_problem_buckets,
+    parse_datetime,
+)
 from .consumables import ConsID
 
 OrderID = NewType("OrderID", int)
+MtsID = NewType("MtsID", int)
 
 
 class Order:
@@ -32,10 +38,10 @@ class Order:
 
     def __init__(
         self,
-        name: str | None,
-        code: str | None,
         due_date: dt.date | str,
-        production_lead_time: Duration | None,
+        name: str | None = None,
+        code: str | None = None,
+        production_lead_time: Duration | None = None,
         customer: Customer | None = None,
         order_value: OrderValue | None = None,
         lines: Orderline | list[Orderline] | None = None,
@@ -117,9 +123,7 @@ class Order:
 class Orderline:
     _ids = count(0)
 
-    def __init__(
-        self, product: ProdSubtype, qty: Quantity
-    ) -> None:
+    def __init__(self, product: ProdSubtype, qty: Quantity) -> None:
 
         self._id = next(self._ids)
         self.product = product
@@ -138,7 +142,7 @@ class MadeToStock:
         hard_constraints: HardConstraint | list[HardConstraint] | None = None,
         soft_constraints: SoftConstraint | list[SoftConstraint] | None = None,
     ):
-        self._id = next(self._ids)
+        self._id = MtsID(next(self._ids))
 
         if not isinstance(product, (ProductGroup, ProdSubtype)):
             raise TypeError("Not a valid Product or Product group for MTS.")
@@ -187,76 +191,114 @@ class MadeToStock:
         # TODO
 
 
-def _get_demand_per_index() -> None:
-    pass
+class DemandForecast:
+    def __init__(
+        self,
+        orders: Order | list[Order] | None,
+        mts: MadeToStock | list[MadeToStock] | None,
+    ) -> None:
+        self._orders: list[Order] = []
+        self._seen_orders: set[OrderID] = set()
+        self._mts: list[MadeToStock] = []
+        self._seen_mts: set[MtsID] = set()
 
+        # Containers to be populated at problem build time
+        self._prod_demand_buckets: dict[ProdID, npt.NDArray[np.float64]] = {}
+        self._cons_demand_buckets: dict[ConsID, npt.NDArray[np.float64]] = {}
 
-def _product_demand_aggregator(
-    problem: Problem, orders: list[Order], mts: list[MadeToStock]
-) -> None:
-    start = problem._start
-    end = problem._end
-    timebucket = problem.config.timebucket
-    num_buckets = get_problem_buckets(start, end, timebucket)
-    dflt_demand_horizon_secs = problem.config.demand_horizon.to_seconds()
+    def add_order(self, orders: Order | list[Order]) -> None:
 
-    base_demand = np.zeros(shape=num_buckets, dtype=np.float64)
-    prod_demand_buckets: dict[ProdID, npt.NDArray[np.float64]] = {}
-    cons_demand_buckets: dict[ConsID, npt.NDArray[np.float64]] = {}
+        if isinstance(orders, Order):
+            orders = [orders]
 
-    # We need to know when to start seeing the demand for the order volume. It
-    # could be the default set in Config (the coming week) or we might be
-    # ramping up to delivery date over a lot longer periods.
-    for order in orders:
+        if not all(isinstance(order, Order) for order in orders):
+            raise TypeError("Invalid Order type passed.")
+
+    def add_mts(self, mts: MadeToStock | list[MadeToStock]) -> None:
+
+        if isinstance(mts, MadeToStock):
+            mts = [mts]
+
+        if not all(isinstance(m, MadeToStock) for m in mts):
+            raise TypeError("Invalid MadeToStock type passed.")
+
+    def _process_dates(self, problem: Problem) -> None:
+        self.problem = problem
+        self.prob_start = problem._start
+        self.prob_end = problem._end
+        self.timebucket = problem.config.timebucket
+        self.num_buckets = get_problem_buckets(
+            self.prob_start, self.prob_end, self.timebucket
+        )
+        self.dflt_demand_horizon_secs = (
+            problem.config.demand_horizon.to_seconds()
+        )
+
+    def _process_order_buckets(
+        self, order: Order, prod_reg: ProductReg
+    ) -> dict[str, Any] | None:
         if order.production_lead_time is not None:
-            prod_start_date = order.due_date - dt.timedelta(
+            raw_prod_start_date = order.due_date - dt.timedelta(
                 seconds=order.production_lead_time.to_seconds()
             )
         else:
-            prod_start_date = order.due_date - dt.timedelta(
-                seconds=dflt_demand_horizon_secs
+            raw_prod_start_date = order.due_date - dt.timedelta(
+                seconds=self.dflt_demand_horizon_secs
             )
 
-        if prod_start_date >= end:
+        if raw_prod_start_date >= self.prob_end:
             # Order isn't even in our problem time period, including its ramp
             # up time. Just ignore it.
-            continue
-
-        # Cannot start production before start date. Anything made before the
-        # problem start date will be in stock already (presumably). We might
-        # need to account for any buckets but off before the problem start
-        unaccounted_start_buckets = 0
-
-        if prod_start_date < start:
-            missing_secs = int((start - prod_start_date).total_seconds())
-            unaccounted_start_buckets = int(
-                missing_secs / timebucket.to_seconds()
-            )
+            return None
 
         # Bump it up to whatever date we actually start on
-        prod_start_date = max(start, prod_start_date)
+        prod_start_date = max(self.prob_start, raw_prod_start_date)
+        prod_end_date = min(self.prob_end, order.due_date)
 
-        # Now need to look at the end date side
-        unaccounted_end_buckets = 0
-
-        if order.due_date > end:
-            unaccounted_end_buckets = int(
-                (order.due_date - end).total_seconds()
-                / timebucket.to_seconds()
-            )
-
-        prod_end_date = min(end, order.due_date)
-
-        total_prod_buckets = int(
-            (prod_end_date - prod_start_date).total_seconds()
-            / timebucket.to_seconds()
+        total_order_buckets = int(
+            (order.due_date - raw_prod_start_date).total_seconds()
+            / self.timebucket.to_seconds()
         )
 
-        for line in order._lines:
-            pass
+        if prod_start_date == self.prob_start:
+            start_bucket_index = 0
+        else:
+            start_bucket_index = get_bucket_index(
+                self.problem,
+                prod_start_date,
+            )
+
+        if prod_end_date == self.prob_end:
+            end_bucket_index = total_order_buckets
+        else:
+            end_bucket_index = get_bucket_index(self.problem, prod_end_date)
+
+        prod_demand: dict[ProdID, Decimal] = {}
+        cons_demand: dict[ConsID, Decimal] = {}
+        for prod_id, line in order._lines.items():
+            base_qty_per_bucket = line.qty._base_qty / total_order_buckets
+            prod_demand[prod_id] = base_qty_per_bucket
+
+            # Now account for consumables
+            _prod = prod_reg.get_by_id(prod_id)
+            for cons_id, demand in _prod._bom_consumables.items():
+                cons_demand[cons_id] = base_qty_per_bucket * demand
+
+        return {
+            "start_index": start_bucket_index,
+            "end_index": end_bucket_index,
+            "product_demands": prod_demand,
+            "consumable_demands": cons_demand,
+        }
+
+    def _process_orders(self) -> None:
+        pass
+
+    def _process_mts(self) -> None:
+        pass
 
 
-class DemandForecast:
+class DemandForecastOld:
     """Container class to hold all Orders and MadeToStock quantities."""
 
     def __init__(self) -> None:

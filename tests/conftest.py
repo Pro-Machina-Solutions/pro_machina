@@ -21,7 +21,7 @@ def base_problem():
     conf = Config()
     conf.timebucket = Mins(15)
     problem = Problem(
-        start_time="2026-03-02 00:00:00", length=Weeks(1), config=conf
+        start_date="2026-03-02 00:00:00", length=Weeks(1), config=conf
     )
 
     return problem

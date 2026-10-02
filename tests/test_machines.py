@@ -165,15 +165,11 @@ def test_shift_productivity_dated_shift_only_affects_its_window(
     productivity = cont_machine._build_shift_productivity(base_problem)
 
     start_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_start("2026-03-03"),
     )
     end_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_end("2026-03-05"),
     )
 
@@ -202,15 +198,11 @@ def test_shift_productivity_later_dated_shift_overrides_only_its_window(
     overridden = cont_machine._build_shift_productivity(base_problem)
 
     start_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_start("2026-03-03"),
     )
     end_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_end("2026-03-04"),
     )
 
@@ -336,7 +328,7 @@ def test_add_product_inherits_product_hard_constraints_as_deep_copy(
 def test_add_product_incompatible_base_units_raises_unit_error(cont_machine):
     prod = ContinuousProduct("AP Incompatible", base_dimension=BaseUnit)
 
-    with pytest.raises(UnitError, match="Production units of Litre"):
+    with pytest.raises(UnitError, match="Production units for"):
         cont_machine.add_product(prod, run_rate=Litre(10), per=Mins(1))
 
 
@@ -350,7 +342,7 @@ def test_add_product_incompatible_default_run_rate_raises_unit_error():
         "AP Incompatible Default Prod", base_dimension=BaseUnit
     )
 
-    with pytest.raises(UnitError, match="Production units of Litre"):
+    with pytest.raises(UnitError, match="Production units for"):
         mach.add_product(prod)
 
 

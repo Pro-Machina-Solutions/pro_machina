@@ -110,7 +110,7 @@ class Consumable:
             All consumables defined so far
         """
         reg = ConsumableReg()
-        return list(reg._by_id.values())
+        return list(reg.cons_by_id.values())
 
 
 __all__ = ["Consumable"]
