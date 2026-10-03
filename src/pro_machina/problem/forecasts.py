@@ -4,7 +4,7 @@ import datetime as dt
 import warnings
 from decimal import Decimal
 from itertools import count
-from typing import TYPE_CHECKING, Any, NewType, TypedDict
+from typing import TYPE_CHECKING, NewType, TypedDict
 
 from .products import ProdID, ProdSubtype, ProductGroup
 
@@ -214,6 +214,13 @@ class _MTSCycle(TypedDict):
     proportion: Decimal
 
 
+class _OrderBucket(TypedDict):
+    start_index: int
+    end_index: int
+    product_demands: dict[ProdID, Decimal]
+    consumable_demands: dict[ConsID, Decimal]
+
+
 class DemandForecast:
     def __init__(
         self,
@@ -293,7 +300,7 @@ class DemandForecast:
 
     def _process_order_buckets(
         self, order: Order, prod_reg: ProductReg
-    ) -> dict[str, Any] | None:
+    ) -> _OrderBucket | None:
 
         if order.production_lead_time is not None:
             raw_prod_start_date = order.due_date - dt.timedelta(
@@ -353,12 +360,12 @@ class DemandForecast:
                     base_qty_per_bucket * demand
                 )
 
-        return {
-            "start_index": start_bucket_index,
-            "end_index": end_bucket_index,
-            "product_demands": prod_demand,
-            "consumable_demands": cons_demand,
-        }
+        return _OrderBucket(
+            start_index=start_bucket_index,
+            end_index=end_bucket_index,
+            product_demands=prod_demand,
+            consumable_demands=cons_demand,
+        )
 
     def _process_orders(self) -> None:
         prod_reg = ProductReg()
