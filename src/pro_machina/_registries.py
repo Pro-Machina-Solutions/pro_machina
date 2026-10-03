@@ -1,89 +1,96 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from .exceptions import ProductError, UnitError
+from .exceptions import ConsumableError, ProductError
 from .util import Singleton
 
 if TYPE_CHECKING:
-    from .measures import CustomUnit, SizedDimension, UnitID, UnitName
+    from .businesses import Customer, CustomerID, Supplier, SupplierID
+    from .measures import CustomUnit, UnitID, UnitName
     from .problem.consumables import ConsID, Consumable
     from .problem.products import ProdID, ProdName, _Product
-    from .suppliers import Supplier, SupplierID
 
 
 class UnitReg(metaclass=Singleton):
+    """Index of every CustomUnit, for lookup by id/name (e.g. serialising).
+
+    It holds no sizing data - that lives on each CustomUnit - so nothing
+    needs to reach in here to work out quantities.
+    """
+
     def __init__(self) -> None:
-        self.units: dict[CustomUnit, dict[int, SizedDimension]] = defaultdict(
-            dict
-        )
-        self._item_unit_id_to_base: dict[
-            ProdID | ConsID, dict[UnitID, Decimal]
-        ] = defaultdict(dict)
-        self._item_unit_name_to_base: dict[
-            ProdID | ConsID, dict[UnitName, Decimal]
-        ] = defaultdict(dict)
+        self._by_id: dict[UnitID, CustomUnit] = {}
+        self._by_name: dict[UnitName, CustomUnit] = {}
 
-    def add(
-        self,
-        unit: CustomUnit,
-        item: _Product | Consumable,
-        qty: SizedDimension,
-    ) -> None:
-        self.units[unit][item._id] = qty
+    def add(self, unit: CustomUnit) -> None:
+        self._by_id[unit._id] = unit
+        self._by_name[unit.name] = unit
 
-        self._item_unit_id_to_base[item._id][unit._id] = qty._base_qty
-        self._item_unit_name_to_base[item._id][unit.name] = qty._base_qty
+    def get_by_id(self, unit_id: UnitID) -> CustomUnit:
+        return self._by_id[unit_id]
 
-    def get_measure(
-        self, unit: CustomUnit, item: _Product | Consumable
-    ) -> SizedDimension:
-        if self.units.get(unit) is None:
-            raise UnitError(f"Unit: {unit.name} has not been registered")
-
-        if self.units[unit].get(item._id) is None:
-            raise UnitError(
-                f"Unit: {unit.name} has not been sized for {item.name}"
-            )
-        return self.units[unit][item._id]
+    def get_by_name(self, name: UnitName) -> CustomUnit:
+        return self._by_name[name]
 
 
 class ConsumableReg(metaclass=Singleton):
     def __init__(self) -> None:
-        self._by_name: dict[tuple[str, str | None], Consumable] = {}
-        self._by_id: dict[ConsID, Consumable] = {}
-
-    def add(self, cons: Consumable) -> None:
-        self._by_name[(cons.name, cons.code)] = cons
-        self._by_id[cons._id] = cons
+        self.cons_by_name: dict[tuple[str, str | None], Consumable] = {}
+        self.cons_by_id: dict[ConsID, Consumable] = {}
 
     def contains(self, cons: Consumable) -> bool:
-        return cons._id in self._by_id
+        return cons._id in self.cons_by_id
+
+    def add(self, cons: Consumable) -> None:
+        if self.contains(cons):
+            raise ConsumableError("Cannot register same Consumable twice.")
+        self.cons_by_name[(cons.name, cons.code)] = cons
+        self.cons_by_id[cons._id] = cons
 
     def get_by_id(self, cons_id: ConsID) -> Consumable:
-        return self._by_id[cons_id]
+        rtn = self.cons_by_id.get(cons_id)
+        if rtn is None:
+            raise ValueError("Consumable ID not recognised.")
+        return rtn
+
+    def get_by_name(self, name: str, code: str | None = None) -> Consumable:
+        rtn = self.cons_by_name.get((name, code))
+        if rtn is None:
+            raise ValueError("Consumable name not recognised.")
+        return rtn
 
 
 class ProductReg(metaclass=Singleton):
     def __init__(self) -> None:
-        self.products_by_id: dict[ProdID, _Product] = {}
-        self.products_by_name: dict[tuple[ProdName, str | None], _Product] = {}
+        self.prods_by_id: dict[ProdID, _Product] = {}
+        self.prods_by_name: dict[tuple[ProdName, str | None], _Product] = {}
 
     def contains(self, product: _Product) -> bool:
-        return product._id in self.products_by_id
+        return product._id in self.prods_by_id
 
     def add(self, product: _Product) -> None:
         if self.contains(product):
             raise ProductError("Cannot add the product twice to registry")
-        elif (product.name, product.code) in self.products_by_name:
+        elif (product.name, product.code) in self.prods_by_name:
             raise ProductError(
                 "Name and code combinations for products must be unique"
             )
         else:
-            self.products_by_id[product._id] = product
-            self.products_by_name[(product.name, product.code)] = product
+            self.prods_by_id[product._id] = product
+            self.prods_by_name[(product.name, product.code)] = product
+
+    def get_by_id(self, prod_id: ProdID) -> _Product:
+        rtn = self.prods_by_id.get(prod_id)
+        if rtn is None:
+            raise ValueError("Product ID not recognised.")
+        return rtn
+
+    def get_by_name(self, name: ProdName, code: str | None = None) -> _Product:
+        rtn = self.prods_by_name.get((name, code))
+        if rtn is None:
+            raise ValueError("Product name not recognised.")
+        return rtn
 
 
 class ProductGroupReg(metaclass=Singleton):
@@ -118,6 +125,25 @@ class SupplierReg(metaclass=Singleton):
         return self._by_id[sup_id]
 
     def get_by_name(self, name, code) -> Supplier:
+        return self._by_name[(name, code)]
+
+
+class CustomerReg(metaclass=Singleton):
+    def __init__(self) -> None:
+        self._by_name: dict[tuple[str, str | None], Customer] = {}
+        self._by_id: dict[CustomerID, Customer] = {}
+
+    def add(self, cust: Customer) -> None:
+        self._by_name[(cust.name, cust.code)] = cust
+        self._by_id[cust._id] = cust
+
+    def contains(self, cust: Customer) -> bool:
+        return cust._id in self._by_id
+
+    def get_by_id(self, cust_id: CustomerID) -> Customer:
+        return self._by_id[cust_id]
+
+    def get_by_name(self, name, code) -> Customer:
         return self._by_name[(name, code)]
 
 

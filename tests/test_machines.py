@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from pro_machina._registries import UnitReg
 from pro_machina.durations import Hours, Mins
 from pro_machina.exceptions import (
     MachineError,
@@ -23,7 +22,6 @@ from pro_machina.problem import (
 from pro_machina.problem._constraints import ConstraintLevel
 from pro_machina.problem.hard_constraints import MinProductionTime
 from pro_machina.util import (
-    Singleton,
     as_day_end,
     as_day_start,
     get_bucket_index,
@@ -167,15 +165,11 @@ def test_shift_productivity_dated_shift_only_affects_its_window(
     productivity = cont_machine._build_shift_productivity(base_problem)
 
     start_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_start("2026-03-03"),
     )
     end_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_end("2026-03-05"),
     )
 
@@ -204,15 +198,11 @@ def test_shift_productivity_later_dated_shift_overrides_only_its_window(
     overridden = cont_machine._build_shift_productivity(base_problem)
 
     start_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_start("2026-03-03"),
     )
     end_bucket = get_bucket_index(
-        base_problem._start,
-        base_problem._end,
-        base_problem.config.timebucket,
+        base_problem,
         as_day_end("2026-03-04"),
     )
 
@@ -338,7 +328,7 @@ def test_add_product_inherits_product_hard_constraints_as_deep_copy(
 def test_add_product_incompatible_base_units_raises_unit_error(cont_machine):
     prod = ContinuousProduct("AP Incompatible", base_dimension=BaseUnit)
 
-    with pytest.raises(UnitError, match="Production units of Litre"):
+    with pytest.raises(UnitError, match="Production units for"):
         cont_machine.add_product(prod, run_rate=Litre(10), per=Mins(1))
 
 
@@ -352,54 +342,35 @@ def test_add_product_incompatible_default_run_rate_raises_unit_error():
         "AP Incompatible Default Prod", base_dimension=BaseUnit
     )
 
-    with pytest.raises(UnitError, match="Production units of Litre"):
+    with pytest.raises(UnitError, match="Production units for"):
         mach.add_product(prod)
 
 
 def test_add_product_compatible_custom_unit_works(cont_machine):
-    Case = CustomUnit("AP Case", dimension=BaseUnit)
+    Case = CustomUnit("AP Case", base_dimension=BaseUnit)
     prod = ContinuousProduct("AP Custom Unit Prod", base_dimension=BaseUnit)
     Case.size_for(prod, Unit(10))
-    run_rate = Case(2)
 
-    cont_machine.add_product(prod, run_rate=run_rate, per=Mins(1))
+    cont_machine.add_product(prod, run_rate=Case(2), per=Mins(1))
 
-    assert cont_machine._products[prod._id]["run_rate"] is run_rate
+    # Stored resolved: 2 cases of 10 units
+    assert cont_machine._products[prod._id]["run_rate"]._base_qty == 20
 
 
-def test_add_product_custom_unit_not_registered_raises_unit_error(
-    cont_machine,
-):
-    # UnitReg is a process-wide Singleton, and CustomUnit's __eq__ /
-    # __hash__ are based purely on the class name rather than identity or
-    # `.name` (see measures.py), so every CustomUnit that has ever been
-    # registered - by any test, for any name - shares the same entry in the
-    # registry. Reset the singleton so "has not been registered" is
-    # reachable here regardless of what other tests already registered.
-    Singleton._instances.pop(UnitReg, None)
+def test_add_product_custom_unit_not_sized_raises_unit_error(cont_machine):
+    Case = CustomUnit("AP Unsized Case", base_dimension=BaseUnit)
+    prod = ContinuousProduct("AP Unsized Prod", base_dimension=BaseUnit)
 
-    Case = CustomUnit("AP Unregistered Case", dimension=BaseUnit)
-    prod = ContinuousProduct("AP Unregistered Prod", base_dimension=BaseUnit)
-
-    with pytest.raises(UnitError, match="has not been registered"):
+    with pytest.raises(UnitError, match="has not been sized for"):
         cont_machine.add_product(prod, run_rate=Case(1), per=Mins(1))
 
 
-def test_add_product_custom_unit_incompatible_with_product_raises_unit_error(
-    cont_machine,
-):
-    # `CustomUnit.size_for()` itself enforces compatibility at registration
-    # time, so the only way to reach the incompatibility check inside
-    # `add_product()` is to register the sizing directly against the
-    # registry, bypassing that guard.
-    Case = CustomUnit("AP Mismatched Case", dimension=BaseUnit)
+def test_custom_unit_cannot_be_sized_incompatibly_with_product():
+    Case = CustomUnit("AP Mismatched Case")
     prod = ContinuousProduct("AP Mismatched Prod", base_dimension=BaseUnit)
-    UnitReg().add(Case, prod, Litre(10))
 
-    with pytest.raises(
-        UnitError, match="Production units of AP Mismatched Case"
-    ):
-        cont_machine.add_product(prod, run_rate=Case(1), per=Mins(1))
+    with pytest.raises(UnitError, match="invalid measure"):
+        Case.size_for(prod, Litre(10))
 
 
 # ===========================================================================
@@ -580,7 +551,7 @@ def test_add_hard_constraint_does_not_overwrite_existing_machine(
 def test_machine_group_init_empty():
     group = MachineGroup("TM Group Empty")
 
-    assert group._machines == []
+    assert group._machines == {}
 
 
 def test_machine_group_init_with_machines():
@@ -589,7 +560,7 @@ def test_machine_group_init_with_machines():
 
     group = MachineGroup("TM Group Init", [mach_a, mach_b])
 
-    assert set(group._machines) == {mach_a, mach_b}
+    assert set(group._machines.values()) == {mach_a, mach_b}
 
 
 def test_machine_group_init_wrong_type_raises_type_error():
@@ -608,7 +579,7 @@ def test_machine_group_add_machine_single_and_list():
     group.add_machines(mach_a)
     group.add_machines([mach_b, mach_c])
 
-    assert set(group._machines) == {mach_a, mach_b, mach_c}
+    assert set(group._machines.values()) == {mach_a, mach_b, mach_c}
 
 
 def test_machine_group_add_machine_duplicate_throws():
@@ -621,8 +592,8 @@ def test_machine_group_add_machine_duplicate_throws():
     ):
         group.add_machines(mach)
 
-    # The duplicate is deduplicated away.
-    assert group._machines == [mach]
+    # The duplicate is rejected, leaving the original in place.
+    assert list(group._machines.values()) == [mach]
 
 
 def test_machine_group_add_machine_wrong_type_raises_type_error():

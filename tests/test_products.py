@@ -209,7 +209,7 @@ def test_add_component_duplicate_subproduct_raises_product_error():
 
 def test_add_component_custom_unit_computes_correct_ratio():
     sugar = Consumable("TP Cons Custom Unit", base_dimension=Weight)
-    Bag = CustomUnit("TP Bag", dimension=Weight)
+    Bag = CustomUnit("TP Bag", base_dimension=Weight)
     Bag.size_for(sugar, Kilo("0.25"))
 
     prod = ContinuousProduct("TP Prod Custom Unit", base_dimension=Weight)
@@ -219,9 +219,50 @@ def test_add_component_custom_unit_computes_correct_ratio():
     assert prod._bom_consumables == {sugar._id: Decimal("0.50")}
 
 
+def test_add_component_bare_number_raises_type_error():
+    cons = Consumable("TP Cons Bare Number", base_dimension=Weight)
+    prod = ContinuousProduct("TP Prod Bare Number", base_dimension=Weight)
+
+    with pytest.raises(TypeError, match=r"such as Unit\(4\) or Kilo\(4\)"):
+        prod.add_component(cons, qty=4, per=Kilo(1))
+
+    with pytest.raises(TypeError, match="Expected a measure"):
+        prod.add_component(cons, qty=Kilo(1), per=2)
+
+
+def test_add_component_uncalled_custom_unit_raises_type_error():
+    cons = Consumable("TP Cons Uncalled", base_dimension=Weight)
+    Sack = CustomUnit("TP Sack", base_dimension=Weight)
+    Sack.size_for(cons, Kilo(25))
+    prod = ContinuousProduct("TP Prod Uncalled", base_dimension=Weight)
+
+    with pytest.raises(TypeError, match=r"such as TP Sack\(1\)"):
+        prod.add_component(cons, qty=Sack, per=Kilo(1))
+
+
+def test_add_component_custom_unit_on_per_side():
+    sugar = Consumable("TP Cons Per Side", base_dimension=Weight)
+    prod = ContinuousProduct("TP Prod Per Side", base_dimension=Weight)
+    Tub = CustomUnit("TP Tub", base_dimension=Weight)
+    Tub.size_for(prod, Kilo(2))
+
+    prod.add_component(sugar, qty=Kilo(1), per=Tub(1))
+
+    # 1kg sugar per 2kg tub of product -> 0.5
+    assert prod._bom_consumables == {sugar._id: Decimal("0.5")}
+
+
+def test_size_for_bare_number_raises_type_error():
+    cons = Consumable("TP Cons Size Bare", base_dimension=Weight)
+    Crate = CustomUnit("TP Crate", base_dimension=Weight)
+
+    with pytest.raises(TypeError, match="Expected a measure"):
+        Crate.size_for(cons, 12)
+
+
 def test_add_component_custom_unit_not_sized_raises_unit_error():
     sugar = Consumable("TP Cons Custom Unsized", base_dimension=Weight)
-    Box = CustomUnit("TP Box", dimension=Weight)
+    Box = CustomUnit("TP Box", base_dimension=Weight)
     prod = ContinuousProduct("TP Prod Custom Unsized", base_dimension=Weight)
 
     with pytest.raises(UnitError, match="has not been sized for"):

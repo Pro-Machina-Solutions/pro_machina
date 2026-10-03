@@ -18,6 +18,10 @@ class ProductError(ProblemError):
     """Incorrectly specified parameter for a product"""
 
 
+class ConsumableError(ProblemError):
+    """Incorrectly specified parameter for a consumable"""
+
+
 class MachineError(ProblemError):
     """Incorrectly specified parameter for a machine"""
 

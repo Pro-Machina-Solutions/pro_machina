@@ -9,10 +9,10 @@ from .exceptions import UnitError
 from .measures import SizedDimension
 
 if TYPE_CHECKING:
+    from .businesses import Supplier
     from .problem.consumables import Consumable
     from .problem.machines import _Machine
     from .problem.products import _Product
-    from .suppliers import Supplier
 
 
 class CurrencyRefresh(StrEnum):
@@ -396,6 +396,26 @@ class PurchaseCost:
                 )
 
 
+class OrderValue(_Capital):
+    def __init__(
+        self,
+        gross_value: float | str | Decimal | None = None,
+        net_value: float | str | Decimal | None = None,
+        currency: Currency = Currency.BASE,
+    ):
+        if gross_value is None and net_value is None:
+            raise ValueError("Either the gross value or net value must be set")
+        if gross_value is None:
+            gross_value = 0
+        self.gross_value = Decimal(gross_value)
+
+        if net_value is None:
+            net_value = Decimal(0)
+        self.net_value = Decimal(0)
+
+        self.currency = currency
+
+
 class OrderlineValue(_Capital):
     def __init__(
         self,
@@ -414,7 +434,6 @@ class SaleValue(_Capital):
     def __init__(
         self,
         per: SizedDimension,
-        product: _Product,
         gross_value: float | str | Decimal | None = None,
         net_value: float | str | Decimal | None = None,
         currency: Currency = Currency.BASE,
@@ -423,7 +442,6 @@ class SaleValue(_Capital):
             gross_value=gross_value, net_value=net_value, currency=currency
         )
 
-        self.product = product
         self.per = per
 
 

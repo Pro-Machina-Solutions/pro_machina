@@ -4,9 +4,9 @@ from itertools import count
 from typing import Any, NewType
 
 from .._registries import ConsumableReg
+from ..businesses import SupplierID
 from ..costs import PriceBand, PurchaseCost
 from ..measures import UnsizedDimension
-from ..suppliers import SupplierID
 
 ConsID = NewType("ConsID", int)
 
@@ -110,7 +110,7 @@ class Consumable:
             All consumables defined so far
         """
         reg = ConsumableReg()
-        return list(reg._by_id.values())
+        return list(reg.cons_by_id.values())
 
 
 __all__ = ["Consumable"]
