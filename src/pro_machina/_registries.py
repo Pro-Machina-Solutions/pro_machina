@@ -54,6 +54,12 @@ class ConsumableReg(metaclass=Singleton):
             raise ValueError("Consumable ID not recognised.")
         return rtn
 
+    def get_by_name(self, name: str, code: str | None = None) -> Consumable:
+        rtn = self.cons_by_name.get((name, code))
+        if rtn is None:
+            raise ValueError("Consumable name not recognised.")
+        return rtn
+
 
 class ProductReg(metaclass=Singleton):
     def __init__(self) -> None:
@@ -78,6 +84,12 @@ class ProductReg(metaclass=Singleton):
         rtn = self.prods_by_id.get(prod_id)
         if rtn is None:
             raise ValueError("Product ID not recognised.")
+        return rtn
+
+    def get_by_name(self, name: ProdName, code: str | None = None) -> _Product:
+        rtn = self.prods_by_name.get((name, code))
+        if rtn is None:
+            raise ValueError("Product name not recognised.")
         return rtn
 
 

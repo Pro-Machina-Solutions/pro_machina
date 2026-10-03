@@ -11,7 +11,6 @@ from .products import ProdID, ProdSubtype, ProductGroup
 if TYPE_CHECKING:
     from ._constraints import HardConstraint, SoftConstraint
     from .problem import Problem
-    # from .products import ProdID, ProdSubtype, ProductGroup
 
 import numpy as np
 import numpy.typing as npt
@@ -210,9 +209,9 @@ class MadeToStock:
 
 
 class _MTSCycle(TypedDict):
-    start: dt.datetime
-    end: dt.datetime
-    proportion: float
+    start_index: int
+    end_index: int
+    proportion: Decimal
 
 
 class DemandForecast:
@@ -399,6 +398,8 @@ class DemandForecast:
         else:
             end_date = mts.end_date
 
+        # cycle_seconds = mts.freq.to_seconds()
+        # cycle_buckets = int(cycle_seconds / self.timebucket.to_seconds())
         cycle_demands: list[_MTSCycle] = []
 
         if mts.freq is None:
@@ -423,9 +424,13 @@ class DemandForecast:
 
             cycle_demands.append(
                 _MTSCycle(
-                    start=max(self.prob_start, mts.start_date),
-                    end=min(self.prob_end, end_date),
-                    proportion=proportion,
+                    start_index=get_bucket_index(
+                        self.problem, max(self.prob_start, mts.start_date)
+                    ),
+                    end_index=get_bucket_index(
+                        self.problem, min(self.prob_end, end_date)
+                    ),
+                    proportion=Decimal(proportion),
                 )
             )
             return cycle_demands
@@ -444,17 +449,22 @@ class DemandForecast:
             total_start_discrep_secs = (
                 self.prob_start - mts.start_date
             ).total_seconds()
-
+            print("discrep secs", total_start_discrep_secs)
             part_cycle_secs = total_start_discrep_secs % cycle_seconds
+            print("part cycle secs", part_cycle_secs)
             remaining_cycle_secs = cycle_seconds - part_cycle_secs
+            print("remaining cycle secs", remaining_cycle_secs)
             cycle_demands.append(
                 _MTSCycle(
-                    start=self.prob_start,
-                    end=(
-                        self.prob_start
-                        + dt.timedelta(seconds=remaining_cycle_secs)
+                    start_index=get_bucket_index(
+                        self.problem, self.prob_start
                     ),
-                    proportion=remaining_cycle_secs / cycle_seconds,
+                    end_index=get_bucket_index(
+                        self.problem,
+                        self.prob_start
+                        + dt.timedelta(seconds=remaining_cycle_secs),
+                    ),
+                    proportion=Decimal(remaining_cycle_secs / cycle_seconds),
                 )
             )
             rolling_date = self.prob_start + dt.timedelta(
@@ -470,7 +480,13 @@ class DemandForecast:
             # realised at the end of the first cycle.
             end = mts.start_date + dt.timedelta(seconds=cycle_seconds)
             cycle_demands.append(
-                _MTSCycle(start=self.prob_start, end=end, proportion=1.0)
+                _MTSCycle(
+                    start_index=get_bucket_index(
+                        self.problem, self.prob_start
+                    ),
+                    end_index=get_bucket_index(self.problem, end),
+                    proportion=Decimal("1.0"),
+                )
             )
             rolling_date = end
 
@@ -486,9 +502,9 @@ class DemandForecast:
 
             cycle_demands.append(
                 _MTSCycle(
-                    start=mts.start_date,
-                    end=self.prob_end,
-                    proportion=proportion,
+                    start_index=get_bucket_index(self.problem, mts.start_date),
+                    end_index=get_bucket_index(self.problem, self.prob_end),
+                    proportion=Decimal(proportion),
                 )
             )
             # We're done here; can't be another cycle
@@ -500,7 +516,11 @@ class DemandForecast:
                 cycle_end = rolling_date + dt.timedelta(seconds=cycle_seconds)
                 cycle_demands.append(
                     _MTSCycle(
-                        start=rolling_date, end=cycle_end, proportion=1.0
+                        start_index=get_bucket_index(
+                            self.problem, rolling_date
+                        ),
+                        end_index=get_bucket_index(self.problem, cycle_end),
+                        proportion=Decimal("1.0"),
                     )
                 )
                 rolling_date = cycle_end
@@ -513,30 +533,69 @@ class DemandForecast:
             ).total_seconds() / cycle_seconds
             cycle_demands.append(
                 _MTSCycle(
-                    start=rolling_date, end=end_date, proportion=missing_prop
+                    start_index=get_bucket_index(self.problem, rolling_date),
+                    end_index=get_bucket_index(self.problem, end_date),
+                    proportion=Decimal(missing_prop),
                 )
             )
 
         return cycle_demands
 
     def _process_mts(self) -> None:
+        prod_reg = ProductReg()
+
         for mts in self.mts:
+            # First we need to resolve the units for all products in MTS
+            resolved_qtys: dict[ProdID, Decimal] = {}
+
+            if isinstance(mts.product, ProdSubtype):
+                tot_demand = resolve_qty(mts.qty, mts.product)._base_qty
+                resolved_qtys[mts.product._id] = tot_demand
+            else:
+                # Need to cycle through all products in group
+                for product in mts.product._products.values():
+                    tot_demand = resolve_qty(mts.qty, product)._base_qty
+                    resolved_qtys[product._id] = tot_demand
+
+            # Now go through the individual cycles
             cycles = self._decipher_mts_cycle(mts)
 
-            mts_prod_demands: dict[ProdID, Decimal] = {}
-            if isinstance(mts.product, ProdSubtype):
-                mts_prod_demands[mts.product._id] = resolve_qty(
-                    mts.qty, mts.product
-                )._base_qty
-            else:
-                for product in mts.product._products.values():
-                    mts_prod_demands[product._id] = resolve_qty(
-                        mts.qty, product
-                    )._base_qty
+            if cycles is None:
+                # Outside of problem date range
+                continue
+
+            for cycle in cycles:
+                print("START", cycle["start_index"])
+                print("END", cycle["end_index"])
+                print("PROP", cycle["proportion"])
+                for prod_id, tot_demand in resolved_qtys.items():
+                    problem_demand = tot_demand * cycle["proportion"]
+                    buckets = cycle["end_index"] - cycle["start_index"]
+                    per_bucket = problem_demand / buckets
+                    if prod_id not in self._prod_demand_buckets:
+                        self._prod_demand_buckets[prod_id] = (
+                            self.null_demand.copy()
+                        )
+
+                    self._prod_demand_buckets[prod_id][
+                        cycle["start_index"] : cycle["end_index"]
+                    ] += float(per_bucket)
+
+                    # Now account for consumables
+                    _prod = prod_reg.get_by_id(prod_id)
+                    for cons_id, demand in _prod._bom_consumables.items():
+                        if cons_id not in self._cons_demand_buckets:
+                            self._cons_demand_buckets[cons_id] = (
+                                self.null_demand.copy()
+                            )
+                        self._cons_demand_buckets[cons_id][
+                            cycle["start_index"] : cycle["end_index"]
+                        ] += float(per_bucket * demand)
 
     def _build(self, problem: Problem) -> None:
         self._preprocessing(problem)
         self._process_orders()
+        self._process_mts()
 
 
 __all__ = ["DemandForecast", "MadeToStock", "Order", "Orderline"]
