@@ -3,7 +3,7 @@ from __future__ import annotations
 from itertools import count
 from typing import TYPE_CHECKING, NewType
 
-from .measures import Quantity
+from .measures import Quantity, resolve_qty
 
 if TYPE_CHECKING:
     from .problem.machines import MachID, MachineSubtype
@@ -132,13 +132,13 @@ class SizedStorage(_Location):
         self.grouped_product_limits: dict[ProdGroupID, Quantity] = {}
 
     def add_single_product_limit(self, product: ProdSubtype, limit: Quantity):
-        self.single_product_limits[product._id] = limit.resolve(product)
+        self.single_product_limits[product._id] = resolve_qty(limit, product)
 
     def add_product_group_limit(self, group: ProductGroup, limit: Quantity):
         # Validate now (raises if Pallet isn't sized for a member), but keep
         # the unresolved quantity: it means a different amount per product.
         for prod in group._products.values():
-            limit.resolve(prod)
+            resolve_qty(limit, prod)
         self.grouped_product_limits[group._id] = limit
 
     def _check_capacity(self):

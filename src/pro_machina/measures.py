@@ -43,6 +43,29 @@ class Quantity:
         raise NotImplementedError
 
 
+def resolve_qty(qty: object, item: _Product | Consumable) -> SizedDimension:
+    """Resolve any quantity against ``item``: the single entry point used by
+    every public API that accepts a quantity.
+
+    Gives a clear TypeError for things that aren't measures at all, such as a
+    bare number (``4`` instead of ``Unit(4)``) or an uncalled CustomUnit
+    (``Bag`` instead of ``Bag(1)``).
+    """
+    if isinstance(qty, Quantity):
+        return qty.resolve(item)
+
+    if isinstance(qty, CustomUnit):
+        hint = f"{qty.name}(1)"
+    elif isinstance(qty, (int, float, Decimal, str)):
+        hint = f"Unit({qty}) or Kilo({qty})"
+    else:
+        hint = "Unit(4) or Kilo(4)"
+    raise TypeError(
+        f"Expected a measure for {item.name} such as {hint}, got"
+        f" {type(qty).__name__}: {qty!r}"
+    )
+
+
 class SizedDimension(Quantity):
     name: Callable[[], str]
     is_compatible: Callable[[SizedDimension], bool]
@@ -509,13 +532,16 @@ class CustomUnit:
     def size_for(
         self, item: _Product | Consumable, size: SizedDimension
     ) -> None:
+        # Validates it's a measure and compatible with the item first
+        sized = resolve_qty(size, item)
+
         dim = self.base_dimension
-        if dim is not None and not dim.is_compatible(size):
+        if dim is not None and not dim.is_compatible(sized):
             raise UnitError(
                 f"{self.name} must be sized as {dim.__name__},"
-                f" not {size.name()}"
+                f" not {sized.name()}"
             )
-        self._sizes[item._id] = size.resolve(item)  # checks item compatibility
+        self._sizes[item._id] = sized
 
     def size_of(self, item: _Product | Consumable) -> SizedDimension:
         """The size of ONE of this unit when it holds ``item``."""
@@ -590,6 +616,7 @@ __all__ = [
     "Ounce",
     "Pound",
     "Quantity",
+    "resolve_qty",
     "Sq_Centimetre",
     "Sq_Foot",
     "Sq_Inch",

@@ -13,7 +13,27 @@ from pro_machina.problem import (
     ShiftBuilder,
     ShiftPattern,
 )
-from pro_machina.util import as_day_end, as_day_start, parse_datetime
+from pro_machina.util import (
+    Singleton,
+    as_day_end,
+    as_day_start,
+    parse_datetime,
+)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def fresh_registries():
+    """Give every test empty registries.
+
+    The registries (ProductReg, ConsumableReg, UnitReg, ...) are process-wide
+    singletons, so without this a product name used in one test clashes with
+    the same name in another. Dropping the cached instances means the next
+    ProductReg() etc. builds a new, empty one. Defined first so it runs
+    before any other autouse fixture.
+    """
+    Singleton._instances.clear()
+    yield
+    Singleton._instances.clear()
 
 
 @pytest.fixture(scope="function", autouse=True)

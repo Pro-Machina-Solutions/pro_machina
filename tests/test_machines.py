@@ -551,7 +551,7 @@ def test_add_hard_constraint_does_not_overwrite_existing_machine(
 def test_machine_group_init_empty():
     group = MachineGroup("TM Group Empty")
 
-    assert group._machines == []
+    assert group._machines == {}
 
 
 def test_machine_group_init_with_machines():
@@ -560,7 +560,7 @@ def test_machine_group_init_with_machines():
 
     group = MachineGroup("TM Group Init", [mach_a, mach_b])
 
-    assert set(group._machines) == {mach_a, mach_b}
+    assert set(group._machines.values()) == {mach_a, mach_b}
 
 
 def test_machine_group_init_wrong_type_raises_type_error():
@@ -579,7 +579,7 @@ def test_machine_group_add_machine_single_and_list():
     group.add_machines(mach_a)
     group.add_machines([mach_b, mach_c])
 
-    assert set(group._machines) == {mach_a, mach_b, mach_c}
+    assert set(group._machines.values()) == {mach_a, mach_b, mach_c}
 
 
 def test_machine_group_add_machine_duplicate_throws():
@@ -592,8 +592,8 @@ def test_machine_group_add_machine_duplicate_throws():
     ):
         group.add_machines(mach)
 
-    # The duplicate is deduplicated away.
-    assert group._machines == [mach]
+    # The duplicate is rejected, leaving the original in place.
+    assert list(group._machines.values()) == [mach]
 
 
 def test_machine_group_add_machine_wrong_type_raises_type_error():

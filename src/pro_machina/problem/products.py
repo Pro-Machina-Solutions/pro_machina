@@ -19,6 +19,12 @@ import pro_machina
 
 if TYPE_CHECKING:
     from ..costs import ProductionCost, SaleValue
+from pro_machina.problem._constraints import (
+    ConstraintLevel,
+    HardConstraint,
+    SoftConstraint,
+)
+
 from .._registries import ProductReg
 from ..durations import Duration, Secs
 from ..exceptions import ProductError
@@ -26,13 +32,9 @@ from ..measures import (
     Quantity,
     SizedDimension,
     UnsizedDimension,
+    resolve_qty,
 )
 from .consumables import ConsID, Consumable
-from .problem import (
-    ConstraintLevel,
-    HardConstraint,
-    SoftConstraint,
-)
 
 
 class _ComponentQty(TypedDict):
@@ -143,8 +145,8 @@ class _Product:
 
         # Both sides are resolved against the item they describe; after this
         # there is no difference between Bottle(2) and Fl_Ounce(24).
-        qty_ = qty.resolve(component)
-        per_ = per.resolve(self)
+        qty_ = resolve_qty(qty, component)
+        per_ = resolve_qty(per, self)
 
         amt = qty_._base_qty / per_._base_qty
         unit = qty_.get_base().symbol

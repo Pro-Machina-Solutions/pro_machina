@@ -16,7 +16,7 @@ import numpy as np
 
 from ..durations import Duration
 from ..exceptions import MachineError, ShiftDefinitionError, UnitError
-from ..measures import Quantity, SizedDimension
+from ..measures import Quantity, SizedDimension, resolve_qty
 from ..util import (
     as_day_end,
     as_day_start,
@@ -290,7 +290,7 @@ class ContinuousMachine(_Machine):
 
         # Resolve once: Case(2) and Unit(20) become indistinguishable here
         try:
-            _run_rate = _run_rate.resolve(product)
+            _run_rate = resolve_qty(_run_rate, product)
         except UnitError as e:
             raise UnitError(
                 f"Production units for {self.name} are incompatible with"

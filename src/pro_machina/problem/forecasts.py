@@ -6,10 +6,12 @@ from decimal import Decimal
 from itertools import count
 from typing import TYPE_CHECKING, Any, NewType, TypedDict
 
+from .products import ProdID, ProdSubtype, ProductGroup
+
 if TYPE_CHECKING:
     from ._constraints import HardConstraint, SoftConstraint
     from .problem import Problem
-    from .products import ProdID, ProdSubtype, ProductGroup
+    # from .products import ProdID, ProdSubtype, ProductGroup
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +22,7 @@ from .._registries import ProductReg
 from ..businesses import Customer
 from ..costs import OrderValue
 from ..durations import Duration
-from ..measures import Quantity
+from ..measures import Quantity, resolve_qty
 from ..util import (
     as_day_start,
     get_bucket_index,
@@ -126,7 +128,7 @@ class Orderline:
 
         self._id = next(self._ids)
         self.product = product
-        self.qty = qty.resolve(product)
+        self.qty = resolve_qty(qty, product)
 
 
 class MadeToStock:
@@ -148,15 +150,27 @@ class MadeToStock:
             raise TypeError("Not a valid Product or Product group for MTS.")
 
         self.start_date = as_day_start(start_date)
-        if end_date is not None and freq is None:
+        if freq is None and end_date is None:
             raise ValueError(
-                "Cannot set an end date for MadeToStock without specifying a"
-                " frequency of restocking."
+                "Either a frequency or an end date must be specified for"
+                " MadeToStock"
             )
 
         self.end_date = (
             as_day_start(end_date) if end_date is not None else None
         )
+
+        # Validate now - raises if qty isn't a measure, is incompatible, or
+        # is a CustomUnit not sized for every product - but keep it
+        # unresolved: for a ProductGroup it means a different amount per
+        # product.
+        members = (
+            product._products.values()
+            if isinstance(product, ProductGroup)
+            else [product]
+        )
+        for member in members:
+            resolve_qty(qty, member)
 
         self.qty = qty
         self.product = product
@@ -511,13 +525,13 @@ class DemandForecast:
 
             mts_prod_demands: dict[ProdID, Decimal] = {}
             if isinstance(mts.product, ProdSubtype):
-                mts_prod_demands[mts.product._id] = mts.qty.resolve(
-                    mts.product
+                mts_prod_demands[mts.product._id] = resolve_qty(
+                    mts.qty, mts.product
                 )._base_qty
             else:
                 for product in mts.product._products.values():
-                    mts_prod_demands[product._id] = mts.qty.resolve(
-                        product
+                    mts_prod_demands[product._id] = resolve_qty(
+                        mts.qty, product
                     )._base_qty
 
     def _build(self, problem: Problem) -> None:
