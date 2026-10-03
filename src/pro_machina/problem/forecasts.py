@@ -337,13 +337,21 @@ class DemandForecast:
         cons_demand: dict[ConsID, Decimal] = {}
 
         for prod_id, line in order._lines.items():
+            _prod = prod_reg.get_by_id(prod_id)
             base_qty_per_bucket = line.qty._base_qty / total_order_buckets
             prod_demand[prod_id] = base_qty_per_bucket
 
+            # Account for any subproducts
+            for subprod_id, demand in _prod._bom_products.items():
+                prod_demand[subprod_id] = prod_demand.get(subprod_id, 0) + (
+                    base_qty_per_bucket * demand
+                )
+
             # Now account for consumables
-            _prod = prod_reg.get_by_id(prod_id)
             for cons_id, demand in _prod._bom_consumables.items():
-                cons_demand[cons_id] = base_qty_per_bucket * demand
+                cons_demand[cons_id] = cons_demand.get(cons_id, 0) + (
+                    base_qty_per_bucket * demand
+                )
 
         return {
             "start_index": start_bucket_index,
@@ -367,7 +375,7 @@ class DemandForecast:
                 else:
                     self._prod_demand_buckets[prod_id][
                         res["start_index"] : res["end_index"]
-                    ] += demand
+                    ] += float(demand)
 
             for cons_id, demand in res["consumable_demands"].items():
                 if cons_id not in self._cons_demand_buckets:
@@ -377,7 +385,7 @@ class DemandForecast:
                 else:
                     self._cons_demand_buckets[cons_id][
                         res["start_index"] : res["end_index"]
-                    ] += demand
+                    ] += float(demand)
 
     def _decipher_mts_cycle(self, mts: MadeToStock) -> list[_MTSCycle] | None:
 
@@ -449,11 +457,10 @@ class DemandForecast:
             total_start_discrep_secs = (
                 self.prob_start - mts.start_date
             ).total_seconds()
-            print("discrep secs", total_start_discrep_secs)
+
             part_cycle_secs = total_start_discrep_secs % cycle_seconds
-            print("part cycle secs", part_cycle_secs)
             remaining_cycle_secs = cycle_seconds - part_cycle_secs
-            print("remaining cycle secs", remaining_cycle_secs)
+
             cycle_demands.append(
                 _MTSCycle(
                     start_index=get_bucket_index(
@@ -565,9 +572,6 @@ class DemandForecast:
                 continue
 
             for cycle in cycles:
-                print("START", cycle["start_index"])
-                print("END", cycle["end_index"])
-                print("PROP", cycle["proportion"])
                 for prod_id, tot_demand in resolved_qtys.items():
                     problem_demand = tot_demand * cycle["proportion"]
                     buckets = cycle["end_index"] - cycle["start_index"]
@@ -581,8 +585,19 @@ class DemandForecast:
                         cycle["start_index"] : cycle["end_index"]
                     ] += float(per_bucket)
 
-                    # Now account for consumables
                     _prod = prod_reg.get_by_id(prod_id)
+
+                    # Account for any subproducts
+                    for subprod_id, demand in _prod._bom_products.items():
+                        if subprod_id not in self._prod_demand_buckets:
+                            self._prod_demand_buckets[subprod_id] = (
+                                self.null_demand.copy()
+                            )
+                        self._prod_demand_buckets[subprod_id][
+                            cycle["start_index"] : cycle["end_index"]
+                        ] = float(per_bucket * demand)
+
+                    # Now account for consumables
                     for cons_id, demand in _prod._bom_consumables.items():
                         if cons_id not in self._cons_demand_buckets:
                             self._cons_demand_buckets[cons_id] = (
