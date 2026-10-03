@@ -523,24 +523,21 @@ class DemandForecast:
             )
             # We're done here; can't be another cycle
             return cycle_demands
-        else:
-            while (
-                rolling_date + dt.timedelta(seconds=cycle_seconds) <= end_date
-            ):
-                cycle_end = rolling_date + dt.timedelta(seconds=cycle_seconds)
-                cycle_demands.append(
-                    _MTSCycle(
-                        start_index=get_bucket_index(
-                            self.problem, rolling_date
-                        ),
-                        end_index=get_bucket_index(self.problem, cycle_end),
-                        proportion=Decimal("1.0"),
-                    )
+
+        while rolling_date + dt.timedelta(seconds=cycle_seconds) <= end_date:
+            cycle_end = rolling_date + dt.timedelta(seconds=cycle_seconds)
+            cycle_demands.append(
+                _MTSCycle(
+                    start_index=get_bucket_index(self.problem, rolling_date),
+                    end_index=get_bucket_index(self.problem, cycle_end),
+                    proportion=Decimal("1.0"),
                 )
-                rolling_date = cycle_end
+            )
+            rolling_date = cycle_end
 
         # Now see if we need to tie up the end period in case it's a partial
         # cycle
+
         if rolling_date < end_date:
             missing_prop = (
                 rolling_date + dt.timedelta(seconds=cycle_seconds) - end_date
