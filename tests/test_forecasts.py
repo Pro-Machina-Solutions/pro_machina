@@ -2,7 +2,15 @@ import numpy as np
 import pytest
 
 from pro_machina.durations import Weeks
-from pro_machina.measures import BaseUnit, CustomUnit, Kilo, Unit, Weight
+from pro_machina.measures import (
+    BaseUnit,
+    CustomUnit,
+    FluidVolume,
+    Kilo,
+    Litre,
+    Unit,
+    Weight,
+)
 from pro_machina.problem import (
     Consumable,
     ContinuousProduct,
@@ -36,8 +44,11 @@ def test_mts_no_freq_totally_contained():
     Bag.size_for(cons_1, Kilo(1.2))
 
     prod_1 = ContinuousProduct("Prod 1", base_dimension=BaseUnit)
+    subprod = ContinuousProduct("Subprod", base_dimension=FluidVolume)
     prod_1.add_component(cons_1, qty=Bag(3), per=Unit(10_000))
     prod_1.add_component(cons_2, qty=Unit(4), per=Unit(2))
+    prod_1.add_component(subprod, qty=Litre("0.75"), per=Unit(850))
+
     mts = MadeToStock(
         prod_1, qty=Unit(4500), start_date="2026-09-28", end_date="2026-10-02"
     )
@@ -49,6 +60,9 @@ def test_mts_no_freq_totally_contained():
     assert np.isclose(
         forecast._prod_demand_buckets[prod_1._id].sum(),
         4500.0,
+    )
+    assert np.isclose(
+        forecast._prod_demand_buckets[subprod._id].sum(), 3970.58
     )
     assert np.isclose(
         forecast._cons_demand_buckets[cons_1._id].sum(),
@@ -70,8 +84,11 @@ def test_mts_no_freq_cut_early():
     Bag.size_for(cons_1, Kilo(1.2))
 
     prod_1 = ContinuousProduct("Prod 1", base_dimension=BaseUnit)
+    subprod = ContinuousProduct("Subprod", base_dimension=FluidVolume)
     prod_1.add_component(cons_1, qty=Bag(3), per=Unit(10_000))
     prod_1.add_component(cons_2, qty=Unit(4), per=Unit(2))
+    prod_1.add_component(subprod, qty=Litre("0.75"), per=Unit(850))
+
     mts = MadeToStock(
         prod_1, qty=Unit(4500), start_date="2026-09-26", end_date="2026-09-30"
     )
@@ -83,6 +100,9 @@ def test_mts_no_freq_cut_early():
     assert np.isclose(
         forecast._prod_demand_buckets[prod_1._id].sum(),
         2250.0,
+    )
+    assert np.isclose(
+        forecast._prod_demand_buckets[subprod._id].sum(), 1985.29
     )
     assert np.isclose(
         forecast._cons_demand_buckets[cons_1._id].sum(),
@@ -104,8 +124,11 @@ def test_mts_no_freq_cut_late():
     Bag.size_for(cons_1, Kilo(1.2))
 
     prod_1 = ContinuousProduct("Prod 1", base_dimension=BaseUnit)
+    subprod = ContinuousProduct("Subprod", base_dimension=FluidVolume)
     prod_1.add_component(cons_1, qty=Bag(3), per=Unit(10_000))
     prod_1.add_component(cons_2, qty=Unit(4), per=Unit(2))
+    prod_1.add_component(subprod, qty=Litre("0.75"), per=Unit(850))
+
     mts = MadeToStock(
         prod_1, qty=Unit(4500), start_date="2026-09-30", end_date="2026-10-06"
     )
@@ -117,6 +140,9 @@ def test_mts_no_freq_cut_late():
     assert np.isclose(
         forecast._prod_demand_buckets[prod_1._id].sum(),
         3750.0,
+    )
+    assert np.isclose(
+        forecast._prod_demand_buckets[subprod._id].sum(), 3308.817
     )
     assert np.isclose(
         forecast._cons_demand_buckets[cons_1._id].sum(),
@@ -138,8 +164,11 @@ def test_mts_no_freq_cut_early_and_late():
     Bag.size_for(cons_1, Kilo(1.2))
 
     prod_1 = ContinuousProduct("Prod 1", base_dimension=BaseUnit)
+    subprod = ContinuousProduct("Subprod", base_dimension=FluidVolume)
     prod_1.add_component(cons_1, qty=Bag(3), per=Unit(10_000))
     prod_1.add_component(cons_2, qty=Unit(4), per=Unit(2))
+    prod_1.add_component(subprod, qty=Litre("0.75"), per=Unit(850))
+
     mts = MadeToStock(
         prod_1, qty=Unit(4500), start_date="2026-09-26", end_date="2026-10-06"
     )
@@ -151,6 +180,9 @@ def test_mts_no_freq_cut_early_and_late():
     assert np.isclose(
         forecast._prod_demand_buckets[prod_1._id].sum(),
         3150.0,
+    )
+    assert np.isclose(
+        forecast._prod_demand_buckets[subprod._id].sum(), 2779.41
     )
     assert np.isclose(
         forecast._cons_demand_buckets[cons_1._id].sum(),
