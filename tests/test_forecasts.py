@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from pro_machina._registries import ConsumableReg, ProductReg
 from pro_machina.durations import Weeks
 from pro_machina.measures import BaseUnit, CustomUnit, Kilo, Unit, Weight
 from pro_machina.problem import (
@@ -47,19 +46,16 @@ def test_mts_no_freq_totally_contained():
     forecast.add_mts(mts)
     forecast._build(problem=problem)
 
-    preg = ProductReg()
-    creg = ConsumableReg()
-
     assert np.isclose(
-        forecast._prod_demand_buckets[preg.get_by_name("Prod 1")._id].sum(),
+        forecast._prod_demand_buckets[prod_1._id].sum(),
         4500.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 1")._id].sum(),
+        forecast._cons_demand_buckets[cons_1._id].sum(),
         1620.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 2")._id].sum(),
+        forecast._cons_demand_buckets[cons_2._id].sum(),
         9000.0,
     )
 
@@ -84,19 +80,16 @@ def test_mts_no_freq_cut_early():
     forecast.add_mts(mts)
     forecast._build(problem=problem)
 
-    preg = ProductReg()
-    creg = ConsumableReg()
-
     assert np.isclose(
-        forecast._prod_demand_buckets[preg.get_by_name("Prod 1")._id].sum(),
+        forecast._prod_demand_buckets[prod_1._id].sum(),
         2250.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 1")._id].sum(),
+        forecast._cons_demand_buckets[cons_1._id].sum(),
         810.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 2")._id].sum(),
+        forecast._cons_demand_buckets[cons_2._id].sum(),
         4500.0,
     )
 
@@ -121,19 +114,16 @@ def test_mts_no_freq_cut_late():
     forecast.add_mts(mts)
     forecast._build(problem=problem)
 
-    preg = ProductReg()
-    creg = ConsumableReg()
-
     assert np.isclose(
-        forecast._prod_demand_buckets[preg.get_by_name("Prod 1")._id].sum(),
+        forecast._prod_demand_buckets[prod_1._id].sum(),
         3750.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 1")._id].sum(),
+        forecast._cons_demand_buckets[cons_1._id].sum(),
         1350.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 2")._id].sum(),
+        forecast._cons_demand_buckets[cons_2._id].sum(),
         7500.0,
     )
 
@@ -158,18 +148,15 @@ def test_mts_no_freq_cut_early_and_late():
     forecast.add_mts(mts)
     forecast._build(problem=problem)
 
-    preg = ProductReg()
-    creg = ConsumableReg()
-
     assert np.isclose(
-        forecast._prod_demand_buckets[preg.get_by_name("Prod 1")._id].sum(),
+        forecast._prod_demand_buckets[prod_1._id].sum(),
         3150.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 1")._id].sum(),
+        forecast._cons_demand_buckets[cons_1._id].sum(),
         1134.0,
     )
     assert np.isclose(
-        forecast._cons_demand_buckets[creg.get_by_name("Cons 2")._id].sum(),
+        forecast._cons_demand_buckets[cons_2._id].sum(),
         6300.0,
     )
